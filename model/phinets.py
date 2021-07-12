@@ -8,6 +8,19 @@ import torch
 class PhiNetConvBlock(nn.Module):
     """Implements PhiNet's convolutional block"""
     def __init__(self, in_shape, expansion, stride, filters, block_id, has_se, res=True, h_swish=True, k_size=3):
+        """Defines the structure of the PhiNet conv block
+
+        Args:
+            in_shape ([Tuple]): [Input shape, as returned by Tensor.shape]
+            expansion ([Int]): [Expansion coefficient]
+            stride ([Int]): [Stride for conv block]
+            filters ([Int]): [description]
+            block_id ([Int]): [description]
+            has_se (bool): [description]
+            res (bool, optional): [description]. Defaults to True.
+            h_swish (bool, optional): [description]. Defaults to True.
+            k_size (int, optional): [description]. Defaults to 3.
+        """
         super(PhiNetConvBlock, self).__init__()
         self.skip_conn = False
 
