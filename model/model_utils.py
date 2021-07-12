@@ -71,7 +71,7 @@ class DepthwiseConv2d(torch.nn.Conv2d):
         )
 
 class SEBlock(torch.nn.Module):
-    def __init__(self, batch_size, in_channels, out_channels, h_swish=True):
+    def __init__(self, in_channels, out_channels, h_swish=True):
         super(SEBlock, self).__init__()
         
         self.glob_pooling = lambda x: nn.functional.avg_pool2d(x, x.size()[2:])
@@ -106,5 +106,5 @@ class SEBlock(torch.nn.Module):
         x = self.se_conv2(x)
         x = torch.sigmoid(x)
         x = x.expand_as(inp) * inp
-        
+
         return x

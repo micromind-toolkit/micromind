@@ -1,6 +1,5 @@
 from model.model_utils import DepthwiseConv2d, SEBlock, correct_pad
 
-import pytorch_lightning as pl
 import torch.nn as nn
 import torch
 
@@ -25,7 +24,7 @@ class PhiNetConvBlock(nn.Module):
         self.skip_conn = False
 
         self._layers = list()
-        in_channels = in_shape[1]
+        in_channels = in_shape[0]
         # Define activation function
         if h_swish:
             activation = lambda x: x * nn.ReLU6()(x + 3) / 6
@@ -51,7 +50,7 @@ class PhiNetConvBlock(nn.Module):
 
         if stride == 2:
             pad = nn.ZeroPad2d(
-                padding=correct_pad(in_shape[1:], 3),
+                padding=correct_pad(in_shape, 3),
                 )
 
             self._layers += [pad]
@@ -79,7 +78,7 @@ class PhiNetConvBlock(nn.Module):
 
         if has_se:
             num_reduced_filters = max(1, int(in_channels * 0.25))
-            self._layers += [SEBlock(in_shape[0], int(expansion * in_channels), num_reduced_filters, h_swish=h_swish)]
+            self._layers += [SEBlock(int(expansion * in_channels), num_reduced_filters, h_swish=h_swish)]
 
         conv2 = nn.Conv2d(
             in_channels = int(expansion * in_channels),
@@ -114,7 +113,7 @@ class PhiNetConvBlock(nn.Module):
             inp = x
         
         for l in self._layers:
-            print(l, l(x).shape)
+            # print(l, l(x).shape)
             x = l(x)
 
         if self.skip_conn:
