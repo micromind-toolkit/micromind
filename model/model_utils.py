@@ -95,7 +95,7 @@ class SEBlock(torch.nn.Module):
         if h_swish:
             self.activation = lambda x: x * nn.ReLU6()(x + 3) / 6
         else:
-            self.activation = lambda x: torch.min(nn.functional.ReLU(x), 6)
+            self.activation = lambda x: torch.min(nn.functional.relu(x), 6)
 
 
     def forward(self, x):

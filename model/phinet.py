@@ -1,33 +1,12 @@
-from model.model_utils import DepthwiseConv2d, correct_pad
+from model.model_utils import DepthwiseConv2d, correct_pad, get_xpansion_factor
 from model.phinet_convblock import PhiNetConvBlock
 
 import pytorch_lightning as pl
 import torch.nn as nn
 import torch
 
-
 class PhiNet(nn.Module):
-    def __init__(
-        res=96,
-        in_channels=3, 
-        B0=7, 
-        alpha=0.35,
-        beta=1.0,
-        t_zero=6,
-        h_swish=False,
-        squeeze_excite=False, 
-        downsampling_layers=[5,7], 
-        conv5_percent=0,
-        first_conv_stride=2, 
-        first_conv_filters=48, 
-        b1_filters=24, 
-        b2_filters=48,
-        include_top=True,
-        pooling=None,
-        classes=10,
-        residuals=True,
-        input_tensor=None,
-        **kwargs):
+    def __init__(self, res=96, in_channels=3, B0=7, alpha=0.35, beta=1.0, t_zero=6, h_swish=False, squeeze_excite=False, downsampling_layers=[5,7], conv5_percent=0, first_conv_stride=2, first_conv_filters=48, b1_filters=24, b2_filters=48, include_top=True, pooling=None, classes=10, residuals=True,input_tensor=None):
         """Generates PhiNets architecture
 
         Args:
@@ -50,6 +29,7 @@ class PhiNet(nn.Module):
             residuals (bool, optional): [disable residual connections to lower ram usage - residuals]. Defaults to True.
             input_tensor ([type], optional): [description]. Defaults to None.
         """
+        super(PhiNet, self).__init__()
         num_blocks = round(B0)
         input_shape = (round(res), round(res), in_channels)
 
@@ -59,38 +39,37 @@ class PhiNet(nn.Module):
         if h_swish:
             activation = lambda x: x * nn.ReLU6()(x + 3) / 6
         else:
-            activation = lambda x: torch.min(nn.functional.ReLU(x), 6)
+            activation = lambda x: torch.min(nn.functional.relu(x), 6)
         
-        if block_id:
-            # Expand
-            conv1 = nn.Conv2d(
-                in_channels, int(first_conv_filters * alpha),
-                kernel_size=1,
-                padding="same",
-                bias=False,
-                )
-
-            bn1 = nn.BatchNorm2d(
-                int(expansion * in_channels),
-                eps=1e-3,
-                momentum=0.999,
-                )
-            
-            self._layers += [conv1, bn1, activation]
-
         pad = nn.ZeroPad2d(
-            padding=correct_pad(in_shape[1:], 3),
+            padding=correct_pad(input_shape, 3),
             )
 
         self._layers += [pad]
+        
+        # Expand
+        conv1 = nn.Conv2d(
+            in_channels, int(first_conv_filters * alpha),
+            kernel_size=1,
+            padding="same",
+            bias=False,
+            )
+
+        bn1 = nn.BatchNorm2d(
+            int(first_conv_filters * alpha),
+            eps=1e-3,
+            momentum=0.999,
+            )
+        
+        self._layers += [conv1, bn1, activation]
             
         d_mul = 1
-        in_channels_dw = int(expansion * in_channels) if block_id else in_channels
+        in_channels_dw = int(first_conv_filters * alpha)
         out_channels_dw = in_channels_dw * d_mul
         dw1 = DepthwiseConv2d(
             in_channels=in_channels_dw,
             depth_multiplier=d_mul,
-            kernel_size=k_size,
+            kernel_size=3,
             stride=first_conv_stride,
             bias=False,
             padding="valid",
@@ -152,12 +131,12 @@ class PhiNet(nn.Module):
 
         block_id=4
         block_filters=b2_filters
-        downsampled = 0
+        downsampled = 1
         while (num_blocks>=block_id):
             if block_id in downsampling_layers:
                 block_filters*=2
             self._layers += [PhiNetConvBlock(
-                            (int(b2_filters*alpha), res/first_conv_stride/4/(2*downsampled), res/first_conv_stride/4/(2*downsampled)),
+                            (int(b2_filters*alpha), res/first_conv_stride/2/(2*downsampled), res/first_conv_stride/2/(2*downsampled)),
                             filters=int(block_filters*alpha), 
                             stride=(2 if block_id in downsampling_layers else 1),
                             expansion=get_xpansion_factor(t_zero, beta, block_id, num_blocks), 
@@ -209,5 +188,5 @@ class PhiNet(nn.Module):
         for l in self._layers:
             print(l, l(x).shape)
             x = l(x)
-            
+
         return x

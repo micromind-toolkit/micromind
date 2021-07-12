@@ -29,7 +29,7 @@ class PhiNetConvBlock(nn.Module):
         if h_swish:
             activation = lambda x: x * nn.ReLU6()(x + 3) / 6
         else:
-            activation = lambda x: torch.min(nn.functional.ReLU(x), 6)
+            activation = lambda x: torch.min(nn.functional.relu(x), 6)
         
         if block_id:
             # Expand
