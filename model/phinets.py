@@ -9,12 +9,13 @@ class PhiNetConvBlock(nn.Module):
     """Implements PhiNet's convolutional block"""
     def __init__(self, in_shape, expansion, stride, filters, block_id, has_se, res=True, h_swish=True, k_size=3):
         super(PhiNetConvBlock, self).__init__()
+        self.skip_conn = False
 
         self._layers = list()
         in_channels = in_shape[1]
         # Define activation function
         if h_swish:
-            activation = lambda x: x * nn.functional.ReLU6(x + 3) / 6
+            activation = lambda x: x * nn.ReLU6()(x + 3) / 6
         else:
             activation = lambda x: torch.min(nn.functional.ReLU(x), 6)
         
@@ -37,7 +38,7 @@ class PhiNetConvBlock(nn.Module):
 
         if stride == 2:
             pad = nn.ZeroPad2d(
-                padding=correct_pad(in_shape, 3),
+                padding=correct_pad(in_shape[1:], 3),
                 )
 
             self._layers += [pad]
@@ -65,10 +66,10 @@ class PhiNetConvBlock(nn.Module):
 
         if has_se:
             num_reduced_filters = max(1, int(in_channels * 0.25))
-            self._layers += [SEBlock(int(expansion * in_channels), num_reduced_filters, h_swish=h_swish)]
+            self._layers += [SEBlock(in_shape[0], int(expansion * in_channels), num_reduced_filters, h_swish=h_swish)]
 
         conv2 = nn.Conv2d(
-            in_channels = num_reduced_filters,
+            in_channels = int(expansion * in_channels),
             out_channels = filters,
             kernel_size=1,
             padding="same",
@@ -87,7 +88,7 @@ class PhiNetConvBlock(nn.Module):
             self.skip_conn = True
 
     
-    def forward(x):
+    def forward(self, x):
         """Executes PhiNet's convolutional block
 
         Args:
@@ -100,6 +101,7 @@ class PhiNetConvBlock(nn.Module):
             inp = x
         
         for l in self._layers:
+            print(l, l(x).shape)
             x = l(x)
 
         if self.skip_conn:

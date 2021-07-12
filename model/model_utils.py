@@ -22,7 +22,7 @@ def correct_pad(input_shape, kernel_size):
 
     correct = (kernel_size[0] // 2, kernel_size[1] // 2)
 
-    return (correct[1] - adjust[1], correct[1], correct[0], correct[0] - adjust[0])
+    return (correct[1] - adjust[1], correct[1], correct[0] - adjust[0], correct[0])
 
 def preprocess_input(x, **kwargs):
     """Normalise channels between [-1, 1]
@@ -71,10 +71,10 @@ class DepthwiseConv2d(torch.nn.Conv2d):
         )
 
 class SEBlock(torch.nn.Module):
-    def __init__(self, in_channels, out_channels, h_swish=True):
+    def __init__(self, batch_size, in_channels, out_channels, h_swish=True):
         super(SEBlock, self).__init__()
         
-        self.glob_pooling = lambda x: nn.avg_pool2d(x, x.size()[2:])
+        self.glob_pooling = lambda x: nn.functional.avg_pool2d(x, x.size()[2:])
 
         self.se_conv = nn.Conv2d(
             in_channels,
@@ -84,23 +84,27 @@ class SEBlock(torch.nn.Module):
             bias=True,
         )
 
-        sigmoid = lambda x: nn.functional.sigmoid(x)
-        mul = lambda x: x * self.temp
+        self.se_conv2 = nn.Conv2d(
+            out_channels,
+            in_channels,
+            kernel_size=1,
+            bias=False,
+            padding="same"
+        )
 
         if h_swish:
-            self.activation = lambda x: x * nn.functional.ReLU6(x + 3) / 6
+            self.activation = lambda x: x * nn.ReLU6()(x + 3) / 6
         else:
             self.activation = lambda x: torch.min(nn.functional.ReLU(x), 6)
 
 
-    def forward(x):
+    def forward(self, x):
         inp = x
         x = self.glob_pooling(x)
-
-        target_shape = (in_shape[0], int(expansion * in_channels), 1, 1)
-        x = torch.reshape(x, target_shape)
         x = self.se_conv(x)
-        x = torch.nn.functional.sigmoid(x)
         x = self.activation(x)
-
-        return x * inp
+        x = self.se_conv2(x)
+        x = torch.sigmoid(x)
+        x = x.expand_as(inp) * inp
+        
+        return x
