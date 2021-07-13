@@ -1,7 +1,6 @@
 from model.model_utils import DepthwiseConv2d, SeparableConv2d, correct_pad, get_xpansion_factor
 from model.phinet_convblock import PhiNetConvBlock
 
-import pytorch_lightning as pl
 import torch.nn as nn
 import torch
 
@@ -112,26 +111,28 @@ class PhiNet(nn.Module):
 
         block_id = 4
         block_filters = b2_filters
-        downsampled = 1
+        spatial_res = res / first_conv_stride / 4
+        in_channels_next = int(b2_filters * alpha)
         while num_blocks >= block_id:
             if block_id in downsampling_layers:
                 block_filters *= 2
-            self._layers += [PhiNetConvBlock(
-                (int(b2_filters * alpha), res / first_conv_stride / 2 / (2 * downsampled),
-                 res / first_conv_stride / 2 / (2 * downsampled)),
-                filters=int(block_filters * alpha),
-                stride=(2 if block_id in downsampling_layers else 1),
-                expansion=get_xpansion_factor(t_zero, beta, block_id, num_blocks),
-                block_id=block_id,
-                has_se=squeeze_excite,
-                res=residuals,
-                h_swish=h_swish,
-                k_size=(5 if (block_id / num_blocks) > (1 - conv5_percent) else 3))]
+
+            self._layers += [
+                PhiNetConvBlock(
+                    (in_channels_next, spatial_res, spatial_res),
+                    filters=int(block_filters * alpha),
+                    stride=(2 if block_id in downsampling_layers else 1),
+                    expansion=get_xpansion_factor(t_zero, beta, block_id, num_blocks),
+                    block_id=block_id,
+                    has_se=squeeze_excite,
+                    res=residuals,
+                    h_swish=h_swish,
+                    k_size=(5 if (block_id / num_blocks) > (1 - conv5_percent) else 3)
+                    )
+                ]
+            in_channels_next = int(block_filters * alpha)
+            spatial_res = spatial_res / 2 if block_id in downsampling_layers else spatial_res
             block_id += 1
-
-            if block_id in downsampling_layers:
-                downsampled += 1
-
     
     def forward(self, x):
         """Executes PhiNet network
@@ -139,11 +140,11 @@ class PhiNet(nn.Module):
         Args:
             x ([Tensor]): [input batch]
         """
-        i = 0
+        # i = 0
         for l in self._layers:
-            print("Layer ", i, l)
+            # print("Layer ", i, l)
             x = l(x)
-            print("Output of layer ", i, x.shape)
-            i += 1
+            # print("Output of layer ", i, x.shape)
+            # i += 1
 
         return x

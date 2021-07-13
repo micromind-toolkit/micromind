@@ -22,7 +22,7 @@ def correct_pad(input_shape, kernel_size):
 
     correct = (kernel_size[0] // 2, kernel_size[1] // 2)
 
-    return (correct[1] - adjust[1], correct[1], correct[0] - adjust[0], correct[0])
+    return (int(correct[1] - adjust[1]), int(correct[1]), int(correct[0] - adjust[0]), int(correct[0]))
 
 
 def preprocess_input(x, **kwargs):
