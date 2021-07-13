@@ -1,4 +1,4 @@
-from model.model_utils import DepthwiseConv2d, SEBlock, correct_pad
+from model.model_utils import DepthwiseConv2d, SEBlock, ReLUMax, HSwish, correct_pad
 
 import torch.nn as nn
 import torch
@@ -24,13 +24,13 @@ class PhiNetConvBlock(nn.Module):
         super(PhiNetConvBlock, self).__init__()
         self.skip_conn = False
 
-        self._layers = list()
+        self._layers = torch.nn.ModuleList()
         in_channels = in_shape[0]
         # Define activation function
         if h_swish:
-            self.activation = lambda x: x * nn.ReLU6()(x + 3) / 6
+            self.activation = HSwish()
         else:
-            self.activation = lambda x: torch.min(nn.functional.relu(x), 6)
+            self.activation = ReLUMax(6)
 
         if block_id:
             # Expand
@@ -47,14 +47,16 @@ class PhiNetConvBlock(nn.Module):
                 momentum=0.999,
             )
 
-            self._layers += [self.conv1, self.bn1, self.activation]
+            self._layers.append(self.conv1)
+            self._layers.append(self.bn1)
+            self._layers.append(self.activation)
 
         if stride == 2:
             self.pad = nn.ZeroPad2d(
                 padding=correct_pad(in_shape, 3),
             )
 
-            self._layers += [self.pad]
+            self._layers.append(self.pad)
 
         d_mul = 1
         in_channels_dw = int(expansion * in_channels) if block_id else in_channels
@@ -75,12 +77,14 @@ class PhiNetConvBlock(nn.Module):
             momentum=0.999,
         )
 
-        self._layers += [self.dw1, self.bn_dw1, self.activation]
+        self._layers.append(self.dw1)
+        self._layers.append(self.bn_dw1)
+        self._layers.append(self.activation)
 
         if has_se:
             num_reduced_filters = max(1, int(in_channels * 0.25))
             self.se_block = SEBlock(int(expansion * in_channels), num_reduced_filters, h_swish=h_swish)
-            self._layers += [self.se_block]
+            self._layers.append(self.se_block)
 
         self.conv2 = nn.Conv2d(
             in_channels=int(expansion * in_channels),
@@ -96,7 +100,8 @@ class PhiNetConvBlock(nn.Module):
             momentum=0.999,
         )
 
-        self._layers += [self.conv2, self.bn2]
+        self._layers.append(self.conv2)
+        self._layers.append(self.bn2)
 
         if res and in_channels == filters and stride == 1:
             self.skip_conn = True
