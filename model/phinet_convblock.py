@@ -6,6 +6,7 @@ import torch
 
 class PhiNetConvBlock(nn.Module):
     """Implements PhiNet's convolutional block"""
+
     def __init__(self, in_shape, expansion, stride, filters, block_id, has_se, res=True, h_swish=True, k_size=3):
         """Defines the structure of the PhiNet conv block
 
@@ -30,7 +31,7 @@ class PhiNetConvBlock(nn.Module):
             activation = lambda x: x * nn.ReLU6()(x + 3) / 6
         else:
             activation = lambda x: torch.min(nn.functional.relu(x), 6)
-        
+
         if block_id:
             # Expand
             conv1 = nn.Conv2d(
@@ -38,23 +39,23 @@ class PhiNetConvBlock(nn.Module):
                 kernel_size=1,
                 padding="same",
                 bias=False,
-                )
+            )
 
             bn1 = nn.BatchNorm2d(
                 int(expansion * in_channels),
                 eps=1e-3,
                 momentum=0.999,
-                )
-            
+            )
+
             self._layers += [conv1, bn1, activation]
 
         if stride == 2:
             pad = nn.ZeroPad2d(
                 padding=correct_pad(in_shape, 3),
-                )
+            )
 
             self._layers += [pad]
-            
+
         d_mul = 1
         in_channels_dw = int(expansion * in_channels) if block_id else in_channels
         out_channels_dw = in_channels_dw * d_mul
@@ -66,13 +67,13 @@ class PhiNetConvBlock(nn.Module):
             bias=False,
             padding="same" if stride == 1 else "valid",
             # name=prefix + 'depthwise'
-            )
+        )
 
         bn_dw1 = nn.BatchNorm2d(
             out_channels_dw,
             eps=1e-3,
             momentum=0.999,
-            )
+        )
 
         self._layers += [dw1, bn_dw1, activation]
 
@@ -81,25 +82,24 @@ class PhiNetConvBlock(nn.Module):
             self._layers += [SEBlock(int(expansion * in_channels), num_reduced_filters, h_swish=h_swish)]
 
         conv2 = nn.Conv2d(
-            in_channels = int(expansion * in_channels),
-            out_channels = filters,
+            in_channels=int(expansion * in_channels),
+            out_channels=filters,
             kernel_size=1,
             padding="same",
             bias=False,
-            )
+        )
 
         bn2 = nn.BatchNorm2d(
             filters,
             eps=1e-3,
             momentum=0.999,
-            )
+        )
 
         self._layers += [conv2, bn2]
 
         if res and in_channels == filters and stride == 1:
             self.skip_conn = True
 
-    
     def forward(self, x):
         """Executes PhiNet's convolutional block
 
@@ -111,12 +111,12 @@ class PhiNetConvBlock(nn.Module):
         """
         if self.skip_conn:
             inp = x
-        
+
         for l in self._layers:
             # print(l, l(x).shape)
             x = l(x)
 
         if self.skip_conn:
             return x + inp
-        
+
         return x

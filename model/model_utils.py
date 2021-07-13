@@ -24,6 +24,7 @@ def correct_pad(input_shape, kernel_size):
 
     return (correct[1] - adjust[1], correct[1], correct[0] - adjust[0], correct[0])
 
+
 def preprocess_input(x, **kwargs):
     """Normalise channels between [-1, 1]
 
@@ -34,44 +35,16 @@ def preprocess_input(x, **kwargs):
         [Tensor]: [Channel-wise normalised tensor]
     """
 
-    return (x/128.)-1
+    return (x / 128.) - 1
 
 
 def get_xpansion_factor(t_zero, beta, block_id, num_blocks):
-    return (t_zero*beta)*block_id/num_blocks + t_zero*(num_blocks-block_id)/num_blocks
+    return (t_zero * beta) * block_id / num_blocks + t_zero * (num_blocks - block_id) / num_blocks
 
-
-class DepthwiseConv2d(torch.nn.Conv2d):
-    """Depthwise 2D conv
-
-    Args:
-        torch ([Tensor]): [Input tensor for convolution]
-    """
-    def __init__(self,
-                 in_channels,
-                 depth_multiplier=1,
-                 kernel_size=3,
-                 stride=1,
-                 padding=0,
-                 dilation=1,
-                 bias=True,
-                 padding_mode='zeros'
-                 ):
-        out_channels = in_channels * depth_multiplier
-        super().__init__(
-            in_channels=in_channels,
-            out_channels=out_channels,
-            kernel_size=kernel_size,
-            stride=stride,
-            padding=padding,
-            dilation=dilation,
-            groups=in_channels,
-            bias=bias,
-            padding_mode=padding_mode
-        )
 
 class SEBlock(torch.nn.Module):
     """Implements squeeze-and-excitation block"""
+
     def __init__(self, in_channels, out_channels, h_swish=True):
         """Constructor of SEBlock
 
@@ -81,7 +54,7 @@ class SEBlock(torch.nn.Module):
             h_swish (bool, optional): [Whether to use the h_swish or not]. Defaults to True.
         """
         super(SEBlock, self).__init__()
-        
+
         self.glob_pooling = lambda x: nn.functional.avg_pool2d(x, x.size()[2:])
 
         self.se_conv = nn.Conv2d(
@@ -105,7 +78,6 @@ class SEBlock(torch.nn.Module):
         else:
             self.activation = lambda x: torch.min(nn.functional.relu(x), 6)
 
-
     def forward(self, x):
         """Executes SE Block
 
@@ -125,9 +97,42 @@ class SEBlock(torch.nn.Module):
 
         return x
 
+
+class DepthwiseConv2d(torch.nn.Conv2d):
+    """Depthwise 2D conv
+
+    Args:
+        torch ([Tensor]): [Input tensor for convolution]
+    """
+
+    def __init__(self,
+                 in_channels,
+                 depth_multiplier=1,
+                 kernel_size=3,
+                 stride=1,
+                 padding=0,
+                 dilation=1,
+                 bias=True,
+                 padding_mode='zeros'
+                 ):
+        out_channels = in_channels * depth_multiplier
+        super().__init__(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
+            dilation=dilation,
+            groups=in_channels,
+            bias=bias,
+            padding_mode=padding_mode
+        )
+
+
 class SeparableConv2d(torch.nn.Module):
     """Implements SeparableConv2d"""
-    def __init__(self, 
+
+    def __init__(self,
                  in_channels,
                  out_channels,
                  kernel_size=3,
@@ -137,7 +142,7 @@ class SeparableConv2d(torch.nn.Module):
                  bias=True,
                  padding_mode='zeros',
                  depth_multiplier=1,
-        ):
+                 ):
         """Constructor of SeparableConv2d
 
         Args:
@@ -152,30 +157,30 @@ class SeparableConv2d(torch.nn.Module):
             depth_multiplier (int, optional): [Depth multiplier]. Defaults to 1.
         """
         super().__init__()
-        
+
         intermediate_channels = in_channels * depth_multiplier
         self.spatialConv = torch.nn.Conv2d(
-             in_channels=in_channels,
-             out_channels=intermediate_channels,
-             kernel_size=kernel_size,
-             stride=stride,
-             padding=padding,
-             dilation=dilation,
-             groups=in_channels,
-             bias=bias,
-             padding_mode=padding_mode
+            in_channels=in_channels,
+            out_channels=intermediate_channels,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
+            dilation=dilation,
+            groups=in_channels,
+            bias=bias,
+            padding_mode=padding_mode
         )
         self.pointConv = torch.nn.Conv2d(
-             in_channels=intermediate_channels,
-             out_channels=out_channels,
-             kernel_size=1,
-             stride=1,
-             padding=0,
-             dilation=1,
-             bias=bias,
-             padding_mode=padding_mode,
+            in_channels=intermediate_channels,
+            out_channels=out_channels,
+            kernel_size=1,
+            stride=1,
+            padding=0,
+            dilation=1,
+            bias=bias,
+            padding_mode=padding_mode,
         )
-    
+
     def forward(self, x):
         """Executes SeparableConv2d block
 
