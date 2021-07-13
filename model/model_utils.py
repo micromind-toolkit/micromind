@@ -39,6 +39,17 @@ def preprocess_input(x, **kwargs):
 
 
 def get_xpansion_factor(t_zero, beta, block_id, num_blocks):
+    """Compute expansion factor based on the formula from the paper
+
+    Args:
+        t_zero ([int]): [initial expansion factor]
+        beta ([int]): [shape factor]
+        block_id ([int]): [id of the block]
+        num_blocks ([int]): [number of blocks in the network]
+
+    Returns:
+        [float]: [computed expansion factor]
+    """
     return (t_zero * beta) * block_id / num_blocks + t_zero * (num_blocks - block_id) / num_blocks
 
 
