@@ -135,6 +135,7 @@ class SeparableConv2d(torch.nn.Module):
     def __init__(self,
                  in_channels,
                  out_channels,
+                 activation=torch.nn.functional.relu,
                  kernel_size=3,
                  stride=1,
                  padding=0,
@@ -158,28 +159,49 @@ class SeparableConv2d(torch.nn.Module):
         """
         super().__init__()
 
-        intermediate_channels = in_channels * depth_multiplier
+        intermediate_channels = out_channels
         self.spatialConv = torch.nn.Conv2d(
             in_channels=in_channels,
             out_channels=intermediate_channels,
-            kernel_size=kernel_size,
+            kernel_size=1,
             stride=stride,
-            padding=padding,
+            padding="valid",
             dilation=dilation,
-            groups=in_channels,
+            # groups=in_channels,
             bias=bias,
             padding_mode=padding_mode
         )
-        self.pointConv = torch.nn.Conv2d(
+
+        self.depthwise = torch.nn.Conv2d(
             in_channels=intermediate_channels,
-            out_channels=out_channels,
-            kernel_size=1,
+            out_channels=intermediate_channels,
+            kernel_size=3,
             stride=1,
-            padding=0,
+            padding="same",
             dilation=1,
+            groups=intermediate_channels,
             bias=bias,
             padding_mode=padding_mode,
         )
+
+        self.bn = torch.nn.BatchNorm2d(
+            intermediate_channels,
+            eps=1e-3,
+            momentum=0.999
+        )
+        
+        self.activation = activation
+
+        self.out_conv = torch.nn.Conv2d(
+            intermediate_channels,
+            out_channels,
+            kernel_size=1,
+            stride=1,
+            bias=bias,
+            padding="same"
+        )
+
+        # Maybe batchnorm?
 
     def forward(self, x):
         """Executes SeparableConv2d block
@@ -190,4 +212,9 @@ class SeparableConv2d(torch.nn.Module):
         Returns:
             [Tensor]: [Output of convolution]
         """
-        return self.pointConv(self.spatialConv(x))
+        x = self.spatialConv(x)
+        x = self.depthwise(x)
+        x = self.bn(x)
+        x = self.activation(x)
+
+        return x

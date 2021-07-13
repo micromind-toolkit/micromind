@@ -7,7 +7,7 @@ import torch
 
 
 class PhiNet(nn.Module):
-    def __init__(self, res=96, in_channels=3, B0=7, alpha=0.35, beta=1.0, t_zero=6, h_swish=False, squeeze_excite=False,
+    def __init__(self, res=96, in_channels=3, B0=7, alpha=0.2, beta=1.0, t_zero=6, h_swish=False, squeeze_excite=False,
                  downsampling_layers=[5, 7], conv5_percent=0, first_conv_stride=2, first_conv_filters=48, b1_filters=24,
                  b2_filters=48, include_top=True, pooling=None, classes=10, residuals=True, input_tensor=None):
         """Generates PhiNets architecture
@@ -48,8 +48,6 @@ class PhiNet(nn.Module):
             padding=correct_pad(input_shape, 3),
         )
 
-        self._layers += [pad]
-
         sep1 = SeparableConv2d(
             in_channels,
             int(first_conv_filters * alpha),
@@ -59,26 +57,24 @@ class PhiNet(nn.Module):
             bias=False,
         )
 
-        sep_bn = nn.BatchNorm2d(
-            int(first_conv_filters * alpha),
-            epsilon=1e-3,
-            momentum=0.999,
-        )
+        # sep_bn = nn.BatchNorm2d(
+        #     int(first_conv_filters * alpha),
+        #     eps=1e-3,
+        #     momentum=0.999,
+        # )
 
-        self._layers += [pad, sep1, sep_bn, activation]
+        self._layers += [sep1, activation]
 
         block1 = PhiNetConvBlock(
-            in_shape=(in_channels, res / first_conv_stride, res / first_conv_stride),
+            in_shape=(int(first_conv_filters * alpha), res / first_conv_stride, res / first_conv_stride),
             filters=int(b1_filters * alpha),
             stride=1,
             expansion=1,
-            block_id=0,
             has_se=False,
             res=residuals,
             h_swish=h_swish
         )
 
-        # NETWORK BODY
         block2 = PhiNetConvBlock(
             (int(b1_filters * alpha), res / first_conv_stride, res / first_conv_stride),
             filters=int(b1_filters * alpha),
@@ -89,6 +85,7 @@ class PhiNet(nn.Module):
             res=residuals,
             h_swish=h_swish
         )
+        
         block3 = PhiNetConvBlock(
             (int(b1_filters * alpha), res / first_conv_stride / 2, res / first_conv_stride / 2),
             filters=int(b1_filters * alpha),
@@ -135,40 +132,18 @@ class PhiNet(nn.Module):
             if block_id in downsampling_layers:
                 downsampled += 1
 
-        # if include_top:
-        #     x = layers.GlobalAveragePooling2D()(x)
-        #     pooled_shape = (1, 1, x.shape[-1])
-        #     x = layers.Reshape(pooled_shape)(x)
-        #     last_block_filters = int(1280 * alpha)
-        #     x = layers.Conv2D(last_block_filters,
-        #                     kernel_size=1,
-        #                     use_bias=True,
-        #                     name='ConvFinal')(x)
-        #     #x = layers.Dense(classes, activation='softmax',
-        #     #                use_bias=True, name='Logits')(x)
-
-        #     x = layers.Conv2D(classes, (1, 1), strides=(1, 1), padding='valid', use_bias=True)(x)
-        #     x = layers.Flatten()(x)
-        #     x = layers.Softmax()(x)
-        # else:
-        #     if pooling == 'avg':
-        #         x = layers.GlobalAveragePooling2D()(x)
-        #     elif pooling == 'max':
-        #         x = layers.GlobalMaxPooling2D()(x)
-
-        # # Create model.
-        # model = models.Model(inputs, x, name='phinet_r%s_a%0.2f_B%s_tz%s_b%0.2f' % (res0,alpha, num_blocks,t_zero, beta))
-
-        # return model
-
+    
     def forward(self, x):
         """Executes PhiNet network
 
         Args:
             x ([Tensor]): [input batch]
         """
+        i = 0
         for l in self._layers:
-            print(l, l(x).shape)
+            print("Layer ", i, l)
             x = l(x)
+            print("Output of layer ", i, x.shape)
+            i += 1
 
         return x

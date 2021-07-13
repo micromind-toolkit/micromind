@@ -7,7 +7,7 @@ import torch
 class PhiNetConvBlock(nn.Module):
     """Implements PhiNet's convolutional block"""
 
-    def __init__(self, in_shape, expansion, stride, filters, block_id, has_se, res=True, h_swish=True, k_size=3):
+    def __init__(self, in_shape, expansion, stride, filters, has_se, block_id=None, res=True, h_swish=True, k_size=3):
         """Defines the structure of the PhiNet conv block
 
         Args:
