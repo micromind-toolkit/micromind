@@ -52,6 +52,20 @@ def get_xpansion_factor(t_zero, beta, block_id, num_blocks):
     """
     return (t_zero * beta) * block_id / num_blocks + t_zero * (num_blocks - block_id) / num_blocks
 
+class ReLUMax(torch.nn.Module):
+    def __init__(self, max):
+        super(ReLUMax, self).__init__()
+        self.max = max
+    
+    def forward(self, x):
+        return torch.min(self.max, nn.functional.relu(x))
+
+class HSwish(torch.nn.Module):
+    def __init__(self):
+        super(HSwish, self).__init__()
+    
+    def forward(self, x):
+        return x * nn.ReLU6()(x + 3) / 6
 
 class SEBlock(torch.nn.Module):
     """Implements squeeze-and-excitation block"""

@@ -1,4 +1,4 @@
-from model.model_utils import DepthwiseConv2d, SeparableConv2d, correct_pad, get_xpansion_factor
+from model.model_utils import DepthwiseConv2d, SeparableConv2d, ReLUMax, HSwish, correct_pad, get_xpansion_factor
 from model.phinet_convblock import PhiNetConvBlock
 
 import torch.nn as nn
@@ -35,13 +35,13 @@ class PhiNet(nn.Module):
         num_blocks = round(B0)
         input_shape = (round(res), round(res), in_channels)
 
-        self._layers = list()
+        self._layers = torch.nn.ModuleList()
 
         # Define self.activation function
         if h_swish:
-            self.activation = lambda x: x * nn.ReLU6()(x + 3) / 6
+            self.activation = HSwish()
         else:
-            self.activation = lambda x: torch.min(nn.functional.relu(x), 6)
+            self.activation = ReLUMax(6)
 
         self.sep1 = SeparableConv2d(
             in_channels,
@@ -58,7 +58,8 @@ class PhiNet(nn.Module):
         #     momentum=0.999,
         # )
 
-        self._layers += [self.sep1, self.activation]
+        self._layers.append(self.sep1)
+        self._layers.append(self.activation)
 
         self.block1 = PhiNetConvBlock(
             in_shape=(int(first_conv_filters * alpha), res / first_conv_stride, res / first_conv_stride),
@@ -103,7 +104,10 @@ class PhiNet(nn.Module):
             h_swish=h_swish
         )
 
-        self._layers += [self.block1, self.block2, self.block3, self.block4]
+        self._layers.append(self.block1)
+        self._layers.append(self.block2)
+        self._layers.append(self.block3)
+        self._layers.append(self.block4)
 
         block_id = 4
         block_filters = b2_filters
@@ -125,7 +129,7 @@ class PhiNet(nn.Module):
                     k_size=(5 if (block_id / num_blocks) > (1 - conv5_percent) else 3)
                 )
 
-            self._layers += [self.pn_block]
+            self._layers.append(self.pn_block)
             in_channels_next = int(block_filters * alpha)
             spatial_res = spatial_res / 2 if block_id in downsampling_layers else spatial_res
             block_id += 1

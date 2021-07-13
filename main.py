@@ -14,6 +14,6 @@ if __name__ == "__main__":
 
     print(pn.forward(rand_x).shape)
 
-    var = Variable(torch.Tensor(np.random.rand(1, 3, 96, 96))).to("cpu")
+    var = Variable(torch.Tensor(np.random.rand(1, 3, 128, 128))).to("cpu")
 
     summary(pn, input_data=var, col_names = ["input_size", "output_size", "num_params", "kernel_size", "mult_adds"], verbose=2, device="cpu")
