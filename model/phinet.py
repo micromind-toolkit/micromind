@@ -1,4 +1,4 @@
-from model.model_utils import DepthwiseConv2d, correct_pad, get_xpansion_factor
+from model.model_utils import DepthwiseConv2d, SeparableConv2d, correct_pad, get_xpansion_factor
 from model.phinet_convblock import PhiNetConvBlock
 
 import pytorch_lightning as pl
@@ -47,41 +47,22 @@ class PhiNet(nn.Module):
 
         self._layers += [pad]
         
-        # Expand
-        conv1 = nn.Conv2d(
-            in_channels, int(first_conv_filters * alpha),
-            kernel_size=1,
-            padding="same",
-            bias=False,
-            )
-
-        bn1 = nn.BatchNorm2d(
-            int(first_conv_filters * alpha),
-            eps=1e-3,
-            momentum=0.999,
-            )
-        
-        self._layers += [conv1, bn1, activation]
-            
-        d_mul = 1
-        in_channels_dw = int(first_conv_filters * alpha)
-        out_channels_dw = in_channels_dw * d_mul
-        dw1 = DepthwiseConv2d(
-            in_channels=in_channels_dw,
-            depth_multiplier=d_mul,
+        sep1 = SeparableConv2d(
+            in_channels,
+            int(first_conv_filters*alpha),
             kernel_size=3,
-            stride=first_conv_stride,
-            bias=False,
+            stride=(first_conv_stride, first_conv_stride),
             padding="valid",
+            bias=False,
             )
 
-        bn_dw1 = nn.BatchNorm2d(
-            out_channels_dw,
-            eps=1e-3,
+        sep_bn = nn.BatchNorm2d(
+            int(first_conv_filters*alpha),
+            epsilon=1e-3,
             momentum=0.999,
             )
 
-        self._layers += [dw1, bn_dw1, activation]
+        self._layers += [pad, sep1, sep_bn, activation]
 
         block1 = PhiNetConvBlock(
             in_shape=(in_channels, res/first_conv_stride, res/first_conv_stride),
