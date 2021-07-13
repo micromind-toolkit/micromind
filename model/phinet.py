@@ -37,17 +37,13 @@ class PhiNet(nn.Module):
 
         self._layers = list()
 
-        # Define activation function
+        # Define self.activation function
         if h_swish:
-            activation = lambda x: x * nn.ReLU6()(x + 3) / 6
+            self.activation = lambda x: x * nn.ReLU6()(x + 3) / 6
         else:
-            activation = lambda x: torch.min(nn.functional.relu(x), 6)
+            self.activation = lambda x: torch.min(nn.functional.relu(x), 6)
 
-        pad = nn.ZeroPad2d(
-            padding=correct_pad(input_shape, 3),
-        )
-
-        sep1 = SeparableConv2d(
+        self.sep1 = SeparableConv2d(
             in_channels,
             int(first_conv_filters * alpha),
             kernel_size=3,
@@ -62,9 +58,9 @@ class PhiNet(nn.Module):
         #     momentum=0.999,
         # )
 
-        self._layers += [sep1, activation]
+        self._layers += [self.sep1, self.activation]
 
-        block1 = PhiNetConvBlock(
+        self.block1 = PhiNetConvBlock(
             in_shape=(int(first_conv_filters * alpha), res / first_conv_stride, res / first_conv_stride),
             filters=int(b1_filters * alpha),
             stride=1,
@@ -74,7 +70,7 @@ class PhiNet(nn.Module):
             h_swish=h_swish
         )
 
-        block2 = PhiNetConvBlock(
+        self.block2 = PhiNetConvBlock(
             (int(b1_filters * alpha), res / first_conv_stride, res / first_conv_stride),
             filters=int(b1_filters * alpha),
             stride=2,
@@ -85,7 +81,7 @@ class PhiNet(nn.Module):
             h_swish=h_swish
         )
         
-        block3 = PhiNetConvBlock(
+        self.block3 = PhiNetConvBlock(
             (int(b1_filters * alpha), res / first_conv_stride / 2, res / first_conv_stride / 2),
             filters=int(b1_filters * alpha),
             stride=1,
@@ -96,7 +92,7 @@ class PhiNet(nn.Module):
             h_swish=h_swish
         )
 
-        block4 = PhiNetConvBlock(
+        self.block4 = PhiNetConvBlock(
             (int(b1_filters * alpha), res / first_conv_stride / 2, res / first_conv_stride / 2),
             filters=int(b2_filters * alpha),
             stride=2,
@@ -107,7 +103,7 @@ class PhiNet(nn.Module):
             h_swish=h_swish
         )
 
-        self._layers += [block1, block2, block3, block4]
+        self._layers += [self.block1, self.block2, self.block3, self.block4]
 
         block_id = 4
         block_filters = b2_filters
@@ -117,8 +113,7 @@ class PhiNet(nn.Module):
             if block_id in downsampling_layers:
                 block_filters *= 2
 
-            self._layers += [
-                PhiNetConvBlock(
+            self.pn_block = PhiNetConvBlock(
                     (in_channels_next, spatial_res, spatial_res),
                     filters=int(block_filters * alpha),
                     stride=(2 if block_id in downsampling_layers else 1),
@@ -128,8 +123,9 @@ class PhiNet(nn.Module):
                     res=residuals,
                     h_swish=h_swish,
                     k_size=(5 if (block_id / num_blocks) > (1 - conv5_percent) else 3)
-                    )
-                ]
+                )
+
+            self._layers += [self.pn_block]
             in_channels_next = int(block_filters * alpha)
             spatial_res = spatial_res / 2 if block_id in downsampling_layers else spatial_res
             block_id += 1
