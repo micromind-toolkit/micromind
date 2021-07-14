@@ -1,5 +1,5 @@
-from model.model_utils import DepthwiseConv2d, SeparableConv2d, ReLUMax, HSwish, correct_pad, get_xpansion_factor
-from model.phinet_convblock import PhiNetConvBlock
+from phinet_pl.model_utils import DepthwiseConv2d, SeparableConv2d, ReLUMax, HSwish, correct_pad, get_xpansion_factor
+from phinet_pl.phinet_convblock import PhiNetConvBlock
 
 import torch.nn as nn
 import torch
@@ -8,7 +8,7 @@ import torch
 class PhiNet(nn.Module):
     def __init__(self, res=96, in_channels=3, B0=7, alpha=0.2, beta=1.0, t_zero=6, h_swish=False, squeeze_excite=False,
                  downsampling_layers=[5, 7], conv5_percent=0, first_conv_stride=2, first_conv_filters=48, b1_filters=24,
-                 b2_filters=48, include_top=True, pooling=None, classes=10, residuals=True, input_tensor=None):
+                 b2_filters=48, include_top=True, pooling=None, num_classes=10, residuals=True, input_tensor=None):
         """Generates PhiNets architecture
 
         Args:
@@ -133,6 +133,18 @@ class PhiNet(nn.Module):
             in_channels_next = int(block_filters * alpha)
             spatial_res = spatial_res / 2 if block_id in downsampling_layers else spatial_res
             block_id += 1
+
+
+        if include_top:
+            #Includes classification head if required
+
+            self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+            self.classifier = nn.Linear(int(block_filters * alpha), num_classes)
+
+            self._layers.append(self.avgpool)
+            self._layers.append(self.classifier)
+            self._layers.append(nn.Softmax())
+
     
     def forward(self, x):
         """Executes PhiNet network

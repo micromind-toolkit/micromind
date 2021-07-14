@@ -1,4 +1,4 @@
-from model.phinet import PhiNet
+from phinet_pl.phinet import PhiNet
 
 from torch.autograd import Variable
 import numpy as np
