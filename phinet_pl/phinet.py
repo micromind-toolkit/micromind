@@ -32,6 +32,8 @@ class PhiNet(nn.Module):
             input_tensor ([type], optional): [description]. Defaults to None.
         """
         super(PhiNet, self).__init__()
+        self.classify = include_top
+
         num_blocks = round(B0)
         input_shape = (round(res), round(res), in_channels)
 
@@ -135,16 +137,12 @@ class PhiNet(nn.Module):
             spatial_res = spatial_res / 2 if block_id in downsampling_layers else spatial_res
             block_id += 1
 
-
         if include_top:
             #Includes classification head if required
 
-            avgpool = nn.AdaptiveAvgPool2d((1, 1))
-            classifier = nn.Linear(int(block_filters * alpha), num_classes)
-
-            self._layers.append(avgpool)
-            self._layers.append(classifier)
-            self._layers.append(nn.Softmax())
+            self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+            self.classifier = nn.Linear(int(block_filters * alpha), num_classes)
+            self.soft = nn.Softmax(dim=1)
 
     
     def forward(self, x):
@@ -160,4 +158,11 @@ class PhiNet(nn.Module):
             # print("Output of layer ", i, x.shape)
             # i += 1
 
+        if self.classify:
+            x = self.avgpool(x)
+            x = x.view(-1, x.shape[1])
+            x = self.classifier(x)
+            
+            return self.soft(x)
+        
         return x
