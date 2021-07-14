@@ -56,16 +56,18 @@ class ReLUMax(torch.nn.Module):
     def __init__(self, max):
         super(ReLUMax, self).__init__()
         self.max = max
+        self.relu = torch.nn.ReLU(inplace=True)
     
     def forward(self, x):
-        return torch.min(self.max, nn.functional.relu(x))
+
+        return torch.min(self.max, self.relu(x))
 
 class HSwish(torch.nn.Module):
     def __init__(self):
         super(HSwish, self).__init__()
     
     def forward(self, x):
-        return x * nn.ReLU6()(x + 3) / 6
+        return x * nn.ReLU6(inplace=True)(x + 3) / 6
 
 class SEBlock(torch.nn.Module):
     """Implements squeeze-and-excitation block"""
@@ -87,7 +89,7 @@ class SEBlock(torch.nn.Module):
             out_channels,
             kernel_size=1,
             padding="same",
-            bias=True,
+            bias=False,
         )
 
         self.se_conv2 = nn.Conv2d(
@@ -137,7 +139,7 @@ class DepthwiseConv2d(torch.nn.Conv2d):
                  stride=1,
                  padding=0,
                  dilation=1,
-                 bias=True,
+                 bias=False,
                  padding_mode='zeros'
                  ):
         out_channels = in_channels * depth_multiplier

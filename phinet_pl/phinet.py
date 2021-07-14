@@ -8,7 +8,7 @@ import torch
 class PhiNet(nn.Module):
     def __init__(self, res=96, in_channels=3, B0=7, alpha=0.2, beta=1.0, t_zero=6, h_swish=False, squeeze_excite=False,
                  downsampling_layers=[5, 7], conv5_percent=0, first_conv_stride=2, first_conv_filters=48, b1_filters=24,
-                 b2_filters=48, include_top=True, pooling=None, num_classes=10, residuals=True, input_tensor=None):
+                 b2_filters=48, include_top=False, pooling=None, num_classes=10, residuals=True, input_tensor=None):
         """Generates PhiNets architecture
 
         Args:
@@ -39,11 +39,11 @@ class PhiNet(nn.Module):
 
         # Define self.activation function
         if h_swish:
-            self.activation = HSwish()
+            activation = HSwish()
         else:
-            self.activation = ReLUMax(6)
+            activation = ReLUMax(6)
 
-        self.sep1 = SeparableConv2d(
+        sep1 = SeparableConv2d(
             in_channels,
             int(first_conv_filters * alpha),
             kernel_size=3,
@@ -52,16 +52,17 @@ class PhiNet(nn.Module):
             bias=False,
         )
 
-        # sep_bn = nn.BatchNorm2d(
-        #     int(first_conv_filters * alpha),
-        #     eps=1e-3,
-        #     momentum=0.999,
-        # )
+        sep_bn = nn.BatchNorm2d(
+            int(first_conv_filters * alpha),
+            eps=1e-3,
+            momentum=0.999,
+        )
 
-        self._layers.append(self.sep1)
-        self._layers.append(self.activation)
+        self._layers.append(sep1)
+        self._layers.append(sep_bn)
+        self._layers.append(activation)
 
-        self.block1 = PhiNetConvBlock(
+        block1 = PhiNetConvBlock(
             in_shape=(int(first_conv_filters * alpha), res / first_conv_stride, res / first_conv_stride),
             filters=int(b1_filters * alpha),
             stride=1,
@@ -71,7 +72,7 @@ class PhiNet(nn.Module):
             h_swish=h_swish
         )
 
-        self.block2 = PhiNetConvBlock(
+        block2 = PhiNetConvBlock(
             (int(b1_filters * alpha), res / first_conv_stride, res / first_conv_stride),
             filters=int(b1_filters * alpha),
             stride=2,
@@ -82,7 +83,7 @@ class PhiNet(nn.Module):
             h_swish=h_swish
         )
         
-        self.block3 = PhiNetConvBlock(
+        block3 = PhiNetConvBlock(
             (int(b1_filters * alpha), res / first_conv_stride / 2, res / first_conv_stride / 2),
             filters=int(b1_filters * alpha),
             stride=1,
@@ -93,7 +94,7 @@ class PhiNet(nn.Module):
             h_swish=h_swish
         )
 
-        self.block4 = PhiNetConvBlock(
+        block4 = PhiNetConvBlock(
             (int(b1_filters * alpha), res / first_conv_stride / 2, res / first_conv_stride / 2),
             filters=int(b2_filters * alpha),
             stride=2,
@@ -104,10 +105,10 @@ class PhiNet(nn.Module):
             h_swish=h_swish
         )
 
-        self._layers.append(self.block1)
-        self._layers.append(self.block2)
-        self._layers.append(self.block3)
-        self._layers.append(self.block4)
+        self._layers.append(block1)
+        self._layers.append(block2)
+        self._layers.append(block3)
+        self._layers.append(block4)
 
         block_id = 4
         block_filters = b2_filters
@@ -117,7 +118,7 @@ class PhiNet(nn.Module):
             if block_id in downsampling_layers:
                 block_filters *= 2
 
-            self.pn_block = PhiNetConvBlock(
+            pn_block = PhiNetConvBlock(
                     (in_channels_next, spatial_res, spatial_res),
                     filters=int(block_filters * alpha),
                     stride=(2 if block_id in downsampling_layers else 1),
@@ -129,7 +130,7 @@ class PhiNet(nn.Module):
                     k_size=(5 if (block_id / num_blocks) > (1 - conv5_percent) else 3)
                 )
 
-            self._layers.append(self.pn_block)
+            self._layers.append(pn_block)
             in_channels_next = int(block_filters * alpha)
             spatial_res = spatial_res / 2 if block_id in downsampling_layers else spatial_res
             block_id += 1
@@ -138,11 +139,11 @@ class PhiNet(nn.Module):
         if include_top:
             #Includes classification head if required
 
-            self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-            self.classifier = nn.Linear(int(block_filters * alpha), num_classes)
+            avgpool = nn.AdaptiveAvgPool2d((1, 1))
+            classifier = nn.Linear(int(block_filters * alpha), num_classes)
 
-            self._layers.append(self.avgpool)
-            self._layers.append(self.classifier)
+            self._layers.append(avgpool)
+            self._layers.append(classifier)
             self._layers.append(nn.Softmax())
 
     

@@ -28,40 +28,40 @@ class PhiNetConvBlock(nn.Module):
         in_channels = in_shape[0]
         # Define activation function
         if h_swish:
-            self.activation = HSwish()
+            activation = HSwish()
         else:
-            self.activation = ReLUMax(6)
+            activation = ReLUMax(6)
 
         if block_id:
             # Expand
-            self.conv1 = nn.Conv2d(
+            conv1 = nn.Conv2d(
                 in_channels, int(expansion * in_channels),
                 kernel_size=1,
                 padding="same",
                 bias=False,
             )
 
-            self.bn1 = nn.BatchNorm2d(
+            bn1 = nn.BatchNorm2d(
                 int(expansion * in_channels),
                 eps=1e-3,
                 momentum=0.999,
             )
 
-            self._layers.append(self.conv1)
-            self._layers.append(self.bn1)
-            self._layers.append(self.activation)
+            self._layers.append(conv1)
+            self._layers.append(bn1)
+            self._layers.append(activation)
 
         if stride == 2:
-            self.pad = nn.ZeroPad2d(
+            pad = nn.ZeroPad2d(
                 padding=correct_pad(in_shape, 3),
             )
 
-            self._layers.append(self.pad)
+            self._layers.append(pad)
 
         d_mul = 1
         in_channels_dw = int(expansion * in_channels) if block_id else in_channels
         out_channels_dw = in_channels_dw * d_mul
-        self.dw1 = DepthwiseConv2d(
+        dw1 = DepthwiseConv2d(
             in_channels=in_channels_dw,
             depth_multiplier=d_mul,
             kernel_size=k_size,
@@ -71,22 +71,22 @@ class PhiNetConvBlock(nn.Module):
             # name=prefix + 'depthwise'
         )
 
-        self.bn_dw1 = nn.BatchNorm2d(
+        bn_dw1 = nn.BatchNorm2d(
             out_channels_dw,
             eps=1e-3,
             momentum=0.999,
         )
 
-        self._layers.append(self.dw1)
-        self._layers.append(self.bn_dw1)
-        self._layers.append(self.activation)
+        self._layers.append(dw1)
+        self._layers.append(bn_dw1)
+        self._layers.append(activation)
 
         if has_se:
             num_reduced_filters = max(1, int(in_channels * 0.25))
-            self.se_block = SEBlock(int(expansion * in_channels), num_reduced_filters, h_swish=h_swish)
-            self._layers.append(self.se_block)
+            se_block = SEBlock(int(expansion * in_channels), num_reduced_filters, h_swish=h_swish)
+            self._layers.append(se_block)
 
-        self.conv2 = nn.Conv2d(
+        conv2 = nn.Conv2d(
             in_channels=int(expansion * in_channels),
             out_channels=filters,
             kernel_size=1,
@@ -94,14 +94,14 @@ class PhiNetConvBlock(nn.Module):
             bias=False,
         )
 
-        self.bn2 = nn.BatchNorm2d(
+        bn2 = nn.BatchNorm2d(
             filters,
             eps=1e-3,
             momentum=0.999,
         )
 
-        self._layers.append(self.conv2)
-        self._layers.append(self.bn2)
+        self._layers.append(conv2)
+        self._layers.append(bn2)
 
         if res and in_channels == filters and stride == 1:
             self.skip_conn = True
