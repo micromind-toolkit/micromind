@@ -43,6 +43,12 @@ class PhiNet(nn.Module):
         else:
             activation = ReLUMax(6)
 
+        pad = nn.ZeroPad2d(
+            padding=correct_pad(input_shape, 3),
+        )
+
+        self._layers.append(pad)
+
         sep1 = SeparableConv2d(
             in_channels,
             int(first_conv_filters * alpha),
@@ -50,17 +56,11 @@ class PhiNet(nn.Module):
             stride=(first_conv_stride, first_conv_stride),
             padding="valid",
             bias=False,
-        )
-
-        sep_bn = nn.BatchNorm2d(
-            int(first_conv_filters * alpha),
-            eps=1e-3,
-            momentum=0.999,
+            activation=activation
         )
 
         self._layers.append(sep1)
-        self._layers.append(sep_bn)
-        self._layers.append(activation)
+        # self._layers.append(activation)
 
         block1 = PhiNetConvBlock(
             in_shape=(int(first_conv_filters * alpha), res / first_conv_stride, res / first_conv_stride),

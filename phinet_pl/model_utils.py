@@ -186,49 +186,42 @@ class SeparableConv2d(torch.nn.Module):
         """
         super().__init__()
 
-        intermediate_channels = out_channels
-        self.spatialConv = torch.nn.Conv2d(
+        self._layers = torch.nn.ModuleList()
+
+        depthwise = torch.nn.Conv2d(
             in_channels=in_channels,
-            out_channels=intermediate_channels,
-            kernel_size=1,
+            out_channels=in_channels,
+            kernel_size=3,
             stride=stride,
             padding="valid",
+            dilation=1,
+            groups=in_channels,
+            bias=bias,
+            padding_mode=padding_mode,
+        )
+
+        spatialConv = torch.nn.Conv2d(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            kernel_size=1,
+            stride=1,
+            padding="same",
             dilation=dilation,
             # groups=in_channels,
             bias=bias,
             padding_mode=padding_mode
         )
 
-        self.depthwise = torch.nn.Conv2d(
-            in_channels=intermediate_channels,
-            out_channels=intermediate_channels,
-            kernel_size=3,
-            stride=1,
-            padding="same",
-            dilation=1,
-            groups=intermediate_channels,
-            bias=bias,
-            padding_mode=padding_mode,
-        )
-
-        self.bn = torch.nn.BatchNorm2d(
-            intermediate_channels,
+        bn = torch.nn.BatchNorm2d(
+            out_channels,
             eps=1e-3,
             momentum=0.999
         )
         
-        self.activation = activation
-
-        self.out_conv = torch.nn.Conv2d(
-            intermediate_channels,
-            out_channels,
-            kernel_size=1,
-            stride=1,
-            bias=bias,
-            padding="same"
-        )
-
-        # Maybe batchnorm?
+        self._layers.append(depthwise)
+        self._layers.append(spatialConv)
+        self._layers.append(bn)
+        self._layers.append(activation)
 
     def forward(self, x):
         """Executes SeparableConv2d block
@@ -239,9 +232,7 @@ class SeparableConv2d(torch.nn.Module):
         Returns:
             [Tensor]: [Output of convolution]
         """
-        x = self.spatialConv(x)
-        x = self.depthwise(x)
-        x = self.bn(x)
-        x = self.activation(x)
+        for l in self._layers:
+            x = l(x)
 
         return x
