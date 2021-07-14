@@ -34,7 +34,7 @@ def main(exp_id, data_path):
     
     else:
         pn = PhiNet(res=32, B0=7, alpha=0.2, beta=1, t_zero=5, squeeze_excite=True, h_swish=True, include_top=True).to("cpu")
-    
+        
         rand_x = Variable(torch.Tensor(np.random.rand(4, 3, 32, 32))).to("cpu")
 
         print(pn.forward(rand_x).shape)

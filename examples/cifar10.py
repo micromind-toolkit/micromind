@@ -19,9 +19,13 @@ class PNCifar10(pl.LightningModule):
     def __init__(self):
         super(PNCifar10, self).__init__()
         self.classes = 10
-        self.lr = 1e-4
+        self.lr = 1e-3
         self.model = PhiNet(
-            res=32, 
+            res=32,
+            alpha=0.35,
+            B0=7,
+            beta=0.7,
+            t_zero=6,
             squeeze_excite=True, 
             h_swish=True, 
             include_top=True
@@ -43,6 +47,8 @@ class PNCifar10(pl.LightningModule):
         img = x.view(-1, 3, 32, 32)
         label = y.view(-1)
 
+        img = img/128 - 1
+
         out = self.forward(img)
         loss = self.loss_fn(out, label)
         logits = torch.argmax(out, dim=1)
@@ -57,6 +63,8 @@ class PNCifar10(pl.LightningModule):
         x, y = batch
         img = x.view(-1, 3, 32, 32)
         label = y.view(-1)
+
+        img = img/128 - 1
         
         out = self.forward(img)
         loss = self.loss_fn(out,label)
