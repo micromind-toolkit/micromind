@@ -156,7 +156,7 @@ class PhiNet(nn.Module):
 
             # self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
             # self.classifier = nn.Linear(int(block_filters * alpha), num_classes)
-            self.soft = nn.Softmax(dim=1)
+            # self.soft = nn.Softmax(dim=1)
 
     
     def forward(self, x):
@@ -169,14 +169,19 @@ class PhiNet(nn.Module):
         for l in self._layers:
             # print("Layer ", i, l)
             x = l(x)
+            # input(l)
+            # input(x)
             # print("Output of layer ", i, x.shape)
             # i += 1
 
         if self.classify:
             x = self.glob_pooling(x)
+            # input(x)
             x = self.final_conv(self.class_conv2d(x))
+            # input(x)
             x = x.view(-1, x.shape[1])
+            # input(x)
                         
-            return self.soft(x)
+            # return self.soft(x)
         
         return x
