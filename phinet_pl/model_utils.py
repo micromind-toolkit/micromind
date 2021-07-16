@@ -220,7 +220,7 @@ class SeparableConv2d(torch.nn.Module):
         self._layers.append(depthwise)
         self._layers.append(spatialConv)
         self._layers.append(bn)
-        # self._layers.append(activation)
+        self._layers.append(activation)
 
     def forward(self, x):
         """Executes SeparableConv2d block
