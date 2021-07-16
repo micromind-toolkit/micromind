@@ -59,8 +59,7 @@ class ReLUMax(torch.nn.Module):
         self.relu = torch.nn.ReLU(inplace=True)
     
     def forward(self, x):
-
-        return torch.min(self.max, self.relu(x))
+        return torch.clamp(self.relu(x), max = self.max)
 
 class HSwish(torch.nn.Module):
     def __init__(self):
@@ -101,9 +100,9 @@ class SEBlock(torch.nn.Module):
         )
 
         if h_swish:
-            self.activation = lambda x: x * nn.ReLU6()(x + 3) / 6
+            self.activation = HSwish()
         else:
-            self.activation = lambda x: torch.min(nn.functional.relu(x), 6)
+            self.activation = ReLUMax(6)
 
     def forward(self, x):
         """Executes SE Block
@@ -221,7 +220,7 @@ class SeparableConv2d(torch.nn.Module):
         self._layers.append(depthwise)
         self._layers.append(spatialConv)
         self._layers.append(bn)
-        self._layers.append(activation)
+        # self._layers.append(activation)
 
     def forward(self, x):
         """Executes SeparableConv2d block
