@@ -22,10 +22,10 @@ class PNCifar10(pl.LightningModule):
 
         self.model = PhiNet(
             res=32,
-            alpha=0.35,
+            alpha=0.15,
             B0=7,
-            beta=0.7,
-            t_zero=6,
+            beta=1,
+            t_zero=5,
             squeeze_excite=True, 
             h_swish=True, 
             include_top=True
