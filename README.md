@@ -10,14 +10,14 @@ This is a first version of the repo. It will be reorganized with specific instru
 
 In the meantime, if you are willing to use the PhiNets in your signal processing pipelines, read below where to find models to import.
 
-### Keras implementation
-
-You can generate and import PhiNets in keras with the source file [phi_net_source.py](https://github.com/fpaissan/phinet-mot/blob/v1/model/phi_net_source.py). The naming convention for the parameters is the same as in the paper.
-
 ### Torch implementation
 
 For a PyTorch implementation refer to the [torch repo](https://github.com/fpaissan/phinet_pl).
 PhiNets will soon be available for torch hub and pip install! Stay tuned.
+
+### Keras implementation
+
+For the keras implementation refere to [this gist]().
 
 ## PhiNets results
 
