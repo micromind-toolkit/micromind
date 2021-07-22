@@ -17,7 +17,7 @@ PhiNets will soon be available for torch hub and pip install! Stay tuned.
 
 ### Keras implementation
 
-For the keras implementation refere to [this gist]().
+For the keras implementation refere to [this gist](https://raw.githubusercontent.com/fpaissan/phinet-mot/v1/model/phi_net_source.py?token=ALGQWYRLJ5ERJPJQJPEL2NLBAKUP6).
 
 ## PhiNets results
 
