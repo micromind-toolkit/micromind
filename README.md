@@ -16,7 +16,7 @@ This is a first version of the public repo. It will be reorganized with specific
 
 _PhiNets_ achieve state-of-the-art results for object detection and tracking in the 1-10MMACC range (typical application range for MCU applications). Check out the paper for more details!
 
-# run module (example: cifar10)   
+#### Example: cifar10 
 To train PhiNets for cifar10, you can run:
 
 ```
