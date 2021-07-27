@@ -2,7 +2,7 @@
 
 <div align="center">    
  
-# PhiNets: achieving real-time Multi-Object Tracking on tiny architectures
+# PhiNets: a scalable backbone for low-power AI at the edge
 
 [![Conference](http://img.shields.io/badge/AnyConference-year-4b44ce.svg)](https://dl.acm.org/pb-assets/static_journal_pages/tecs/pdf/CFP_AIatEDGE_TECS-1622578812223.pdf)
 
