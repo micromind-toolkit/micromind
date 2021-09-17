@@ -8,7 +8,8 @@ import torch
 class PhiNet(nn.Module):
     def __init__(self, res=96, in_channels=3, B0=7, alpha=0.2, beta=1.0, t_zero=6, h_swish=False, squeeze_excite=False,
                  downsampling_layers=[5, 7], conv5_percent=0, first_conv_stride=2, first_conv_filters=48, b1_filters=24,
-                 b2_filters=48, include_top=False, pooling=None, num_classes=10, residuals=True, input_tensor=None):
+                 b2_filters=48, include_top=False, pooling=None, num_classes=10, residuals=True, input_tensor=None, conv2d_input=False,
+                 pool=False):
         """Generates PhiNets architecture
 
         Args:
@@ -44,40 +45,59 @@ class PhiNet(nn.Module):
             activation = HSwish()
         else:
             activation = ReLUMax(6)
+            
+        mp = nn.MaxPool2d((2, 2))
 
-        pad = nn.ZeroPad2d(
-            padding=correct_pad(input_shape, 3),
-        )
+        if not conv2d_input:
+            pad = nn.ZeroPad2d(
+                padding=correct_pad(input_shape, 3),
+            )
 
-        self._layers.append(pad)
+            self._layers.append(pad)
 
-        sep1 = SeparableConv2d(
-            in_channels,
-            int(first_conv_filters * alpha),
-            kernel_size=3,
-            stride=(first_conv_stride, first_conv_stride),
-            padding="valid",
-            bias=False,
-            activation=activation
-        )
+            sep1 = SeparableConv2d(
+                in_channels,
+                int(first_conv_filters * alpha),
+                kernel_size=3,
+                stride=(first_conv_stride, first_conv_stride),
+                padding="valid",
+                bias=False,
+                activation=activation
+            )
 
-        self._layers.append(sep1)
-        # self._layers.append(activation)
+            self._layers.append(sep1)
+            # self._layers.append(activation)
 
-        block1 = PhiNetConvBlock(
-            in_shape=(int(first_conv_filters * alpha), res / first_conv_stride, res / first_conv_stride),
-            filters=int(b1_filters * alpha),
-            stride=1,
-            expansion=1,
-            has_se=False,
-            res=residuals,
-            h_swish=h_swish
-        )
-
+            block1 = PhiNetConvBlock(
+                in_shape=(int(first_conv_filters * alpha), res / first_conv_stride, res / first_conv_stride),
+                filters=int(b1_filters * alpha),
+                stride=1,
+                expansion=1,
+                has_se=False,
+                res=residuals,
+                h_swish=h_swish
+            )
+            
+            self._layers.append(block1)
+        else:
+            
+            c1 = nn.Conv2d(
+                in_channels,
+                int(b1_filters*alpha),
+                kernel_size=(3,3),
+                bias=False
+            )
+            
+            bn_c1 = nn.BatchNorm2d(int(b1_filters*alpha))
+            
+            self._layers.append(c1)
+            self._layers.append(activation)
+            self._layers.append(bn_c1)
+        
         block2 = PhiNetConvBlock(
             (int(b1_filters * alpha), res / first_conv_stride, res / first_conv_stride),
             filters=int(b1_filters * alpha),
-            stride=2,
+            stride=2 if (not pool) else 1,
             expansion=get_xpansion_factor(t_zero, beta, 1, num_blocks),
             block_id=1,
             has_se=squeeze_excite,
@@ -99,7 +119,7 @@ class PhiNet(nn.Module):
         block4 = PhiNetConvBlock(
             (int(b1_filters * alpha), res / first_conv_stride / 2, res / first_conv_stride / 2),
             filters=int(b2_filters * alpha),
-            stride=2,
+            stride=2 if (not pool) else 1,
             expansion=get_xpansion_factor(t_zero, beta, 3, num_blocks),
             block_id=3,
             has_se=squeeze_excite,
@@ -107,11 +127,15 @@ class PhiNet(nn.Module):
             h_swish=h_swish
         )
 
-        self._layers.append(block1)
         self._layers.append(block2)
+        if pool:
+            self._layers.append(mp)
         self._layers.append(block3)
         self._layers.append(block4)
+        if pool:
+            self._layers.append(mp)
 
+        
         block_id = 4
         block_filters = b2_filters
         spatial_res = res / first_conv_stride / 4
@@ -119,18 +143,21 @@ class PhiNet(nn.Module):
         while num_blocks >= block_id:
             if block_id in downsampling_layers:
                 block_filters *= 2
-
+                if pool:
+                    self._layers.append(mp)
+            
             pn_block = PhiNetConvBlock(
                     (in_channels_next, spatial_res, spatial_res),
                     filters=int(block_filters * alpha),
-                    stride=(2 if block_id in downsampling_layers else 1),
+                    stride=(2 if (block_id in downsampling_layers) and (not pool) else 1),
                     expansion=get_xpansion_factor(t_zero, beta, block_id, num_blocks),
                     block_id=block_id,
                     has_se=squeeze_excite,
                     res=residuals,
                     h_swish=h_swish,
                     k_size=(5 if (block_id / num_blocks) > (1 - conv5_percent) else 3)
-                )
+            )
+            
 
             self._layers.append(pn_block)
             in_channels_next = int(block_filters * alpha)
