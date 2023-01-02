@@ -1,0 +1,35 @@
+# pyproject.toml
+
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "phinet"
+version = "0.0.1"
+description = "Pytorch implementation of PhiNets"
+readme = "README.md"
+authors = [{ name = "Francesco Paissan", email = "francescopaissan@gmail.com" }]
+#license = { file = "LICENSE" }
+#classifiers = [
+    #"License :: OSI Approved :: MIT License",
+    #"Programming Language :: Python",
+    #"Programming Language :: Python :: 3",
+#]
+keywords = ["feed", "reader", "tutorial"]
+dependencies = [
+    "torch",
+    "torchinfo",
+    "opencv-python",
+    "scikit-learn"
+]
+requires-python = ">=3.9"
+
+[project.optional-dependencies]
+dev = ["black", "bumpver", "isort", "pip-tools", "pytest"]
+
+[project.urls]
+Homepage = "https://github.com/fpaissan/phinet/blob/main/req.txt"
+
+[project.scripts]
+phinet = "__main__:main"
