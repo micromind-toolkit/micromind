@@ -11,7 +11,7 @@ import cv2
 
 from torch.utils.data import DataLoader
 
-from phinet_pl.phinet import PhiNet
+from phinet import PhiNet
 
 
 class PNCifar10(pl.LightningModule):
@@ -31,7 +31,7 @@ class PNCifar10(pl.LightningModule):
             include_top=True
         )
 
-        self.accuracy = torchmetrics.classification.accuracy.Accuracy()
+        self.accuracy = torchmetrics.classification.accuracy.Accuracy(task="multiclass", num_classes=10)
 
     def forward(self, x):
         return self.model(x)

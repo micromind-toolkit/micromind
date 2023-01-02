@@ -1,4 +1,4 @@
-from phinet_pl.phinet import PhiNet
+from phinet import PhiNet
 
 from torch.autograd import Variable
 import pytorch_lightning as pl

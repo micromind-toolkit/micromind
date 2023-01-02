@@ -1,1 +1,3 @@
 torchinfo
+opencv-python
+scikit-learn

@@ -1,5 +1,5 @@
-from phinet_pl.model_utils import DepthwiseConv2d, SeparableConv2d, ReLUMax, HSwish, correct_pad, get_xpansion_factor
-from phinet_pl.phinet_convblock import PhiNetConvBlock
+from .model_utils import DepthwiseConv2d, SeparableConv2d, ReLUMax, HSwish, correct_pad, get_xpansion_factor
+from .blocks import PhiNetConvBlock
 
 import torch.nn as nn
 import torch

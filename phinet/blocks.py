@@ -1,4 +1,4 @@
-from phinet_pl.model_utils import DepthwiseConv2d, SEBlock, ReLUMax, HSwish, correct_pad
+from .model_utils import DepthwiseConv2d, SEBlock, ReLUMax, HSwish, correct_pad
 
 import torch.nn as nn
 import torch
