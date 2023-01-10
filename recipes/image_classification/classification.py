@@ -52,6 +52,10 @@ from timm.utils import ApexScaler, NativeScaler
 
 from phinet import PhiNet
 
+# should speed up backward-pass with depth-wise separable convolutions
+import torch.backends.cudnn as cudnn
+cudnn.benchmark = True
+
 try:
     from apex import amp
     from apex.parallel import DistributedDataParallel as ApexDDP
@@ -286,6 +290,30 @@ group.add_argument(
     action="store_true",
     default=False,
     help="Enable gradient checkpointing through model blocks/stages",
+)
+group.add_argument(
+    "--alpha",
+    default=0.5,
+    type=float,
+    help="alpha parameter for phinet. Defaults to 0.5",
+)
+group.add_argument(
+    "--beta",
+    default=1.,
+    type=float,
+    help="beta parameter for phinet. Defaults to 1.",
+)
+group.add_argument(
+    "--t_zero",
+    default=4,
+    type=float,
+    help="t_zero parameter for phinet. Defaults to 4.",
+)
+group.add_argument(
+    "--num_layers",
+    default=4,
+    type=int,
+    help="Number of layers for phinet. Defaults to 4.",
 )
 
 # Optimizer parameters
@@ -719,7 +747,7 @@ group.add_argument(
 group.add_argument(
     "--log-interval",
     type=int,
-    default=50,
+    default=5,
     metavar="N",
     help="how many batches to wait before logging training status",
 )
@@ -910,14 +938,16 @@ def main():
 
     if args.model == "phinet":
         model = PhiNet(
-            res=32,
-            alpha=1.4455746368371107,
-            B0=13,
-            beta=1.0330421627286355,
-            t_zero=4,
-            squeeze_excite=False,
-            h_swish=False,
+            res=vars(args)["input_size"][1],    # assuming square resolution
+            in_channels=vars(args)["input_size"][0],
+            alpha=vars(args)["alpha"],
+            B0=vars(args)["num_layers"],
+            beta=vars(args)["beta"],
+            t_zero=vars(args)["t_zero"],
+            squeeze_excite=True,
+            h_swish=True,
             include_top=True,
+            num_classes=vars(args)["num_classes"]
         )
     else:
         model = create_model(
