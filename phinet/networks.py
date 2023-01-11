@@ -44,18 +44,20 @@ class PhiNet(nn.Module):
             alpha (float, optional): [base network width multiplier]. Defaults to 0.35.
             beta (float, optional): [shape factor]. Defaults to 1.0.
             t_zero (int, optional): [initial expansion factor]. Defaults to 6.
-            h_swish (bool, optional): [Approximate Hswish activation - Enable for performance, disable for compatibility (gets replaced by relu6)]. Defaults to False.
-            squeeze_excite (bool, optional): [SE blocks - Enable for performance, disable for compatibility]. Defaults to False.
-            downsampling_layers (list, optional): [Indices of downsampling blocks (between 5 and B0)]. Defaults to [5,7].
+            h_swish (bool, optional): [True to use h_swish]defaults to False.
+            squeeze_excite (bool, optional): [True to use SE blocks]. Defaults to False.
+            downsampling_layers (list, optional): []. Defaults to [5,7].
             conv5_percent (int, optional): [description]. Defaults to 0.
-            first_conv_stride (int, optional): [Downsampling at the network input - first conv stride]. Defaults to 2.
+            first_conv_stride (int, optional): [Downsampling at the network input \
+                    - first conv stride]. Defaults to 2.
             first_conv_filters (int, optional): [description]. Defaults to 48.
             b1_filters (int, optional): [description]. Defaults to 24.
             b2_filters (int, optional): [description]. Defaults to 48.
             include_top (bool, optional): [description]. Defaults to True.
             pooling ([type], optional): [description]. Defaults to None.
             classes (int, optional): [description]. Defaults to 10.
-            residuals (bool, optional): [disable residual connections to lower ram usage - residuals]. Defaults to True.
+            residuals (bool, optional): [disable residual connections to lower ram \
+                    usage - residuals]. Defaults to True.
             input_tensor ([type], optional): [description]. Defaults to None.
         """
         super(PhiNet, self).__init__()
@@ -219,23 +221,12 @@ class PhiNet(nn.Module):
         Args:
             x ([Tensor]): [input batch]
         """
-        # i = 0
-        for l in self._layers:
-            # print("Layer ", i, l)
-            x = l(x)
-            # input(l)
-            # input(x)
-            # print("Output of layer ", i, x.shape)
-            # i += 1
+        for layers in self._layers:
+            x = layers(x)
 
         if self.classify:
             x = self.glob_pooling(x)
-            # input(x)
             x = self.final_conv(self.class_conv2d(x))
-            # input(x)
             x = x.view(-1, x.shape[1])
-            # input(x)
-
-            # return self.soft(x)
 
         return x
