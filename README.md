@@ -6,6 +6,8 @@
 
 This repository is a collection of our efforts towards the design, implementation and evaluation of ML techniques in the field of tinyML. 
 
+Here is a list of things you can do with the `phinet` package:
+ - [image classification](recipes/image_classification)
 
 ## To install the package 
 
