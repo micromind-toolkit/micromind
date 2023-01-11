@@ -7,7 +7,19 @@ import torch
 class PhiNetConvBlock(nn.Module):
     """Implements PhiNet's convolutional block"""
 
-    def __init__(self, in_shape, expansion, stride, filters, has_se, block_id=None, res=True, h_swish=True, k_size=3, dp_rate=0.05):
+    def __init__(
+        self,
+        in_shape,
+        expansion,
+        stride,
+        filters,
+        has_se,
+        block_id=None,
+        res=True,
+        h_swish=True,
+        k_size=3,
+        dp_rate=0.05,
+    ):
         """Defines the structure of the PhiNet conv block
 
         Args:
@@ -35,7 +47,8 @@ class PhiNetConvBlock(nn.Module):
         if block_id:
             # Expand
             conv1 = nn.Conv2d(
-                in_channels, int(expansion * in_channels),
+                in_channels,
+                int(expansion * in_channels),
                 kernel_size=1,
                 padding="same",
                 bias=False,
@@ -57,7 +70,7 @@ class PhiNetConvBlock(nn.Module):
             )
 
             self._layers.append(pad)
-        
+
         self._layers.append(nn.Dropout2d(dp_rate))
 
         d_mul = 1
@@ -85,7 +98,9 @@ class PhiNetConvBlock(nn.Module):
 
         if has_se:
             num_reduced_filters = max(1, int(in_channels * 0.25))
-            se_block = SEBlock(int(expansion * in_channels), num_reduced_filters, h_swish=h_swish)
+            se_block = SEBlock(
+                int(expansion * in_channels), num_reduced_filters, h_swish=h_swish
+            )
             self._layers.append(se_block)
 
         conv2 = nn.Conv2d(
@@ -120,9 +135,8 @@ class PhiNetConvBlock(nn.Module):
         if self.skip_conn:
             inp = x
 
-        for l in self._layers:
-            # print(l, l(x).shape)
-            x = l(x)
+        for layer in self._layers:
+            x = layer(x)
 
         if self.skip_conn:
             return x + inp
