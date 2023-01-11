@@ -22,7 +22,12 @@ def correct_pad(input_shape, kernel_size):
 
     correct = (kernel_size[0] // 2, kernel_size[1] // 2)
 
-    return (int(correct[1] - adjust[1]), int(correct[1]), int(correct[0] - adjust[0]), int(correct[0]))
+    return (
+        int(correct[1] - adjust[1]),
+        int(correct[1]),
+        int(correct[0] - adjust[0]),
+        int(correct[0]),
+    )
 
 
 def preprocess_input(x, **kwargs):
@@ -35,7 +40,7 @@ def preprocess_input(x, **kwargs):
         [Tensor]: [Channel-wise normalised tensor]
     """
 
-    return (x / 128.) - 1
+    return (x / 128.0) - 1
 
 
 def get_xpansion_factor(t_zero, beta, block_id, num_blocks):
@@ -50,23 +55,28 @@ def get_xpansion_factor(t_zero, beta, block_id, num_blocks):
     Returns:
         [float]: [computed expansion factor]
     """
-    return (t_zero * beta) * block_id / num_blocks + t_zero * (num_blocks - block_id) / num_blocks
+    return (t_zero * beta) * block_id / num_blocks + t_zero * (
+        num_blocks - block_id
+    ) / num_blocks
+
 
 class ReLUMax(torch.nn.Module):
     def __init__(self, max):
         super(ReLUMax, self).__init__()
         self.max = max
         self.relu = torch.nn.ReLU(inplace=True)
-    
+
     def forward(self, x):
-        return torch.clamp(self.relu(x), max = self.max)
+        return torch.clamp(self.relu(x), max=self.max)
+
 
 class HSwish(torch.nn.Module):
     def __init__(self):
         super(HSwish, self).__init__()
-    
+
     def forward(self, x):
         return x * nn.ReLU6(inplace=True)(x + 3) / 6
+
 
 class SEBlock(torch.nn.Module):
     """Implements squeeze-and-excitation block"""
@@ -77,7 +87,7 @@ class SEBlock(torch.nn.Module):
         Args:
             in_channels ([int]): [Input number of channels]
             out_channels ([int]): [Output number of channels]
-            h_swish (bool, optional): [Whether to use the h_swish or not]. Defaults to True.
+            h_swish (bool, optional): [Whether to use the h_swish]. Defaults to True.
         """
         super(SEBlock, self).__init__()
 
@@ -92,11 +102,7 @@ class SEBlock(torch.nn.Module):
         )
 
         self.se_conv2 = nn.Conv2d(
-            out_channels,
-            in_channels,
-            kernel_size=1,
-            bias=False,
-            padding="same"
+            out_channels, in_channels, kernel_size=1, bias=False, padding="same"
         )
 
         if h_swish:
@@ -131,16 +137,17 @@ class DepthwiseConv2d(torch.nn.Conv2d):
         torch ([Tensor]): [Input tensor for convolution]
     """
 
-    def __init__(self,
-                 in_channels,
-                 depth_multiplier=1,
-                 kernel_size=3,
-                 stride=1,
-                 padding=0,
-                 dilation=1,
-                 bias=False,
-                 padding_mode='zeros'
-                 ):
+    def __init__(
+        self,
+        in_channels,
+        depth_multiplier=1,
+        kernel_size=3,
+        stride=1,
+        padding=0,
+        dilation=1,
+        bias=False,
+        padding_mode="zeros",
+    ):
         out_channels = in_channels * depth_multiplier
         super().__init__(
             in_channels=in_channels,
@@ -151,25 +158,26 @@ class DepthwiseConv2d(torch.nn.Conv2d):
             dilation=dilation,
             groups=in_channels,
             bias=bias,
-            padding_mode=padding_mode
+            padding_mode=padding_mode,
         )
 
 
 class SeparableConv2d(torch.nn.Module):
     """Implements SeparableConv2d"""
 
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 activation=torch.nn.functional.relu,
-                 kernel_size=3,
-                 stride=1,
-                 padding=0,
-                 dilation=1,
-                 bias=True,
-                 padding_mode='zeros',
-                 depth_multiplier=1,
-                 ):
+    def __init__(
+        self,
+        in_channels,
+        out_channels,
+        activation=torch.nn.functional.relu,
+        kernel_size=3,
+        stride=1,
+        padding=0,
+        dilation=1,
+        bias=True,
+        padding_mode="zeros",
+        depth_multiplier=1,
+    ):
         """Constructor of SeparableConv2d
 
         Args:
@@ -208,15 +216,11 @@ class SeparableConv2d(torch.nn.Module):
             dilation=dilation,
             # groups=in_channels,
             bias=bias,
-            padding_mode=padding_mode
+            padding_mode=padding_mode,
         )
 
-        bn = torch.nn.BatchNorm2d(
-            out_channels,
-            eps=1e-3,
-            momentum=0.999
-        )
-        
+        bn = torch.nn.BatchNorm2d(out_channels, eps=1e-3, momentum=0.999)
+
         self._layers.append(depthwise)
         self._layers.append(spatialConv)
         self._layers.append(bn)
@@ -231,7 +235,7 @@ class SeparableConv2d(torch.nn.Module):
         Returns:
             [Tensor]: [Output of convolution]
         """
-        for l in self._layers:
-            x = l(x)
+        for layer in self._layers:
+            x = layer(x)
 
         return x
