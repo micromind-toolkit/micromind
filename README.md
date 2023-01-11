@@ -2,9 +2,12 @@
 
 <div align="center">    
  
+[![Paper](http://img.shields.io/badge/paper-arxiv.1001.2234-B31B1B.svg)](https://arxiv.org/abs/2110.00337)
+
+</div>
+
 This repository is a collection of our efforts towards the design, implementation and evaluation of ML techniques in the field of tinyML. 
 
-[![Paper](http://img.shields.io/badge/paper-arxiv.1001.2234-B31B1B.svg)](https://arxiv.org/abs/2110.00337)
 
 ## To install the package 
 
