@@ -1,32 +1,53 @@
----
-
 <div align="center">    
  
-# This repo contains the code for _PhiNets_, a scalable backbone for low-power AI at the edge
-
 [![Paper](http://img.shields.io/badge/paper-arxiv.1001.2234-B31B1B.svg)](https://arxiv.org/abs/2110.00337)
 
-<!--  
-Conference   
--->   
 </div>
- 
-## Description   
-This is a first version of the public repo. It will be reorganized with specific instructions to reproduce the results of the paper above (with data download, etc). In the meantime, if you are willing to use the PhiNets in your signal processing pipelines, you can import them in PyTorch from this repo (soon pip!) or use them in keras from [this gist](https://gist.github.com/fpaissan/9157baa162649fba917a211434ae904c).
 
-#### Example: cifar10 
-To train PhiNets for cifar10, you can run:
+This repository is a collection of our efforts towards the design, implementation and evaluation of ML techniques in the field of tinyML. 
 
-```
-python __main__.py cifar10 data
+Here is a list of things you can do with the `phinet` package:
+ - [image classification](recipes/image_classification)
+
+## To install the package 
+
+```setup
+pip install git+https://github.com/fpaissan/phinet
 ```
 
-### Citation
+## Cite us
 ```
-@article{phinet,
-Author = {Francesco Paissan and Alberto Ancilotto and Elisabetta Farella},
-Title = {{PhiNets: a scalable backbone for low-power AI at the edge}},
-Year = {2021},
-Eprint = {arXiv:2110.00337},
+@article{10.1145/3510832,
+	author = {Paissan, Francesco and Ancilotto, Alberto and Farella, Elisabetta},
+	title = {PhiNets: A Scalable Backbone for Low-Power AI at the Edge},
+	year = {2022},
+	publisher = {Association for Computing Machinery},
+	address = {New York, NY, USA},
+	url = {https://doi.org/10.1145/3510832},
+	doi = {10.1145/3510832},
+	journal = {ACM Trans. Embed. Comput. Syst.},
 }
 ```
+<!---
+
+## Pre-trained Models
+
+You can download pretrained models here:
+
+- [My awesome model](https://drive.google.com/mymodel.pth) trained on ImageNet using parameters x,y,z. 
+
+>📋  Give a link to where/how the pretrained models can be downloaded and how they were trained (if applicable).  Alternatively you can have an additional column in your results table with a link to the models.
+
+## Results
+
+Our model achieves the following performance on :
+
+### [Image Classification on ImageNet](https://paperswithcode.com/sota/image-classification-on-imagenet)
+
+| Model name         | Top 1 Accuracy  | Top 5 Accuracy |
+| ------------------ |---------------- | -------------- |
+| My awesome model   |     85%         |      95%       |
+
+> Include a table of results from your paper, and link back to the leaderboard for clarity and context. If your main result is a figure, include that figure and link to the command or notebook to reproduce it. 
+
+--->
