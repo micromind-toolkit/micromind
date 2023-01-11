@@ -1,10 +1,11 @@
 """
-This code is an adaptation of the imagenet training script from Ross Wightman (https://github.com/rwightman)
-modified to train networks supported inside PhiNets.
+This code is an adaptation of the imagenet training script from
+Ross Wightman (https://github.com/rwightman) modified to train
+networks supported inside phinet.
 
 Adapted by:
-	- Mariam Jamal, 2023
-	- Francesco Paissan, 2023
+    - Mariam Jamal, 2023
+    - Francesco Paissan, 2023
 
 """
 import argparse
@@ -54,6 +55,7 @@ from phinet import PhiNet
 
 # should speed up backward-pass with depth-wise separable convolutions
 import torch.backends.cudnn as cudnn
+
 cudnn.benchmark = True
 
 try:
@@ -83,15 +85,16 @@ try:
     from functorch.compile import memory_efficient_fusion
 
     has_functorch = True
-except ImportError as e:
+except ImportError:
     has_functorch = False
 
 
 torch.backends.cudnn.benchmark = True
 _logger = logging.getLogger("train")
 
-# The first arg parser parses out only the --config argument, this argument is used to
-# load a yaml file containing key-values that override the defaults for the main parser below
+# The first arg parser parses out only the --config argument,
+# this argument is used to load a yaml file containing key-values
+# that override the defaults for the main parser below
 config_parser = parser = argparse.ArgumentParser(
     description="Training Config", add_help=False
 )
@@ -191,7 +194,8 @@ group.add_argument(
     default=None,
     type=str,
     metavar="POOL",
-    help="Global pool type, one of (fast, avg, max, avgmax, avgmaxc). Model default if None.",
+    help="Global pool type, one of (fast, avg, max, avgmax, avgmaxc). \
+            Model default if None.",
 )
 group.add_argument(
     "--img-size",
@@ -206,7 +210,8 @@ group.add_argument(
     nargs=3,
     type=int,
     metavar="N N N",
-    help="Input all image dimensions (d h w, e.g. --input-size 3 224 224), uses model default if empty",
+    help="Input all image dimensions (d h w, e.g. --input-size 3 224 224), \
+            uses model default if empty",
 )
 group.add_argument(
     "--crop-pct",
@@ -271,7 +276,8 @@ scripting_group.add_argument(
     "--aot-autograd",
     default=False,
     action="store_true",
-    help="Enable AOT Autograd support. (It's recommended to use this option with `--fuser nvfuser` together)",
+    help="Enable AOT Autograd support. (It's recommended to use \
+            this option with `--fuser nvfuser` together)",
 )
 group.add_argument(
     "--fuser",
@@ -299,7 +305,7 @@ group.add_argument(
 )
 group.add_argument(
     "--beta",
-    default=1.,
+    default=1.0,
     type=float,
     help="beta parameter for phinet. Defaults to 1.",
 )
@@ -457,7 +463,8 @@ group.add_argument(
     type=float,
     default=0.0,
     metavar="N",
-    help="epoch repeat multiplier (number of times to repeat dataset epoch per train epoch).",
+    help="epoch repeat multiplier \
+            (number of times to repeat dataset epoch per train epoch).",
 )
 group.add_argument(
     "--start-epoch",
@@ -621,7 +628,8 @@ group.add_argument(
     type=float,
     nargs="+",
     default=None,
-    help="cutmix min/max ratio, overrides alpha and enables cutmix if set (default: None)",
+    help="cutmix min/max ratio, overrides alpha \
+            and enables cutmix if set (default: None)",
 )
 group.add_argument(
     "--mixup-prob",
@@ -707,7 +715,8 @@ group.add_argument(
     "--dist-bn",
     type=str,
     default="reduce",
-    help='Distribute BatchNorm stats between nodes after each epoch ("broadcast", "reduce", or "")',
+    help='Distribute BatchNorm stats between nodes after each epoch \
+            ("broadcast", "reduce", or "")',
 )
 group.add_argument(
     "--split-bn",
@@ -895,7 +904,8 @@ def main():
         args.world_size = torch.distributed.get_world_size()
         args.rank = torch.distributed.get_rank()
         _logger.info(
-            "Training in distributed mode with multiple processes, 1 GPU per process. Process %d, total %d."
+            "Training in distributed mode with multiple processes, \
+                    1 GPU per process. Process %d, total %d."
             % (args.rank, args.world_size)
         )
     else:
@@ -938,7 +948,7 @@ def main():
 
     if args.model == "phinet":
         model = PhiNet(
-            res=vars(args)["input_size"][1],    # assuming square resolution
+            res=vars(args)["input_size"][1],  # assuming square resolution
             in_channels=vars(args)["input_size"][0],
             alpha=vars(args)["alpha"],
             B0=vars(args)["num_layers"],
@@ -947,7 +957,7 @@ def main():
             squeeze_excite=True,
             h_swish=True,
             include_top=True,
-            num_classes=vars(args)["num_classes"]
+            num_classes=vars(args)["num_classes"],
         )
     else:
         model = create_model(
@@ -978,7 +988,8 @@ def main():
 
     if args.local_rank == 0:
         _logger.info(
-            f"Model {safe_model_name(args.model)} created, param count:{sum([m.numel() for m in model.parameters()])}"
+            f"Model {safe_model_name(args.model)} created, \
+                    param count:{sum([m.numel() for m in model.parameters()])}"
         )
 
     data_config = resolve_data_config(
@@ -1013,8 +1024,10 @@ def main():
             model = convert_sync_batchnorm(model)
         if args.local_rank == 0:
             _logger.info(
-                "Converted model to use Synchronized BatchNorm. WARNING: You may have issues if using "
-                "zero initialized BN layers (enabled by default for ResNets) while sync-bn enabled."
+                "Converted model to use Synchronized BatchNorm. \
+                        WARNING: You may have issues if using "
+                "zero initialized BN layers (enabled by default for ResNets) \
+                        while sync-bn enabled."
             )
 
     if args.torchscript:
@@ -1058,7 +1071,8 @@ def main():
     # setup exponential moving average of model weights, SWA could be used here too
     model_ema = None
     if args.model_ema:
-        # Important to create EMA model after cuda(), DP wrapper, and AMP but before DDP wrapper
+        # Important to create EMA model after cuda()
+        # DP wrapper, and AMP but before DDP wrapper
         model_ema = utils.ModelEmaV2(
             model,
             decay=args.model_ema_decay,
@@ -1202,7 +1216,8 @@ def main():
             num_splits=num_aug_splits, smoothing=args.smoothing
         )
     elif mixup_active:
-        # smoothing is handled with mixup target transform which outputs sparse, soft targets
+        # smoothing is handled with mixup target transform which outputs sparse,
+        # soft targets
         if args.bce_loss:
             train_loss_fn = BinaryCrossEntropy(target_threshold=args.bce_target_thresh)
         else:
@@ -1413,7 +1428,7 @@ def train_one_epoch(
 
             if args.local_rank == 0:
                 _logger.info(
-                    "Train: {} [{:>4d}/{} ({:>3.0f}%)]	"
+                    "Train: {} [{:>4d}/{} ({:>3.0f}%)]  "
                     "Loss: {loss.val:#.4g} ({loss.avg:#.3g})  "
                     "Time: {batch_time.val:.3f}s, {rate:>7.2f}/s  "
                     "({batch_time.avg:.3f}s, {rate_avg:>7.2f}/s)  "
@@ -1513,8 +1528,8 @@ def validate(model, loader, loss_fn, args, amp_autocast=suppress, log_suffix="")
                 log_name = "Test" + log_suffix
                 _logger.info(
                     "{0}: [{1:>4d}/{2}]  "
-                    "Time: {batch_time.val:.3f} ({batch_time.avg:.3f})	"
-                    "Loss: {loss.val:>7.4f} ({loss.avg:>6.4f})	"
+                    "Time: {batch_time.val:.3f} ({batch_time.avg:.3f})  "
+                    "Loss: {loss.val:>7.4f} ({loss.avg:>6.4f})  "
                     "Acc@1: {top1.val:>7.4f} ({top1.avg:>7.4f})  "
                     "Acc@5: {top5.val:>7.4f} ({top5.avg:>7.4f})".format(
                         log_name,
