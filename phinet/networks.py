@@ -15,27 +15,27 @@ import torch
 class PhiNet(nn.Module):
     def __init__(
         self,
-        res=96,
-        in_channels=3,
-        B0=7,
+        res=96, # this goes as input_shape
+        in_channels=3,  # this goes as input_shape
+        B0=7,   # num_layers
         alpha=0.2,
         beta=1.0,
         t_zero=6,
-        h_swish=False,
-        squeeze_excite=False,
-        downsampling_layers=[5, 7],
-        conv5_percent=0,
-        first_conv_stride=2,
-        first_conv_filters=48,
-        b1_filters=24,
-        b2_filters=48,
+        h_swish=False,  # S1
+        squeeze_excite=False,   # S1
+        downsampling_layers=[5, 7], # S2
+        conv5_percent=0,    # S2
+        first_conv_stride=2,    # S2
+        first_conv_filters=48,  # hard-coded
+        b1_filters=24,  # hard-coded
+        b2_filters=48,  # hard-coded
         include_top=False,
-        pooling=None,
-        num_classes=10,
-        residuals=True,
-        input_tensor=None,
-        conv2d_input=False,
-        pool=False,
+        pooling=None,   # remove - not used
+        num_classes=10, 
+        residuals=True, # S2
+        input_tensor=None,  # remove
+        conv2d_input=False, # S2
+        pool=False, # S2
     ):
         """Generates PhiNets architecture
 
