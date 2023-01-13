@@ -34,13 +34,5 @@ Homepage = "https://github.com/fpaissan/phinet/blob/main/req.txt"
 [project.scripts]
 phinet = "__main__:main"
 
-[tool.flake8]
-ignore = ['W503', 'E231', 'E241', 'E203']
-per-file-ignores = [
-    '__init__.py:F401',
-]
-max-line-length = 88
-count = true
-
 [tool.setuptools]
 py-modules = []
