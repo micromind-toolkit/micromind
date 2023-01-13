@@ -41,3 +41,6 @@ per-file-ignores = [
 ]
 max-line-length = 88
 count = true
+
+[tool.setuptools]
+py-modules = []
