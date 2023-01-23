@@ -34,3 +34,5 @@ Homepage = "https://github.com/fpaissan/phinet/blob/main/req.txt"
 [project.scripts]
 phinet = "__main__:main"
 
+[tool.setuptools]
+py-modules = []
