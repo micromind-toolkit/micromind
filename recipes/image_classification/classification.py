@@ -953,10 +953,9 @@ def main():
             num_layers=vars(args)["num_layers"],
             beta=vars(args)["beta"],
             t_zero=vars(args)["t_zero"],
-            squeeze_excite=True,
-            h_swish=True,
             include_top=True,
             num_classes=vars(args)["num_classes"],
+            compatibility=False,
         )
     else:
         model = create_model(

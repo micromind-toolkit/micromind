@@ -1,4 +1,3 @@
-
 from .model_utils import (
     SeparableConv2d,
     ReLUMax,
@@ -16,29 +15,33 @@ class PhiNet(nn.Module):
     def __init__(
         self,
         input_shape: list[int],
-        num_layers: int = 7,   # num_layers
+        num_layers: int = 7,  # num_layers
         alpha: float = 0.2,
         beta: float = 1.0,
         t_zero: float = 6,
-        h_swish: bool = False,  # S1
-        squeeze_excite: bool = False,   # S1
-        downsampling_layers: list[int] = [5, 7], # S2
-        conv5_percent: float = 0.,    # S2
-        first_conv_stride: int = 2,    # S2
         include_top: bool = False,
-        num_classes: int = 10, 
-        residuals: bool = True, # S2
-        conv2d_input: bool = False, # S2
-        pool: bool = False, # S2
+        num_classes: int = 10,
+        compatibility: bool = False,
+        downsampling_layers: list[int] = [5, 7],  # S2
+        conv5_percent: float = 0.0,  # S2
+        first_conv_stride: int = 2,  # S2
+        residuals: bool = True,  # S2
+        conv2d_input: bool = False,  # S2
+        pool: bool = False,  # S2
+        h_swish: bool = True,  # S1
+        squeeze_excite: bool = True,  # S1
     ) -> None:
         super(PhiNet, self).__init__()
-        self.classify = include_top
+
+        if compatibility:  # disables operations hard for some platforms
+            h_swish = False
+            squeeze_excite = False
 
         # this hyperparameters are hard-coded. Defined here as variables just so
         # you can play with them.
-        first_conv_filters=48
-        b1_filters=24
-        b2_filters=48
+        first_conv_filters = 48
+        b1_filters = 24
+        b2_filters = 48
 
         if not isinstance(num_layers, int):
             num_layers = round(num_layers)
@@ -47,6 +50,7 @@ class PhiNet(nn.Module):
         in_channels = input_shape[0]
         res = max(input_shape[0], input_shape[1])
 
+        self.classify = include_top
         self._layers = torch.nn.ModuleList()
 
         # Define self.activation function
