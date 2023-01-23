@@ -8,7 +8,6 @@ Adapted by:
     - Francesco Paissan, 2023
 
 """
-import argparse
 import logging
 import os
 import time
@@ -51,7 +50,12 @@ from timm.optim import create_optimizer_v2, optimizer_kwargs
 from timm.scheduler import create_scheduler
 from timm.utils import ApexScaler, NativeScaler
 
+# Model interface
 from phinet import PhiNet
+
+# For argparse from multiple files
+from phinet import configlib
+from phinet.configlib import config as args
 
 # should speed up backward-pass with depth-wise separable convolutions
 import torch.backends.cudnn as cudnn
@@ -95,25 +99,22 @@ _logger = logging.getLogger("train")
 # The first arg parser parses out only the --config argument,
 # this argument is used to load a yaml file containing key-values
 # that override the defaults for the main parser below
-config_parser = parser = argparse.ArgumentParser(
-    description="Training Config", add_help=False
-)
-parser.add_argument(
-    "-c",
-    "--config",
-    default="",
-    type=str,
-    metavar="FILE",
-    help="YAML config file specifying default arguments",
-)
+# config_parser = configlib.add_parser("Classification training config")
+#
+# parser.add_argument(
+# "-c",
+# "--config",
+# default="",
+# type=str,
+# metavar="FILE",
+# help="YAML config file specifying default arguments",
+# )
 
-
-parser = argparse.ArgumentParser(description="PyTorch ImageNet Training")
 
 # Dataset parameters
-group = parser.add_argument_group("Dataset parameters")
+group = configlib.add_parser("Dataset parameters")
 # Keep this argument outside of the dataset group because it is positional.
-parser.add_argument("data_dir", metavar="DIR", help="path to dataset")
+group.add_argument("data_dir", metavar="DIR", help="path to dataset")
 group.add_argument(
     "--dataset",
     "-d",
@@ -148,7 +149,7 @@ group.add_argument(
 )
 
 # Model parameters
-group = parser.add_argument_group("Model parameters")
+group = configlib.add_parser("Model parameters")
 group.add_argument(
     "--model",
     default="resnet50",
@@ -323,7 +324,7 @@ group.add_argument(
 )
 
 # Optimizer parameters
-group = parser.add_argument_group("Optimizer parameters")
+group = configlib.add_parser("Optimizer parameters")
 group.add_argument(
     "--opt",
     default="sgd",
@@ -377,7 +378,7 @@ group.add_argument(
 )
 
 # Learning rate schedule parameters
-group = parser.add_argument_group("Learning rate schedule parameters")
+group = configlib.add_parser("Learning rate schedule parameters")
 group.add_argument(
     "--sched",
     default="cosine",
@@ -519,7 +520,7 @@ group.add_argument(
 )
 
 # Augmentation & regularization parameters
-group = parser.add_argument_group("Augmentation and regularization parameters")
+group = configlib.add_parser("Augmentation and regularization parameters")
 group.add_argument(
     "--no-aug",
     action="store_true",
@@ -691,7 +692,7 @@ group.add_argument(
 )
 
 # Batch norm parameters (only works with gen_efficientnet based models currently)
-group = parser.add_argument_group(
+group = configlib.add_parser(
     "Batch norm parameters", "Only works with gen_efficientnet based models currently."
 )
 group.add_argument(
@@ -725,7 +726,7 @@ group.add_argument(
 )
 
 # Model Exponential Moving Average
-group = parser.add_argument_group("Model exponential moving average parameters")
+group = configlib.add_parser("Model exponential moving average parameters")
 group.add_argument(
     "--model-ema",
     action="store_true",
@@ -746,7 +747,7 @@ group.add_argument(
 )
 
 # Misc
-group = parser.add_argument_group("Miscellaneous parameters")
+group = configlib.add_parser("Miscellaneous parameters")
 group.add_argument(
     "--seed", type=int, default=42, metavar="S", help="random seed (default: 42)"
 )
@@ -869,15 +870,16 @@ group.add_argument(
 
 def _parse_args():
     # Do we have a config file to parse?
-    args_config, remaining = config_parser.parse_known_args()
-    if args_config.config:
-        with open(args_config.config, "r") as f:
-            cfg = yaml.safe_load(f)
-            parser.set_defaults(**cfg)
+    # args_config, remaining = config_parser.parse_known_args()
+    # if args_config.config:
+    # with open(args_config.config, "r") as f:
+    # cfg = yaml.safe_load(f)
+    # parser.set_defaults(**cfg)
 
     # The main arg parser parses the rest of the args, the usual
     # defaults will have been overridden if config file specified.
-    args = parser.parse_args(remaining)
+    # args = parser.parse_args(remaining)
+    configlib.parse()
 
     # Cache the args as a text string to save them in the output dir later
     args_text = yaml.safe_dump(args.__dict__, default_flow_style=False)
@@ -948,16 +950,14 @@ def main():
 
     if args.model == "phinet":
         model = PhiNet(
-            res=vars(args)["input_size"][1],  # assuming square resolution
-            in_channels=vars(args)["input_size"][0],
+            input_shape=vars(args)["input_size"],
             alpha=vars(args)["alpha"],
-            B0=vars(args)["num_layers"],
+            num_layers=vars(args)["num_layers"],
             beta=vars(args)["beta"],
             t_zero=vars(args)["t_zero"],
-            squeeze_excite=True,
-            h_swish=True,
             include_top=True,
             num_classes=vars(args)["num_classes"],
+            compatibility=False,
         )
     else:
         model = create_model(
