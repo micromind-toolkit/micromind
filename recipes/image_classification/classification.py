@@ -948,10 +948,9 @@ def main():
 
     if args.model == "phinet":
         model = PhiNet(
-            res=vars(args)["input_size"][1],  # assuming square resolution
-            in_channels=vars(args)["input_size"][0],
+            input_shape=vars(args)["input_size"],
             alpha=vars(args)["alpha"],
-            B0=vars(args)["num_layers"],
+            num_layers=vars(args)["num_layers"],
             beta=vars(args)["beta"],
             t_zero=vars(args)["t_zero"],
             squeeze_excite=True,

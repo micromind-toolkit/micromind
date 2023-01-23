@@ -15,57 +15,37 @@ import torch
 class PhiNet(nn.Module):
     def __init__(
         self,
-        res=96, # this goes as input_shape
-        in_channels=3,  # this goes as input_shape
-        B0=7,   # num_layers
-        alpha=0.2,
-        beta=1.0,
-        t_zero=6,
-        h_swish=False,  # S1
-        squeeze_excite=False,   # S1
-        downsampling_layers=[5, 7], # S2
-        conv5_percent=0,    # S2
-        first_conv_stride=2,    # S2
-        first_conv_filters=48,  # hard-coded
-        b1_filters=24,  # hard-coded
-        b2_filters=48,  # hard-coded
-        include_top=False,
-        pooling=None,   # remove - not used
-        num_classes=10, 
-        residuals=True, # S2
-        input_tensor=None,  # remove
-        conv2d_input=False, # S2
-        pool=False, # S2
-    ):
-        """Generates PhiNets architecture
-
-        Args:
-            res (int, optional): [base network input resolution]. Defaults to 96.
-            B0 (int, optional): [base network number of blocks]. Defaults to 7.
-            alpha (float, optional): [base network width multiplier]. Defaults to 0.35.
-            beta (float, optional): [shape factor]. Defaults to 1.0.
-            t_zero (int, optional): [initial expansion factor]. Defaults to 6.
-            h_swish (bool, optional): [True to use h_swish]defaults to False.
-            squeeze_excite (bool, optional): [True to use SE blocks]. Defaults to False.
-            downsampling_layers (list, optional): []. Defaults to [5,7].
-            conv5_percent (int, optional): [description]. Defaults to 0.
-            first_conv_stride (int, optional): [Downsampling at the network input \
-                    - first conv stride]. Defaults to 2.
-            first_conv_filters (int, optional): [description]. Defaults to 48.
-            b1_filters (int, optional): [description]. Defaults to 24.
-            b2_filters (int, optional): [description]. Defaults to 48.
-            include_top (bool, optional): [description]. Defaults to True.
-            pooling ([type], optional): [description]. Defaults to None.
-            classes (int, optional): [description]. Defaults to 10.
-            residuals (bool, optional): [disable residual connections to lower ram \
-                    usage - residuals]. Defaults to True.
-            input_tensor ([type], optional): [description]. Defaults to None.
-        """
+        input_shape: list[int],
+        num_layers: int = 7,   # num_layers
+        alpha: float = 0.2,
+        beta: float = 1.0,
+        t_zero: float = 6,
+        h_swish: bool = False,  # S1
+        squeeze_excite: bool = False,   # S1
+        downsampling_layers: list[int] = [5, 7], # S2
+        conv5_percent: float = 0.,    # S2
+        first_conv_stride: int = 2,    # S2
+        include_top: bool = False,
+        num_classes: int = 10, 
+        residuals: bool = True, # S2
+        conv2d_input: bool = False, # S2
+        pool: bool = False, # S2
+    ) -> None:
         super(PhiNet, self).__init__()
         self.classify = include_top
 
-        num_blocks = round(B0)
-        input_shape = (round(res), round(res), in_channels)
+        # this hyperparameters are hard-coded. Defined here as variables just so
+        # you can play with them.
+        first_conv_filters=48
+        b1_filters=24
+        b2_filters=48
+
+        if not isinstance(num_layers, int):
+            num_layers = round(num_layers)
+
+        assert len(input_shape) == 3, "Expected 3 elements list as input_shape."
+        in_channels = input_shape[0]
+        res = max(input_shape[0], input_shape[1])
 
         self._layers = torch.nn.ModuleList()
 
@@ -128,7 +108,7 @@ class PhiNet(nn.Module):
             (int(b1_filters * alpha), res / first_conv_stride, res / first_conv_stride),
             filters=int(b1_filters * alpha),
             stride=2 if (not pool) else 1,
-            expansion=get_xpansion_factor(t_zero, beta, 1, num_blocks),
+            expansion=get_xpansion_factor(t_zero, beta, 1, num_layers),
             block_id=1,
             has_se=squeeze_excite,
             res=residuals,
@@ -143,7 +123,7 @@ class PhiNet(nn.Module):
             ),
             filters=int(b1_filters * alpha),
             stride=1,
-            expansion=get_xpansion_factor(t_zero, beta, 2, num_blocks),
+            expansion=get_xpansion_factor(t_zero, beta, 2, num_layers),
             block_id=2,
             has_se=squeeze_excite,
             res=residuals,
@@ -158,7 +138,7 @@ class PhiNet(nn.Module):
             ),
             filters=int(b2_filters * alpha),
             stride=2 if (not pool) else 1,
-            expansion=get_xpansion_factor(t_zero, beta, 3, num_blocks),
+            expansion=get_xpansion_factor(t_zero, beta, 3, num_layers),
             block_id=3,
             has_se=squeeze_excite,
             res=residuals,
@@ -177,7 +157,7 @@ class PhiNet(nn.Module):
         block_filters = b2_filters
         spatial_res = res / first_conv_stride / 4
         in_channels_next = int(b2_filters * alpha)
-        while num_blocks >= block_id:
+        while num_layers >= block_id:
             if block_id in downsampling_layers:
                 block_filters *= 2
                 if pool:
@@ -187,12 +167,12 @@ class PhiNet(nn.Module):
                 (in_channels_next, spatial_res, spatial_res),
                 filters=int(block_filters * alpha),
                 stride=(2 if (block_id in downsampling_layers) and (not pool) else 1),
-                expansion=get_xpansion_factor(t_zero, beta, block_id, num_blocks),
+                expansion=get_xpansion_factor(t_zero, beta, block_id, num_layers),
                 block_id=block_id,
                 has_se=squeeze_excite,
                 res=residuals,
                 h_swish=h_swish,
-                k_size=(5 if (block_id / num_blocks) > (1 - conv5_percent) else 3),
+                k_size=(5 if (block_id / num_layers) > (1 - conv5_percent) else 3),
             )
 
             self._layers.append(pn_block)
