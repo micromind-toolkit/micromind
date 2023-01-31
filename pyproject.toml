@@ -20,8 +20,6 @@ keywords = ["feed", "reader", "tutorial"]
 dependencies = [
     "torch",
     "torchinfo",
-    "opencv-python",
-    "scikit-learn"
 ]
 requires-python = ">=3.9"
 
@@ -29,7 +27,7 @@ requires-python = ">=3.9"
 dev = ["black", "bumpver", "isort", "pip-tools", "pytest"]
 
 [project.urls]
-Homepage = "https://github.com/fpaissan/phinet/blob/main/req.txt"
+Homepage = "https://github.com/fpaissan/phinet"
 
 [project.scripts]
 phinet = "__main__:main"

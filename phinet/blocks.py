@@ -34,6 +34,9 @@ class PhiNetConvBlock(nn.Module):
             k_size (int, optional): [description]. Defaults to 3.
         """
         super(PhiNetConvBlock, self).__init__()
+
+        self.param_count = 0
+
         self.skip_conn = False
 
         self._layers = torch.nn.ModuleList()
