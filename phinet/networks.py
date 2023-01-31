@@ -14,18 +14,17 @@ import torch
 
 class PhiNet(nn.Module):
     def get_complexity(self):
-        """ Returns MAC and number of parameters of initialized architecture.
-        """
+        """Returns MAC and number of parameters of initialized architecture."""
         temp = summary(self, input_data=torch.zeros([1] + list(self.input_shape)))
 
         return {"MAC": temp.total_mult_adds, "params": temp.total_params}
 
     def get_MAC(self):
-        """ Returns number of MACs for this architecture. """
+        """Returns number of MACs for this architecture."""
         return self.get_complexity()["MAC"]
 
     def get_params(self):
-        """ Returns number of params for this architecture. """
+        """Returns number of params for this architecture."""
         return self.get_complexity()["params"]
 
     def __init__(
