@@ -7,11 +7,27 @@ from .model_utils import (
 )
 from .blocks import PhiNetConvBlock
 
+from torchinfo import summary
 import torch.nn as nn
 import torch
 
 
 class PhiNet(nn.Module):
+    def get_complexity(self):
+        """ Returns MAC and number of parameters of initialized architecture.
+        """
+        temp = summary(self, input_data=torch.zeros([1] + list(self.input_shape)))
+
+        return {"MAC": temp.total_mult_adds, "params": temp.total_params}
+
+    def get_MAC(self):
+        """ Returns number of MACs for this architecture. """
+        return self.get_complexity()["MAC"]
+
+    def get_params(self):
+        """ Returns number of params for this architecture. """
+        return self.get_complexity()["params"]
+
     def __init__(
         self,
         input_shape: list[int],
@@ -49,6 +65,7 @@ class PhiNet(nn.Module):
         assert len(input_shape) == 3, "Expected 3 elements list as input_shape."
         in_channels = input_shape[0]
         res = max(input_shape[0], input_shape[1])
+        self.input_shape = input_shape
 
         self.classify = include_top
         self._layers = torch.nn.ModuleList()
