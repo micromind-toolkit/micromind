@@ -1356,7 +1356,6 @@ def train_one_epoch(
     model_ema=None,
     mixup_fn=None,
 ):
-
     if args.mixup_off_epoch and epoch >= args.mixup_off_epoch:
         if args.prefetcher and loader.mixup_enabled:
             loader.mixup_enabled = False

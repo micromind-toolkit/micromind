@@ -122,7 +122,6 @@ class PhiNet(nn.Module):
 
             self._layers.append(block1)
         else:
-
             c1 = nn.Conv2d(
                 in_channels, int(b1_filters * alpha), kernel_size=(3, 3), bias=False
             )
