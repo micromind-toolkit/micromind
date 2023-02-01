@@ -97,12 +97,12 @@ class SEBlock(torch.nn.Module):
             in_channels,
             out_channels,
             kernel_size=1,
-            padding="same",
+            padding=0,
             bias=False,
         )
 
         self.se_conv2 = nn.Conv2d(
-            out_channels, in_channels, kernel_size=1, bias=False, padding="same"
+            out_channels, in_channels, kernel_size=1, bias=False, padding=0
         )
 
         if h_swish:
@@ -200,7 +200,7 @@ class SeparableConv2d(torch.nn.Module):
             out_channels=in_channels,
             kernel_size=3,
             stride=stride,
-            padding="valid",
+            padding=0,
             dilation=1,
             groups=in_channels,
             bias=bias,
@@ -212,7 +212,7 @@ class SeparableConv2d(torch.nn.Module):
             out_channels=out_channels,
             kernel_size=1,
             stride=1,
-            padding="same",
+            padding=0,
             dilation=dilation,
             # groups=in_channels,
             bias=bias,

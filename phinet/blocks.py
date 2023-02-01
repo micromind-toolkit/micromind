@@ -53,7 +53,7 @@ class PhiNetConvBlock(nn.Module):
                 in_channels,
                 int(expansion * in_channels),
                 kernel_size=1,
-                padding="same",
+                padding=0,
                 bias=False,
             )
 
@@ -85,8 +85,7 @@ class PhiNetConvBlock(nn.Module):
             kernel_size=k_size,
             stride=stride,
             bias=False,
-            padding="same" if stride == 1 else "valid",
-            # name=prefix + 'depthwise'
+            padding=k_size//2 if stride == 1 else 0,
         )
 
         bn_dw1 = nn.BatchNorm2d(
@@ -110,7 +109,7 @@ class PhiNetConvBlock(nn.Module):
             in_channels=int(expansion * in_channels),
             out_channels=filters,
             kernel_size=1,
-            padding="same",
+            padding=0,
             bias=False,
         )
 

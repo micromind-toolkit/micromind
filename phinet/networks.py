@@ -98,7 +98,7 @@ class PhiNet(nn.Module):
                 int(first_conv_filters * alpha),
                 kernel_size=3,
                 stride=(first_conv_stride, first_conv_stride),
-                padding="valid",
+                padding=0,
                 bias=False,
                 activation=activation,
             )
