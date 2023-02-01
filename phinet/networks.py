@@ -15,11 +15,11 @@ import torch
 
 class PhiNet(nn.Module):
     def save_params(self, save_path: Path):
-        """ Saves model state_dict in `save_path`. """
+        """Saves model state_dict in `save_path`."""
         torch.save(self.state_dict(), save_path)
 
     def from_checkpoint(self, load_path: Path):
-        """ Loads parameters from checkpoint. """
+        """Loads parameters from checkpoint."""
         self.load_state_dict(torch.load(load_path))
 
     def get_complexity(self):
