@@ -1,3 +1,4 @@
+import torch.nn.functional as F
 import torch.nn as nn
 import torch
 
@@ -64,10 +65,9 @@ class ReLUMax(torch.nn.Module):
     def __init__(self, max):
         super(ReLUMax, self).__init__()
         self.max = max
-        self.relu = torch.nn.ReLU(inplace=True)
 
     def forward(self, x):
-        return torch.clamp(self.relu(x), max=self.max)
+        return torch.clamp(x, min=0, max=self.max)
 
 
 class HSwish(torch.nn.Module):
@@ -90,9 +90,6 @@ class SEBlock(torch.nn.Module):
             h_swish (bool, optional): [Whether to use the h_swish]. Defaults to True.
         """
         super(SEBlock, self).__init__()
-
-        self.glob_pooling = lambda x: nn.functional.avg_pool2d(x, x.size()[2:])
-
         self.se_conv = nn.Conv2d(
             in_channels,
             out_channels,
@@ -120,14 +117,13 @@ class SEBlock(torch.nn.Module):
             [Tensor]: [output of squeeze-and-excitation block]
         """
         inp = x
-        x = self.glob_pooling(x)
+        x = F.adaptive_avg_pool2d(x, (1, 1))
         x = self.se_conv(x)
         x = self.activation(x)
         x = self.se_conv2(x)
         x = torch.sigmoid(x)
-        x = x.expand_as(inp) * inp
 
-        return x
+        return x * inp
 
 
 class DepthwiseConv2d(torch.nn.Conv2d):
