@@ -7,12 +7,21 @@ from .model_utils import (
 )
 from .blocks import PhiNetConvBlock
 
+from pathlib import Path
 from torchinfo import summary
 import torch.nn as nn
 import torch
 
 
 class PhiNet(nn.Module):
+    def save_params(self, save_path: Path):
+        """ Saves model state_dict in `save_path`. """
+        torch.save(self.state_dict(), save_path)
+
+    def from_checkpoint(self, load_path: Path):
+        """ Loads parameters from checkpoint. """
+        self.load_state_dict(torch.load(load_path))
+
     def get_complexity(self):
         """Returns MAC and number of parameters of initialized architecture."""
         temp = summary(self, input_data=torch.zeros([1] + list(self.input_shape)))
