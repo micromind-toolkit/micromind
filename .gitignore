@@ -133,3 +133,7 @@ results/
 ckp/
 checkpoints/
 *.swp
+
+Dockerfile
+build_dgx.sh
+run_dgx.sh
