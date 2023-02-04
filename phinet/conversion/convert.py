@@ -1,9 +1,10 @@
 """
-Conversion from pytorch to different standard formats for inference (ONNX, OpenVINO, tflite).
+Conversion from pytorch to different standard formats
+for inference (ONNX, OpenVINO, tflite).
 
 Authors:
-	- Francesco Paissan, 2023
-	- Alberto Ancilotto, 2023
+    - Francesco Paissan, 2023
+    - Alberto Ancilotto, 2023
 """
 import torch
 import torch.nn as nn
@@ -23,7 +24,8 @@ import os
 
 @torch.no_grad()
 def convert_to_onnx(net: nn.Module, save_path: Path, simplify: bool = True):
-    """Converts nn.Module to onnx and saves it to save_path. Optionally simplifies it."""
+    """Converts nn.Module to onnx and saves it to save_path.
+    Optionally simplifies it."""
     x = torch.zeros([1] + net.input_shape)
 
     torch.onnx.export(

@@ -2,10 +2,9 @@
 Check if nn.Modules are convertible into quantized tflite networks.
 
 Authors:
-	- Francesco Paissan, 2023
+    - Francesco Paissan, 2023
 """
 import torch
-import torch.nn as nn
 
 
 def test_onnx():
