@@ -7,54 +7,62 @@ Authors:
 import torch
 import torch.nn as nn
 
+
 def test_onnx():
-	from phinet import PhiNet
-	from phinet.conversion import convert_to_onnx
-	
-	save_path = "temp.onnx"
+    from phinet import PhiNet
+    from phinet.conversion import convert_to_onnx
 
-	in_shape = list((3, 224, 224))
-	net = PhiNet(in_shape, compatibility=False)
+    save_path = "temp.onnx"
 
-	convert_to_onnx(net, save_path, simplify=True)
-	import os
-	os.remove(save_path)
+    in_shape = list((3, 224, 224))
+    net = PhiNet(in_shape, compatibility=False)
 
-	convert_to_onnx(net, save_path, simplify=False)
+    convert_to_onnx(net, save_path, simplify=True)
+    import os
 
-	import os
-	os.remove(save_path)
+    os.remove(save_path)
+
+    convert_to_onnx(net, save_path, simplify=False)
+
+    import os
+
+    os.remove(save_path)
+
 
 def test_openvino():
-	from phinet import PhiNet
-	from phinet.conversion import convert_to_openvino
-	
-	save_dir = "vino"
+    from phinet import PhiNet
+    from phinet.conversion import convert_to_openvino
 
-	in_shape = list((3, 224, 224))
-	net = PhiNet(in_shape, compatibility=False)
-	
-	convert_to_openvino(net, save_dir)		
-	
-	import shutil
-	shutil.rmtree(save_dir)
- 
+    save_dir = "vino"
+
+    in_shape = list((3, 224, 224))
+    net = PhiNet(in_shape, compatibility=False)
+
+    convert_to_openvino(net, save_dir)
+
+    import shutil
+
+    shutil.rmtree(save_dir)
+
+
 def test_tflite():
-	from phinet import PhiNet
-	from phinet.conversion import convert_to_tflite
-	
-	save_path = "tflite"
+    from phinet import PhiNet
+    from phinet.conversion import convert_to_tflite
 
-	in_shape = list((3, 224, 224))
-	net = PhiNet(in_shape, compatibility=False)
+    save_path = "tflite"
 
-	convert_to_tflite(net, save_path)
+    in_shape = list((3, 224, 224))
+    net = PhiNet(in_shape, compatibility=False)
 
-	import shutil
-	shutil.rmtree(save_path)
+    convert_to_tflite(net, save_path)
 
-	temp = torch.Tensor(100, in_shape[1], in_shape[2], in_shape[0])
-	convert_to_tflite(net, save_path, temp)
+    import shutil
 
-	import shutil
-	shutil.rmtree(save_path)
+    shutil.rmtree(save_path)
+
+    temp = torch.Tensor(100, in_shape[1], in_shape[2], in_shape[0])
+    convert_to_tflite(net, save_path, temp)
+
+    import shutil
+
+    shutil.rmtree(save_path)
