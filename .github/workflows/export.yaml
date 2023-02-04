@@ -1,4 +1,4 @@
-name: Exportability
+name: Unit tests
 
 on: push
 
@@ -17,10 +17,10 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        pip install -r requirements.txt conversion_requirements.txt
         pip install pytest torch
-        pip install . --user
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-    - name: Test with pytest
+        pip install --editable .
+    - name: pytest
       run: |
         pytest tests
 
