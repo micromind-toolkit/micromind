@@ -85,7 +85,7 @@ class PhiNetConvBlock(nn.Module):
             kernel_size=k_size,
             stride=stride,
             bias=False,
-            padding=k_size//2 if stride == 1 else 0,
+            padding=k_size // 2 if stride == 1 else 0,
         )
 
         bn_dw1 = nn.BatchNorm2d(
