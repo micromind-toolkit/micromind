@@ -21,7 +21,7 @@ jobs:
         pip install -r conversion_requirements.txt
         pip install pytest torch
         pip install . 
-    -name: set PYTHONPATH
+    - name: set PYTHONPATH
       run: |
         echo "PYTHONPATH=$PYTHONPATH:`pwd`" >> $GITHUB_ENV
     - name: pytest
