@@ -20,7 +20,7 @@ jobs:
         pip install -r requirements.txt 
         pip install -r conversion_requirements.txt
         pip install pytest torch
-        pip install . --user
+        pip install . 
     - name: pytest
       run: |
         pytest tests
