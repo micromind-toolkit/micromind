@@ -99,7 +99,7 @@ class PhiNetConvBlock(nn.Module):
         self._layers.append(activation)
 
         if has_se:
-            num_reduced_filters = max(1, int(in_channels * 0.25))
+            num_reduced_filters = max(1, int(expansion * in_channels / 6))
             se_block = SEBlock(
                 int(expansion * in_channels), num_reduced_filters, h_swish=h_swish
             )
