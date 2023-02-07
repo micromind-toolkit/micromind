@@ -53,7 +53,7 @@ class PhiNetConvBlock(nn.Module):
                 in_channels,
                 int(expansion * in_channels),
                 kernel_size=1,
-                padding="same",
+                padding=0,
                 bias=False,
             )
 
@@ -85,8 +85,7 @@ class PhiNetConvBlock(nn.Module):
             kernel_size=k_size,
             stride=stride,
             bias=False,
-            padding="same" if stride == 1 else "valid",
-            # name=prefix + 'depthwise'
+            padding=k_size // 2 if stride == 1 else 0,
         )
 
         bn_dw1 = nn.BatchNorm2d(
@@ -100,7 +99,7 @@ class PhiNetConvBlock(nn.Module):
         self._layers.append(activation)
 
         if has_se:
-            num_reduced_filters = max(1, int(in_channels * 0.25))
+            num_reduced_filters = max(1, int(expansion * in_channels / 6))
             se_block = SEBlock(
                 int(expansion * in_channels), num_reduced_filters, h_swish=h_swish
             )
@@ -110,7 +109,7 @@ class PhiNetConvBlock(nn.Module):
             in_channels=int(expansion * in_channels),
             out_channels=filters,
             kernel_size=1,
-            padding="same",
+            padding=0,
             bias=False,
         )
 
