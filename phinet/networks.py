@@ -6,14 +6,82 @@ from .model_utils import (
     get_xpansion_factor,
 )
 from .blocks import PhiNetConvBlock
+import phinet
 
 from pathlib import Path
 from torchinfo import summary
 import torch.nn as nn
 import torch
+from huggingface_hub import hf_hub_download
+from huggingface_hub.utils import EntryNotFoundError
+from types import SimpleNamespace
 
 
 class PhiNet(nn.Module):
+    @classmethod
+    def from_pretrained(
+        cls, dataset, alpha, beta, t_zero, num_layers, num_classes, device=None
+    ):
+        def num_class_error():
+            raise ValueError(
+                "Can't load model because num_classes does not match with dataset."
+            )
+
+        repo_dir = f"mbeltrami/{dataset}"
+        file_to_choose = f"\
+            phinet_a{float(alpha)}_b{float(beta)}_tzero{float(t_zero)}_Nlayers{num_layers}\
+            {phinet.datasets_info[dataset]['ext']}\
+            "
+
+        assert (
+            num_classes == phinet.datasets_info[dataset]["Nclasses"]
+        ), num_class_error()
+
+        if device is None:
+            if torch.cuda.is_available():
+                device = "cuda"
+            else:
+                device = "cpu"
+
+        try:
+            downloaded_file_path = hf_hub_download(
+                repo_id=repo_dir, filename=file_to_choose
+            )
+            state_dict = torch.load(str(downloaded_file_path), map_location=device)
+            model_found = True
+
+        except EntryNotFoundError:
+            state_dict = {
+                "args": SimpleNamespace(
+                    alpha=alpha,
+                    beta=beta,
+                    t_zero=t_zero,
+                    num_layers=num_layers,
+                    num_classes=num_classes,
+                )
+            }
+            model_found = False
+            print("WARNING: Model initialized without loading checkpoint.")
+
+        # model initialized
+        model = cls(
+            (3, 160, 160),
+            alpha=state_dict["args"].alpha,
+            beta=state_dict["args"].beta,
+            t_zero=state_dict["args"].t_zero,
+            num_layers=state_dict["args"].num_layers,
+            num_classes=state_dict["args"].num_classes,
+            include_top=True,
+            compatibility=False,
+        )
+
+        # model initialized with downloaded parameters
+        if model_found:
+            model.load_state_dict(state_dict["state_dict"])
+            print("Checkpoint loaded successfully.")
+
+        return model
+
     def save_params(self, save_path: Path):
         """Saves model state_dict in `save_path`."""
         torch.save(self.state_dict(), save_path)
@@ -56,6 +124,11 @@ class PhiNet(nn.Module):
         squeeze_excite: bool = True,  # S1
     ) -> None:
         super(PhiNet, self).__init__()
+        self.alpha = alpha
+        self.beta = beta
+        self.t_zero = t_zero
+        self.num_layers = num_layers
+        self.num_classes = num_classes
 
         if compatibility:  # disables operations hard for some platforms
             h_swish = False
