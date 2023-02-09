@@ -20,7 +20,15 @@ from types import SimpleNamespace
 class PhiNet(nn.Module):
     @classmethod
     def from_pretrained(
-        cls, dataset, alpha, beta, t_zero, num_layers, num_classes, device=None
+        cls,
+        dataset,
+        alpha,
+        beta,
+        t_zero,
+        num_layers,
+        num_classes,
+        resolution,
+        device=None,
     ):
         def num_class_error():
             raise ValueError(
@@ -29,9 +37,9 @@ class PhiNet(nn.Module):
 
         repo_dir = f"mbeltrami/{dataset}"
         file_to_choose = f"\
-            phinet_a{float(alpha)}_b{float(beta)}_tzero{float(t_zero)}_Nlayers{num_layers}\
-            {phinet.datasets_info[dataset]['ext']}\
-            "
+phinet_a{float(alpha)}_b{float(beta)}_tzero{float(t_zero)}_Nlayers{num_layers}\
+_res{resolution}{phinet.datasets_info[dataset]['ext']}\
+"
 
         assert (
             num_classes == phinet.datasets_info[dataset]["Nclasses"]
@@ -65,7 +73,7 @@ class PhiNet(nn.Module):
 
         # model initialized
         model = cls(
-            (3, 160, 160),
+            (phinet.datasets_info[dataset]["NChannels"], resolution, resolution),
             alpha=state_dict["args"].alpha,
             beta=state_dict["args"].beta,
             t_zero=state_dict["args"].t_zero,
