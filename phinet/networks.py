@@ -15,6 +15,7 @@ import torch
 from huggingface_hub import hf_hub_download
 from huggingface_hub.utils import EntryNotFoundError
 from types import SimpleNamespace
+import logging
 
 
 class PhiNet(nn.Module):
@@ -30,10 +31,6 @@ class PhiNet(nn.Module):
         resolution,
         device=None,
     ):
-        def num_class_error():
-            raise ValueError(
-                "Can't load model because num_classes does not match with dataset."
-            )
 
         repo_dir = f"mbeltrami/{dataset}"
         file_to_choose = f"\
@@ -43,7 +40,7 @@ _res{resolution}{phinet.datasets_info[dataset]['ext']}\
 
         assert (
             num_classes == phinet.datasets_info[dataset]["Nclasses"]
-        ), num_class_error()
+        ), "Can't load model because num_classes does not match with dataset."
 
         if device is None:
             if torch.cuda.is_available():
@@ -69,7 +66,7 @@ _res{resolution}{phinet.datasets_info[dataset]['ext']}\
                 )
             }
             model_found = False
-            print("WARNING: Model initialized without loading checkpoint.")
+            logging.warning("Model initialized without loading checkpoint.")
 
         # model initialized
         model = cls(
