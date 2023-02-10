@@ -31,7 +31,6 @@ class PhiNet(nn.Module):
         resolution,
         device=None,
     ):
-
         repo_dir = f"mbeltrami/{dataset}"
         file_to_choose = f"\
 phinet_a{float(alpha)}_b{float(beta)}_tzero{float(t_zero)}_Nlayers{num_layers}\

@@ -2,8 +2,8 @@ from .networks import PhiNet
 from .blocks import PhiNetConvBlock
 
 
-"""datasets_info is a dictionary that contains information about the attributes 
-of the datasets. 
+"""datasets_info is a dictionary that contains information about the attributes
+of the datasets.
 This dictionary is used in networks.py inside the from_pretrained class method
 in order to examine the inputs and initialize the PhiNet or, in case of
 mismatching between dataset and Nclasses, raise an AssertionError."""
