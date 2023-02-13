@@ -29,13 +29,16 @@ class PhiNet(nn.Module):
         num_layers,
         num_classes,
         resolution,
+        classifier=True,
         device=None,
     ):
         repo_dir = f"mbeltrami/{dataset}"
         file_to_choose = f"\
-phinet_a{float(alpha)}_b{float(beta)}_tzero{float(t_zero)}_Nlayers{num_layers}\
-_res{resolution}{phinet.datasets_info[dataset]['ext']}\
-"
+                phinet_a{float(alpha)}_b{float(beta)}_tzero{float(t_zero)}_Nlayers{num_layers}\
+                _res{resolution}{phinet.datasets_info[dataset]['ext']}\
+            ".replace(
+            " ", ""
+        )
 
         assert (
             num_classes == phinet.datasets_info[dataset]["Nclasses"]
@@ -75,13 +78,13 @@ _res{resolution}{phinet.datasets_info[dataset]['ext']}\
             t_zero=state_dict["args"].t_zero,
             num_layers=state_dict["args"].num_layers,
             num_classes=state_dict["args"].num_classes,
-            include_top=True,
+            include_top=classifier,
             compatibility=False,
         )
 
         # model initialized with downloaded parameters
         if model_found:
-            model.load_state_dict(state_dict["state_dict"])
+            model.load_state_dict(state_dict["state_dict"], strict=False)
             print("Checkpoint loaded successfully.")
 
         return model
