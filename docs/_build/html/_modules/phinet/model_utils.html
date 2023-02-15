@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>phinet.model_utils &mdash; PhiNets: a scalable backbone for low-power AI at the edge 1.0.0 documentation</title>
+      <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            PhiNets: a scalable backbone for low-power AI at the edge
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">phinet</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">PhiNets: a scalable backbone for low-power AI at the edge</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">phinet.model_utils</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for phinet.model_utils</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">torch.nn.functional</span> <span class="k">as</span> <span class="nn">F</span>
+<span class="kn">import</span> <span class="nn">torch.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+
+
+<div class="viewcode-block" id="correct_pad"><a class="viewcode-back" href="../../phinet.html#phinet.model_utils.correct_pad">[docs]</a><span class="k">def</span> <span class="nf">correct_pad</span><span class="p">(</span><span class="n">input_shape</span><span class="p">,</span> <span class="n">kernel_size</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Returns a tuple for zero-padding for 2D convolution with downsampling</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        input_shape ([tuple/int]): [Input size]</span>
+<span class="sd">        kernel_size ([tuple/int]): [Kernel size]</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        [tuple]: [Padding coeffs]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">kernel_size</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="n">kernel_size</span> <span class="o">=</span> <span class="p">(</span><span class="n">kernel_size</span><span class="p">,</span> <span class="n">kernel_size</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">input_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">adjust</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">adjust</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">input_shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">%</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">input_shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">%</span> <span class="mi">2</span><span class="p">)</span>
+
+    <span class="n">correct</span> <span class="o">=</span> <span class="p">(</span><span class="n">kernel_size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">kernel_size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">//</span> <span class="mi">2</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="nb">int</span><span class="p">(</span><span class="n">correct</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">adjust</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+        <span class="nb">int</span><span class="p">(</span><span class="n">correct</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+        <span class="nb">int</span><span class="p">(</span><span class="n">correct</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">adjust</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+        <span class="nb">int</span><span class="p">(</span><span class="n">correct</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span>
+    <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="preprocess_input"><a class="viewcode-back" href="../../phinet.html#phinet.model_utils.preprocess_input">[docs]</a><span class="k">def</span> <span class="nf">preprocess_input</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Normalise channels between [-1, 1]</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        x ([Tensor]): [Contains the image, number of channels is arbitrary]</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        [Tensor]: [Channel-wise normalised tensor]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">return</span> <span class="p">(</span><span class="n">x</span> <span class="o">/</span> <span class="mf">128.0</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span></div>
+
+
+<div class="viewcode-block" id="get_xpansion_factor"><a class="viewcode-back" href="../../phinet.html#phinet.model_utils.get_xpansion_factor">[docs]</a><span class="k">def</span> <span class="nf">get_xpansion_factor</span><span class="p">(</span><span class="n">t_zero</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="n">block_id</span><span class="p">,</span> <span class="n">num_blocks</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute expansion factor based on the formula from the paper</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        t_zero ([int]): [initial expansion factor]</span>
+<span class="sd">        beta ([int]): [shape factor]</span>
+<span class="sd">        block_id ([int]): [id of the block]</span>
+<span class="sd">        num_blocks ([int]): [number of blocks in the network]</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        [float]: [computed expansion factor]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">t_zero</span> <span class="o">*</span> <span class="n">beta</span><span class="p">)</span> <span class="o">*</span> <span class="n">block_id</span> <span class="o">/</span> <span class="n">num_blocks</span> <span class="o">+</span> <span class="n">t_zero</span> <span class="o">*</span> <span class="p">(</span>
+        <span class="n">num_blocks</span> <span class="o">-</span> <span class="n">block_id</span>
+    <span class="p">)</span> <span class="o">/</span> <span class="n">num_blocks</span></div>
+
+
+<div class="viewcode-block" id="ReLUMax"><a class="viewcode-back" href="../../phinet.html#phinet.model_utils.ReLUMax">[docs]</a><span class="k">class</span> <span class="nc">ReLUMax</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">max</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">ReLUMax</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max</span> <span class="o">=</span> <span class="nb">max</span>
+
+<div class="viewcode-block" id="ReLUMax.forward"><a class="viewcode-back" href="../../phinet.html#phinet.model_utils.ReLUMax.forward">[docs]</a>    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="HSwish"><a class="viewcode-back" href="../../phinet.html#phinet.model_utils.HSwish">[docs]</a><span class="k">class</span> <span class="nc">HSwish</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">HSwish</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+<div class="viewcode-block" id="HSwish.forward"><a class="viewcode-back" href="../../phinet.html#phinet.model_utils.HSwish.forward">[docs]</a>    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">x</span> <span class="o">*</span> <span class="n">nn</span><span class="o">.</span><span class="n">ReLU6</span><span class="p">(</span><span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)(</span><span class="n">x</span> <span class="o">+</span> <span class="mi">3</span><span class="p">)</span> <span class="o">/</span> <span class="mi">6</span></div></div>
+
+
+<div class="viewcode-block" id="SEBlock"><a class="viewcode-back" href="../../phinet.html#phinet.model_utils.SEBlock">[docs]</a><span class="k">class</span> <span class="nc">SEBlock</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Implements squeeze-and-excitation block&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_channels</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">,</span> <span class="n">h_swish</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Constructor of SEBlock</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            in_channels ([int]): [Input number of channels]</span>
+<span class="sd">            out_channels ([int]): [Output number of channels]</span>
+<span class="sd">            h_swish (bool, optional): [Whether to use the h_swish]. Defaults to True.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SEBlock</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">se_conv</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span>
+            <span class="n">in_channels</span><span class="p">,</span>
+            <span class="n">out_channels</span><span class="p">,</span>
+            <span class="n">kernel_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">padding</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="n">bias</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">se_conv2</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span>
+            <span class="n">out_channels</span><span class="p">,</span> <span class="n">in_channels</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">0</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">h_swish</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">activation</span> <span class="o">=</span> <span class="n">HSwish</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">activation</span> <span class="o">=</span> <span class="n">ReLUMax</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SEBlock.forward"><a class="viewcode-back" href="../../phinet.html#phinet.model_utils.SEBlock.forward">[docs]</a>    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Executes SE Block</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            x ([Tensor]): [input tensor]</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            [Tensor]: [output of squeeze-and-excitation block]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">inp</span> <span class="o">=</span> <span class="n">x</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">adaptive_avg_pool2d</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">se_conv</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">activation</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">se_conv2</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sigmoid</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">x</span> <span class="o">*</span> <span class="n">inp</span></div></div>
+
+
+<div class="viewcode-block" id="DepthwiseConv2d"><a class="viewcode-back" href="../../phinet.html#phinet.model_utils.DepthwiseConv2d">[docs]</a><span class="k">class</span> <span class="nc">DepthwiseConv2d</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Depthwise 2D conv</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        torch ([Tensor]): [Input tensor for convolution]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">in_channels</span><span class="p">,</span>
+        <span class="n">depth_multiplier</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+        <span class="n">stride</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">padding</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="n">dilation</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">bias</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">padding_mode</span><span class="o">=</span><span class="s2">&quot;zeros&quot;</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="n">out_channels</span> <span class="o">=</span> <span class="n">in_channels</span> <span class="o">*</span> <span class="n">depth_multiplier</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">in_channels</span><span class="o">=</span><span class="n">in_channels</span><span class="p">,</span>
+            <span class="n">out_channels</span><span class="o">=</span><span class="n">out_channels</span><span class="p">,</span>
+            <span class="n">kernel_size</span><span class="o">=</span><span class="n">kernel_size</span><span class="p">,</span>
+            <span class="n">stride</span><span class="o">=</span><span class="n">stride</span><span class="p">,</span>
+            <span class="n">padding</span><span class="o">=</span><span class="n">padding</span><span class="p">,</span>
+            <span class="n">dilation</span><span class="o">=</span><span class="n">dilation</span><span class="p">,</span>
+            <span class="n">groups</span><span class="o">=</span><span class="n">in_channels</span><span class="p">,</span>
+            <span class="n">bias</span><span class="o">=</span><span class="n">bias</span><span class="p">,</span>
+            <span class="n">padding_mode</span><span class="o">=</span><span class="n">padding_mode</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SeparableConv2d"><a class="viewcode-back" href="../../phinet.html#phinet.model_utils.SeparableConv2d">[docs]</a><span class="k">class</span> <span class="nc">SeparableConv2d</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Implements SeparableConv2d&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">in_channels</span><span class="p">,</span>
+        <span class="n">out_channels</span><span class="p">,</span>
+        <span class="n">activation</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">relu</span><span class="p">,</span>
+        <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+        <span class="n">stride</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">padding</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="n">dilation</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">bias</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">padding_mode</span><span class="o">=</span><span class="s2">&quot;zeros&quot;</span><span class="p">,</span>
+        <span class="n">depth_multiplier</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Constructor of SeparableConv2d</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            in_channels ([int]): [Input number of channels]</span>
+<span class="sd">            out_channels ([int]): [Output number of channels]</span>
+<span class="sd">            kernel_size (int, optional): [Kernel size]. Defaults to 3.</span>
+<span class="sd">            stride (int, optional): [Stride for conv]. Defaults to 1.</span>
+<span class="sd">            padding (int, optional): [Padding for conv]. Defaults to 0.</span>
+<span class="sd">            dilation (int, optional): []. Defaults to 1.</span>
+<span class="sd">            bias (bool, optional): []. Defaults to True.</span>
+<span class="sd">            padding_mode (str, optional): []. Defaults to &#39;zeros&#39;.</span>
+<span class="sd">            depth_multiplier (int, optional): [Depth multiplier]. Defaults to 1.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_layers</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">()</span>
+
+        <span class="n">depthwise</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span>
+            <span class="n">in_channels</span><span class="o">=</span><span class="n">in_channels</span><span class="p">,</span>
+            <span class="n">out_channels</span><span class="o">=</span><span class="n">in_channels</span><span class="p">,</span>
+            <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+            <span class="n">stride</span><span class="o">=</span><span class="n">stride</span><span class="p">,</span>
+            <span class="n">padding</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="n">dilation</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">groups</span><span class="o">=</span><span class="n">in_channels</span><span class="p">,</span>
+            <span class="n">bias</span><span class="o">=</span><span class="n">bias</span><span class="p">,</span>
+            <span class="n">padding_mode</span><span class="o">=</span><span class="n">padding_mode</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">spatialConv</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span>
+            <span class="n">in_channels</span><span class="o">=</span><span class="n">in_channels</span><span class="p">,</span>
+            <span class="n">out_channels</span><span class="o">=</span><span class="n">out_channels</span><span class="p">,</span>
+            <span class="n">kernel_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">stride</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">padding</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="n">dilation</span><span class="o">=</span><span class="n">dilation</span><span class="p">,</span>
+            <span class="c1"># groups=in_channels,</span>
+            <span class="n">bias</span><span class="o">=</span><span class="n">bias</span><span class="p">,</span>
+            <span class="n">padding_mode</span><span class="o">=</span><span class="n">padding_mode</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">bn</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">BatchNorm2d</span><span class="p">(</span><span class="n">out_channels</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">1e-3</span><span class="p">,</span> <span class="n">momentum</span><span class="o">=</span><span class="mf">0.999</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_layers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">depthwise</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_layers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">spatialConv</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_layers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">bn</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_layers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">activation</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SeparableConv2d.forward"><a class="viewcode-back" href="../../phinet.html#phinet.model_utils.SeparableConv2d.forward">[docs]</a>    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Executes SeparableConv2d block</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            x ([Tensor]): [Input tensor]</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            [Tensor]: [Output of convolution]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_layers</span><span class="p">:</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">layer</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">x</span></div></div>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, Matteo Beltrami.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
