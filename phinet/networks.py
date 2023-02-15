@@ -32,6 +32,23 @@ class PhiNet(nn.Module):
         classifier=True,
         device=None,
     ):
+        """Loads parameters from checkpoint through Hugging Face Hub.
+
+        Args:
+            dataset ([dictionary/string]): [Dataset chosen]
+            alpha ([tuple/float]): [alpha value]
+            beta ([tuple/float]): [beta value]
+            t_zero ([tuple/float]): [t_zero value]
+            num_layers ([tuple/int]): [number of layers]
+            num_classes ([tuple/int]): [number of classes]
+            resolution ([tuple/int]): [resolution]
+            classifier ([bool]): [include classifier or not]
+            device ([string]): [cpu or gpu]
+
+
+        Returns:
+            [PhiNet]: [Model]
+        """
         repo_dir = f"mbeltrami/{dataset}"
         file_to_choose = f"\
                 phinet_a{float(alpha)}_b{float(beta)}_tzero{float(t_zero)}_Nlayers{num_layers}\
@@ -300,6 +317,9 @@ class PhiNet(nn.Module):
                 int(1280 * alpha), num_classes, kernel_size=1, bias=True
             )
 
+            self.new_convolution = nn.Conv2d(
+                int(block_filters * alpha), num_classes, kernel_size=1, bias=True
+            )
             # self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
             # self.classifier = nn.Linear(int(block_filters * alpha), num_classes)
             # self.soft = nn.Softmax(dim=1)
@@ -315,7 +335,8 @@ class PhiNet(nn.Module):
 
         if self.classify:
             x = self.glob_pooling(x)
-            x = self.final_conv(self.class_conv2d(x))
+            #x = self.final_conv(self.class_conv2d(x))
+            x = self.new_convolution(x)
             x = x.view(-1, x.shape[1])
 
         return x
