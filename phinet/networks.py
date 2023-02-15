@@ -335,7 +335,7 @@ class PhiNet(nn.Module):
 
         if self.classify:
             x = self.glob_pooling(x)
-            #x = self.final_conv(self.class_conv2d(x))
+            # x = self.final_conv(self.class_conv2d(x))
             x = self.new_convolution(x)
             x = x.view(-1, x.shape[1])
 
