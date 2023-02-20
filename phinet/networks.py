@@ -310,19 +310,10 @@ class PhiNet(nn.Module):
         if include_top:
             # Includes classification head if required
             self.glob_pooling = lambda x: nn.functional.avg_pool2d(x, x.size()[2:])
-            self.class_conv2d = nn.Conv2d(
-                int(block_filters * alpha), int(1280 * alpha), kernel_size=1, bias=True
-            )
-            self.final_conv = nn.Conv2d(
-                int(1280 * alpha), num_classes, kernel_size=1, bias=True
-            )
 
             self.new_convolution = nn.Conv2d(
                 int(block_filters * alpha), num_classes, kernel_size=1, bias=True
             )
-            # self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-            # self.classifier = nn.Linear(int(block_filters * alpha), num_classes)
-            # self.soft = nn.Softmax(dim=1)
 
     def forward(self, x):
         """Executes PhiNet network
@@ -335,7 +326,6 @@ class PhiNet(nn.Module):
 
         if self.classify:
             x = self.glob_pooling(x)
-            # x = self.final_conv(self.class_conv2d(x))
             x = self.new_convolution(x)
             x = x.view(-1, x.shape[1])
 
