@@ -49,7 +49,7 @@ class PhiNet(nn.Module):
         Returns:
             [PhiNet]: [Model]
         """
-        repo_dir = f"mbeltrami/{dataset}"
+        repo_dir = f"fpaissan/{dataset}"
         file_to_choose = f"\
                 phinet_a{float(alpha)}_b{float(beta)}_tzero{float(t_zero)}_Nlayers{num_layers}\
                 _res{resolution}{phinet.datasets_info[dataset]['ext']}\
