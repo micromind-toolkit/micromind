@@ -27,28 +27,51 @@ class PhiNet(nn.Module):
         beta,
         t_zero,
         num_layers,
-        num_classes,
         resolution,
+        num_classes=None,
         classifier=True,
         device=None,
     ):
         """Loads parameters from checkpoint through Hugging Face Hub.
+        This function constructs two strings, "repo_dir" to find the model on Hugging
+        Face Hub and "file_to_choose" to select the correct file inside the repo, and
+        use them to download the pretrained model and initialize the PhiNet.
 
-        Args:
-            dataset ([dictionary/string]): [Dataset chosen]
-            alpha ([tuple/float]): [alpha value]
-            beta ([tuple/float]): [beta value]
-            t_zero ([tuple/float]): [t_zero value]
-            num_layers ([tuple/int]): [number of layers]
-            num_classes ([tuple/int]): [number of classes]
-            resolution ([tuple/int]): [resolution]
-            classifier ([bool]): [include classifier or not]
-            device ([string]): [cpu or gpu]
+        Arguments
+        ---------
+        dataset : string
+            The dataset on which the model has been trained with.
+        alpha : float
+            The alpha hyperparameter.
+        beta : float
+            The beta hyperparameter.
+        t_zero : float
+            The t_zero hyperparameter.
+        num_layers : int
+            The number of layers.
+        resolution : int
+            The resolution of the images used during training.
+        num_classes : int
+            The number of classes that the model has been trained for.
+            If None, it gets the specific value determined by the dataset used.
+        classifier : bool
+            If True, the model returend includes the classifier.
+        device : string
+            The device that loads all the tensors.
+            If None, it's set to "cuda" if it's available, it's set to "cpu" otherwise.
 
+        Returns
+        -------
+            PhiNet: nn.Module
 
-        Returns:
-            [PhiNet]: [Model]
+        Example
+        -------
+        >>> from phinet import PhiNet
+        >>> model = PhiNet.from_pretrained("CIFAR-10", 3.0, 0.75, 6.0, 7, 160)
         """
+        if num_classes is None:
+            num_classes = phinet.datasets_info[dataset]["Nclasses"]
+
         repo_dir = f"fpaissan/{dataset}"
         file_to_choose = f"\
                 phinet_a{float(alpha)}_b{float(beta)}_tzero{float(t_zero)}_Nlayers{num_layers}\
