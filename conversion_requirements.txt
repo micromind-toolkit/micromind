@@ -1,4 +1,4 @@
-onnx==1.12.0
+onnx==1.13.0
 onnx_tf==1.10.0
 onnx-simplifier==0.4.13
 onnxruntime==1.13.1
