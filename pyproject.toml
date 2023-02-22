@@ -5,9 +5,9 @@ requires = ["setuptools>=61.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "phinet"
+name = "micromind"
 version = "0.0.1"
-description = "Pytorch implementation of PhiNets"
+description = "MicroMind"
 readme = "README.md"
 authors = [{ name = "Francesco Paissan", email = "francescopaissan@gmail.com" }]
 #license = { file = "LICENSE" }
@@ -27,7 +27,7 @@ requires-python = ">=3.9"
 dev = ["black", "bumpver", "isort", "pip-tools", "pytest"]
 
 [project.urls]
-Homepage = "https://github.com/fpaissan/phinet"
+Homepage = "https://github.com/fpaissan/micromind"
 
 [project.scripts]
 phinet = "__main__:main"

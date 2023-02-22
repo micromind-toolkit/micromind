@@ -6,7 +6,7 @@ from .model_utils import (
     get_xpansion_factor,
 )
 from .blocks import PhiNetConvBlock
-import phinet
+import micromind
 
 from pathlib import Path
 from torchinfo import summary
@@ -66,22 +66,22 @@ class PhiNet(nn.Module):
 
         Example
         -------
-        >>> from phinet import PhiNet
+        >>> from micromind import PhiNet
         >>> model = PhiNet.from_pretrained("CIFAR-10", 3.0, 0.75, 6.0, 7, 160)
         """
         if num_classes is None:
-            num_classes = phinet.datasets_info[dataset]["Nclasses"]
+            num_classes = micromind.datasets_info[dataset]["Nclasses"]
 
         repo_dir = f"micromind/{dataset}"
         file_to_choose = f"\
                 phinet_a{float(alpha)}_b{float(beta)}_tzero{float(t_zero)}_Nlayers{num_layers}\
-                _res{resolution}{phinet.datasets_info[dataset]['ext']}\
+                _res{resolution}{micromind.datasets_info[dataset]['ext']}\
             ".replace(
             " ", ""
         )
 
         assert (
-            num_classes == phinet.datasets_info[dataset]["Nclasses"]
+            num_classes == micromind.datasets_info[dataset]["Nclasses"]
         ), "Can't load model because num_classes does not match with dataset."
 
         if device is None:
@@ -112,7 +112,7 @@ class PhiNet(nn.Module):
 
         # model initialized
         model = cls(
-            (phinet.datasets_info[dataset]["NChannels"], resolution, resolution),
+            (micromind.datasets_info[dataset]["NChannels"], resolution, resolution),
             alpha=state_dict["args"].alpha,
             beta=state_dict["args"].beta,
             t_zero=state_dict["args"].t_zero,
