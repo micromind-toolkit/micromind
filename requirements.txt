@@ -1,1 +1,2 @@
 torchinfo
+huggingface_hub

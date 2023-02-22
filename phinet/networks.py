@@ -6,14 +6,129 @@ from .model_utils import (
     get_xpansion_factor,
 )
 from .blocks import PhiNetConvBlock
+import phinet
 
 from pathlib import Path
 from torchinfo import summary
 import torch.nn as nn
 import torch
+from huggingface_hub import hf_hub_download
+from huggingface_hub.utils import EntryNotFoundError
+from types import SimpleNamespace
+import logging
 
 
 class PhiNet(nn.Module):
+    @classmethod
+    def from_pretrained(
+        cls,
+        dataset,
+        alpha,
+        beta,
+        t_zero,
+        num_layers,
+        resolution,
+        num_classes=None,
+        classifier=True,
+        device=None,
+    ):
+        """Loads parameters from checkpoint through Hugging Face Hub.
+        This function constructs two strings, "repo_dir" to find the model on Hugging
+        Face Hub and "file_to_choose" to select the correct file inside the repo, and
+        use them to download the pretrained model and initialize the PhiNet.
+
+        Arguments
+        ---------
+        dataset : string
+            The dataset on which the model has been trained with.
+        alpha : float
+            The alpha hyperparameter.
+        beta : float
+            The beta hyperparameter.
+        t_zero : float
+            The t_zero hyperparameter.
+        num_layers : int
+            The number of layers.
+        resolution : int
+            The resolution of the images used during training.
+        num_classes : int
+            The number of classes that the model has been trained for.
+            If None, it gets the specific value determined by the dataset used.
+        classifier : bool
+            If True, the model returend includes the classifier.
+        device : string
+            The device that loads all the tensors.
+            If None, it's set to "cuda" if it's available, it's set to "cpu" otherwise.
+
+        Returns
+        -------
+            PhiNet: nn.Module
+
+        Example
+        -------
+        >>> from phinet import PhiNet
+        >>> model = PhiNet.from_pretrained("CIFAR-10", 3.0, 0.75, 6.0, 7, 160)
+        """
+        if num_classes is None:
+            num_classes = phinet.datasets_info[dataset]["Nclasses"]
+
+        repo_dir = f"micromind/{dataset}"
+        file_to_choose = f"\
+                phinet_a{float(alpha)}_b{float(beta)}_tzero{float(t_zero)}_Nlayers{num_layers}\
+                _res{resolution}{phinet.datasets_info[dataset]['ext']}\
+            ".replace(
+            " ", ""
+        )
+
+        assert (
+            num_classes == phinet.datasets_info[dataset]["Nclasses"]
+        ), "Can't load model because num_classes does not match with dataset."
+
+        if device is None:
+            if torch.cuda.is_available():
+                device = "cuda"
+            else:
+                device = "cpu"
+
+        try:
+            downloaded_file_path = hf_hub_download(
+                repo_id=repo_dir, filename=file_to_choose
+            )
+            state_dict = torch.load(str(downloaded_file_path), map_location=device)
+            model_found = True
+
+        except EntryNotFoundError:
+            state_dict = {
+                "args": SimpleNamespace(
+                    alpha=alpha,
+                    beta=beta,
+                    t_zero=t_zero,
+                    num_layers=num_layers,
+                    num_classes=num_classes,
+                )
+            }
+            model_found = False
+            logging.warning("Model initialized without loading checkpoint.")
+
+        # model initialized
+        model = cls(
+            (phinet.datasets_info[dataset]["NChannels"], resolution, resolution),
+            alpha=state_dict["args"].alpha,
+            beta=state_dict["args"].beta,
+            t_zero=state_dict["args"].t_zero,
+            num_layers=state_dict["args"].num_layers,
+            num_classes=state_dict["args"].num_classes,
+            include_top=classifier,
+            compatibility=False,
+        )
+
+        # model initialized with downloaded parameters
+        if model_found:
+            model.load_state_dict(state_dict["state_dict"], strict=False)
+            print("Checkpoint loaded successfully.")
+
+        return model
+
     def save_params(self, save_path: Path):
         """Saves model state_dict in `save_path`."""
         torch.save(self.state_dict(), save_path)
@@ -56,6 +171,11 @@ class PhiNet(nn.Module):
         squeeze_excite: bool = True,  # S1
     ) -> None:
         super(PhiNet, self).__init__()
+        self.alpha = alpha
+        self.beta = beta
+        self.t_zero = t_zero
+        self.num_layers = num_layers
+        self.num_classes = num_classes
 
         if compatibility:  # disables operations hard for some platforms
             h_swish = False
@@ -213,16 +333,10 @@ class PhiNet(nn.Module):
         if include_top:
             # Includes classification head if required
             self.glob_pooling = lambda x: nn.functional.avg_pool2d(x, x.size()[2:])
-            self.class_conv2d = nn.Conv2d(
-                int(block_filters * alpha), int(1280 * alpha), kernel_size=1, bias=True
-            )
-            self.final_conv = nn.Conv2d(
-                int(1280 * alpha), num_classes, kernel_size=1, bias=True
-            )
 
-            # self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-            # self.classifier = nn.Linear(int(block_filters * alpha), num_classes)
-            # self.soft = nn.Softmax(dim=1)
+            self.new_convolution = nn.Conv2d(
+                int(block_filters * alpha), num_classes, kernel_size=1, bias=True
+            )
 
     def forward(self, x):
         """Executes PhiNet network
@@ -235,7 +349,7 @@ class PhiNet(nn.Module):
 
         if self.classify:
             x = self.glob_pooling(x)
-            x = self.final_conv(self.class_conv2d(x))
+            x = self.new_convolution(x)
             x = x.view(-1, x.shape[1])
 
         return x
