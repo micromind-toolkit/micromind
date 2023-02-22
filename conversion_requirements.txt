@@ -1,9 +1,9 @@
 onnx
-onnx_tf
-onnx-simplifier
-onnxruntime
-openvino-dev
-openvino2tensorflow
-tensorflow_datasets
-tensorflow
+onnx_tf==1.10.0
+onnx-simplifier==0.4.13
+onnxruntime==1.13.1
+openvino-dev==2022.3.0
+openvino2tensorflow==1.34.0
+tensorflow_datasets==4.8.1
+tensorflow==2.11.0
 tensorflow_probability
