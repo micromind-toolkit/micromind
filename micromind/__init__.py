@@ -1,5 +1,4 @@
-from .networks.phinet.networks import PhiNet
-from .networks.phinet.blocks import PhiNetConvBlock
+from .networks.phinet.networks import PhiNet 
 from .utils import configlib
 
 

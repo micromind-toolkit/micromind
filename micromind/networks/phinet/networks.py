@@ -1,3 +1,11 @@
+"""
+Code for PhiNets (https://doi.org/10.1145/3510832).
+
+Authors:
+    - Francesco Paissan, 2023
+    - Alberto Ancilotto, 2023
+    - Matteo Beltrami, 2023
+"""
 from .model_utils import (
     SeparableConv2d,
     ReLUMax,
@@ -5,7 +13,6 @@ from .model_utils import (
     correct_pad,
     get_xpansion_factor,
 )
-from .blocks import PhiNetConvBlock
 import micromind
 
 from pathlib import Path
@@ -16,6 +23,165 @@ from huggingface_hub import hf_hub_download
 from huggingface_hub.utils import EntryNotFoundError
 from types import SimpleNamespace
 import logging
+
+from .model_utils import DepthwiseConv2d, SEBlock, ReLUMax, HSwish, correct_pad
+
+import torch.nn as nn
+import torch
+
+
+class PhiNetConvBlock(nn.Module):
+    """Implements PhiNet's convolutional block"""
+
+    def __init__(
+        self,
+        in_shape,
+        expansion,
+        stride,
+        filters,
+        has_se,
+        block_id=None,
+        res=True,
+        h_swish=True,
+        k_size=3,
+        dp_rate=0.05,
+    ):
+        """Defines the structure of a PhiNet convolutional block.
+
+        Arguments
+        -------
+        in_shape : tuple
+            Input shape of the conv block.
+        expansion : float
+            Expansion coefficient for this convolutional block.
+        stride: int
+            Stride for the conv block.
+        filters : int
+            Output channels of the convolutional block.
+        block_id : int
+            ID of the convolutional block.
+        has_se : bool
+            Whether to include use Squeeze and Excite or not.
+        res : bool
+            Whether to use the residual connection or not.
+        h_swish : bool
+            Whether to use HSwish or not.
+        k_size : int
+            Kernel size for the depthwise convolution.
+
+        """
+        super(PhiNetConvBlock, self).__init__()
+
+        self.param_count = 0
+
+        self.skip_conn = False
+
+        self._layers = torch.nn.ModuleList()
+        in_channels = in_shape[0]
+        # Define activation function
+        if h_swish:
+            activation = HSwish()
+        else:
+            activation = ReLUMax(6)
+
+        if block_id:
+            # Expand
+            conv1 = nn.Conv2d(
+                in_channels,
+                int(expansion * in_channels),
+                kernel_size=1,
+                padding=0,
+                bias=False,
+            )
+
+            bn1 = nn.BatchNorm2d(
+                int(expansion * in_channels),
+                eps=1e-3,
+                momentum=0.999,
+            )
+
+            self._layers.append(conv1)
+            self._layers.append(bn1)
+            self._layers.append(activation)
+
+        if stride == 2:
+            pad = nn.ZeroPad2d(
+                padding=correct_pad(in_shape, 3),
+            )
+
+            self._layers.append(pad)
+
+        self._layers.append(nn.Dropout2d(dp_rate))
+
+        d_mul = 1
+        in_channels_dw = int(expansion * in_channels) if block_id else in_channels
+        out_channels_dw = in_channels_dw * d_mul
+        dw1 = DepthwiseConv2d(
+            in_channels=in_channels_dw,
+            depth_multiplier=d_mul,
+            kernel_size=k_size,
+            stride=stride,
+            bias=False,
+            padding=k_size // 2 if stride == 1 else 0,
+        )
+
+        bn_dw1 = nn.BatchNorm2d(
+            out_channels_dw,
+            eps=1e-3,
+            momentum=0.999,
+        )
+
+        self._layers.append(dw1)
+        self._layers.append(bn_dw1)
+        self._layers.append(activation)
+
+        if has_se:
+            num_reduced_filters = max(1, int(expansion * in_channels / 6))
+            se_block = SEBlock(
+                int(expansion * in_channels), num_reduced_filters, h_swish=h_swish
+            )
+            self._layers.append(se_block)
+
+        conv2 = nn.Conv2d(
+            in_channels=int(expansion * in_channels),
+            out_channels=filters,
+            kernel_size=1,
+            padding=0,
+            bias=False,
+        )
+
+        bn2 = nn.BatchNorm2d(
+            filters,
+            eps=1e-3,
+            momentum=0.999,
+        )
+
+        self._layers.append(conv2)
+        self._layers.append(bn2)
+
+        if res and in_channels == filters and stride == 1:
+            self.skip_conn = True
+
+    def forward(self, x):
+        """Executes PhiNet convolutional block
+
+        Arguments:
+            x : torch.Tensor
+                Input to the convolutional block.
+
+        Returns:
+            Ouput of the convolutional block : torch.Tensor
+        """
+        if self.skip_conn:
+            inp = x
+
+        for layer in self._layers:
+            x = layer(x)
+
+        if self.skip_conn:
+            return x + inp
+
+        return x
 
 
 class PhiNet(nn.Module):
@@ -130,25 +296,90 @@ class PhiNet(nn.Module):
         return model
 
     def save_params(self, save_path: Path):
-        """Saves model state_dict in `save_path`."""
+        """Saves state_dict of model into a given path.
+
+        Arguments
+        ---------
+        save_path : string or Path
+            Path where you want to store the state dict.
+
+        Returns
+        -------
+            None
+
+        Example
+        -------
+        >>> from micromind import PhiNet
+        >>> model = PhiNet((3, 224, 224))
+        >>> model.save_params("checkpoint.pt")
+        """
         torch.save(self.state_dict(), save_path)
 
     def from_checkpoint(self, load_path: Path):
-        """Loads parameters from checkpoint."""
+        """Loads state_dict of model into current instance of the PhiNet class.
+
+        Arguments
+        ---------
+        load_path : string or Path
+            Path where you want to store the state dict.
+
+        Returns
+        -------
+            None
+
+        Example
+        -------
+        >>> from micromind import PhiNet
+        >>> model = PhiNet((3, 224, 224))
+        >>> model.from_checkpoint("checkpoint.pt")
+        """
         self.load_state_dict(torch.load(load_path))
 
     def get_complexity(self):
-        """Returns MAC and number of parameters of initialized architecture."""
+        """Returns MAC and number of parameters of initialized architecture.
+
+        Returns
+        -------
+            Dictionary containing MAC count and number of parameters for the network. : dict
+
+        Example
+        -------
+        >>> from micromind import PhiNet
+        >>> model = PhiNet((3, 224, 224))
+        >>> model.get_complexity()
+        """
         temp = summary(self, input_data=torch.zeros([1] + list(self.input_shape)))
 
         return {"MAC": temp.total_mult_adds, "params": temp.total_params}
 
     def get_MAC(self):
-        """Returns number of MACs for this architecture."""
+        """Returns number of MACs for this architecture.
+
+        Returns
+        -------
+            Number of MAC for this network. : int
+
+        Example
+        -------
+        >>> from micromind import PhiNet
+        >>> model = PhiNet((3, 224, 224))
+        >>> model.get_MAC()
+        """
         return self.get_complexity()["MAC"]
 
     def get_params(self):
-        """Returns number of params for this architecture."""
+        """Returns number of params for this architecture.
+
+        Returns
+        -------
+            Number of parameters for this network. : int
+
+        Example
+        -------
+        >>> from micromind import PhiNet
+        >>> model = PhiNet((3, 224, 224))
+        >>> model.get_params()
+        """
         return self.get_complexity()["params"]
 
     def __init__(
@@ -170,6 +401,28 @@ class PhiNet(nn.Module):
         h_swish: bool = True,  # S1
         squeeze_excite: bool = True,  # S1
     ) -> None:
+        """This class implements the PhiNet architecture.
+
+        Arguments
+        -------
+        input_shape : tuple
+            Input resolution as (C, H, W).
+        num_layers : int
+            Number of convolutional blocks.
+        alpha: float
+            Width multiplier for PhiNet architecture.
+        beta : float
+            Shape factor of PhiNet.
+        t_zero : float
+            Base expansion factor for PhiNet.
+        include_top : bool
+            Whether to include classification head or not.
+        num_classes : int
+            Number of classes for the classification head.
+        compatibility : bool
+            True to maximise compatibility among embedded platforms. Compromises performance a bit.
+
+        """
         super(PhiNet, self).__init__()
         self.alpha = alpha
         self.beta = beta
@@ -341,8 +594,14 @@ class PhiNet(nn.Module):
     def forward(self, x):
         """Executes PhiNet network
 
-        Args:
-            x ([Tensor]): [input batch]
+        Arguments
+        -------
+            x : torch.Tensor
+                Network input.
+
+        Returns
+        ------
+            Logits if `include_top=True`, otherwise embeddings : torch.Tensor
         """
         for layers in self._layers:
             x = layers(x)
