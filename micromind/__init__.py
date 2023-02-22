@@ -1,4 +1,4 @@
-from .networks.phinet.networks import PhiNet 
+from .networks.phinet import PhiNet 
 from .utils import configlib
 
 
