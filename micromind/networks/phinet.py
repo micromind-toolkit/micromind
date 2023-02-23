@@ -11,8 +11,6 @@ import micromind
 from pathlib import Path
 from torchinfo import summary
 import torch.nn.functional as F
-import torch.nn as nn
-import torch
 from huggingface_hub import hf_hub_download
 from huggingface_hub.utils import EntryNotFoundError
 
@@ -22,6 +20,7 @@ import logging
 
 import torch.nn as nn
 import torch
+
 
 def correct_pad(input_shape, kernel_size):
     """Returns a tuple for zero-padding for 2D convolution with downsampling
@@ -255,6 +254,7 @@ class SeparableConv2d(torch.nn.Module):
             x = layer(x)
 
         return x
+
 
 class PhiNetConvBlock(nn.Module):
     """Implements PhiNet's convolutional block"""
@@ -566,7 +566,7 @@ class PhiNet(nn.Module):
 
         Returns
         -------
-            Dictionary containing MAC count and number of parameters for the network. : dict
+            Dictionary with complexity characterization of the network. : dict
 
         Example
         -------
@@ -646,7 +646,7 @@ class PhiNet(nn.Module):
         num_classes : int
             Number of classes for the classification head.
         compatibility : bool
-            True to maximise compatibility among embedded platforms. Compromises performance a bit.
+            `True` to maximise compatibility among embedded platforms (changes network).
 
         """
         super(PhiNet, self).__init__()
@@ -671,7 +671,7 @@ class PhiNet(nn.Module):
 
         assert len(input_shape) == 3, "Expected 3 elements list as input_shape."
         in_channels = input_shape[0]
-        res = max(input_shape[1], input_shape[2])   #assumes squared input
+        res = max(input_shape[1], input_shape[2])  # assumes squared input
         self.input_shape = input_shape
 
         self.classify = include_top
