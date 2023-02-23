@@ -830,7 +830,6 @@ class PhiNet(nn.Module):
             Logits if `include_top=True`, otherwise embeddings : torch.Tensor
         """
         for layers in self._layers:
-            breakpoint()
             x = layers(x)
 
         if self.classify:
