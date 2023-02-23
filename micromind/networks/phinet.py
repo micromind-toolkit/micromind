@@ -15,6 +15,8 @@ import torch.nn as nn
 import torch
 from huggingface_hub import hf_hub_download
 from huggingface_hub.utils import EntryNotFoundError
+
+from typing import List
 from types import SimpleNamespace
 import logging
 
@@ -330,7 +332,7 @@ class PhiNetConvBlock(nn.Module):
 
         if stride == 2:
             pad = nn.ZeroPad2d(
-                padding=correct_pad(in_shape, 3),
+                padding=correct_pad([res, res], 3),
             )
 
             self._layers.append(pad)
@@ -608,7 +610,7 @@ class PhiNet(nn.Module):
 
     def __init__(
         self,
-        input_shape: list[int],
+        input_shape: List[int],
         num_layers: int = 7,  # num_layers
         alpha: float = 0.2,
         beta: float = 1.0,
@@ -616,7 +618,7 @@ class PhiNet(nn.Module):
         include_top: bool = False,
         num_classes: int = 10,
         compatibility: bool = False,
-        downsampling_layers: list[int] = [5, 7],  # S2
+        downsampling_layers: List[int] = [5, 7],  # S2
         conv5_percent: float = 0.0,  # S2
         first_conv_stride: int = 2,  # S2
         residuals: bool = True,  # S2
@@ -669,7 +671,7 @@ class PhiNet(nn.Module):
 
         assert len(input_shape) == 3, "Expected 3 elements list as input_shape."
         in_channels = input_shape[0]
-        res = max(input_shape[0], input_shape[1])
+        res = max(input_shape[1], input_shape[2])   #assumes squared input
         self.input_shape = input_shape
 
         self.classify = include_top
@@ -685,7 +687,7 @@ class PhiNet(nn.Module):
 
         if not conv2d_input:
             pad = nn.ZeroPad2d(
-                padding=correct_pad(input_shape, 3),
+                padding=correct_pad([res, res], 3),
             )
 
             self._layers.append(pad)
@@ -828,6 +830,7 @@ class PhiNet(nn.Module):
             Logits if `include_top=True`, otherwise embeddings : torch.Tensor
         """
         for layers in self._layers:
+            breakpoint()
             x = layers(x)
 
         if self.classify:
