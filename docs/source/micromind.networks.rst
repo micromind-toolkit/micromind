@@ -1,13 +1,16 @@
 micromind.networks package
 ==========================
 
-Subpackages
------------
+Submodules
+----------
 
-.. toctree::
-   :maxdepth: 4
+micromind.networks.phinet module
+--------------------------------
 
-   micromind.networks.phinet
+.. automodule:: micromind.networks.phinet
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 Module contents
 ---------------
