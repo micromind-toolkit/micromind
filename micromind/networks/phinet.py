@@ -458,8 +458,11 @@ class PhiNet(nn.Module):
 
         Example
         -------
-        >>> from micromind import PhiNet
-        >>> model = PhiNet.from_pretrained("CIFAR-10", 3.0, 0.75, 6.0, 7, 160)
+        .. doctest::
+
+            >>> from micromind import PhiNet
+            >>> model = PhiNet.from_pretrained("CIFAR-10", 3.0, 0.75, 6.0, 7, 160)
+            Checkpoint loaded successfully.
         """
         if num_classes is None:
             num_classes = micromind.datasets_info[dataset]["Nclasses"]
@@ -535,9 +538,11 @@ class PhiNet(nn.Module):
 
         Example
         -------
-        >>> from micromind import PhiNet
-        >>> model = PhiNet((3, 224, 224))
-        >>> model.save_params("checkpoint.pt")
+        .. doctest::
+
+            >>> from micromind import PhiNet
+            >>> model = PhiNet((3, 224, 224))
+            >>> model.save_params("checkpoint.pt")
         """
         torch.save(self.state_dict(), save_path)
 
@@ -555,9 +560,14 @@ class PhiNet(nn.Module):
 
         Example
         -------
-        >>> from micromind import PhiNet
-        >>> model = PhiNet((3, 224, 224))
-        >>> model.from_checkpoint("checkpoint.pt")
+        .. doctest::
+
+            >>> from micromind import PhiNet
+            >>> model = PhiNet((3, 224, 224))
+            >>> model.from_checkpoint("checkpoint.pt")
+            Traceback (most recent call last):
+            ...
+            FileNotFoundError: [Errno 2] No such file or directory: 'checkpoint.pt'
         """
         self.load_state_dict(torch.load(load_path))
 
@@ -570,9 +580,14 @@ class PhiNet(nn.Module):
 
         Example
         -------
-        >>> from micromind import PhiNet
-        >>> model = PhiNet((3, 224, 224))
-        >>> model.get_complexity()
+        .. doctest::
+
+            >>> from micromind import PhiNet
+            >>> model = PhiNet((3, 224, 224))
+            >>> model.get_complexity()
+            =...
+            ...
+            {'MAC': 9817670, 'params': 30917}
         """
         temp = summary(self, input_data=torch.zeros([1] + list(self.input_shape)))
 
@@ -587,9 +602,14 @@ class PhiNet(nn.Module):
 
         Example
         -------
-        >>> from micromind import PhiNet
-        >>> model = PhiNet((3, 224, 224))
-        >>> model.get_MAC()
+        .. doctest::
+
+            >>> from micromind import PhiNet
+            >>> model = PhiNet((3, 224, 224))
+            >>> model.get_MAC()
+            =...
+            ...
+            9817670
         """
         return self.get_complexity()["MAC"]
 
@@ -602,9 +622,14 @@ class PhiNet(nn.Module):
 
         Example
         -------
-        >>> from micromind import PhiNet
-        >>> model = PhiNet((3, 224, 224))
-        >>> model.get_params()
+        .. doctest::
+
+            >>> from micromind import PhiNet
+            >>> model = PhiNet((3, 224, 224))
+            >>> model.get_params()
+            =...
+            ...
+            30917
         """
         return self.get_complexity()["params"]
 
