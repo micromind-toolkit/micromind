@@ -564,10 +564,8 @@ class PhiNet(nn.Module):
 
             >>> from micromind import PhiNet
             >>> model = PhiNet((3, 224, 224))
+            >>> model.save_params("checkpoint.pt")
             >>> model.from_checkpoint("checkpoint.pt")
-            Traceback (most recent call last):
-            ...
-            FileNotFoundError: [Errno 2] No such file or directory: 'checkpoint.pt'
         """
         self.load_state_dict(torch.load(load_path))
 
@@ -585,11 +583,11 @@ class PhiNet(nn.Module):
             >>> from micromind import PhiNet
             >>> model = PhiNet((3, 224, 224))
             >>> model.get_complexity()
-            =...
-            ...
             {'MAC': 9817670, 'params': 30917}
         """
-        temp = summary(self, input_data=torch.zeros([1] + list(self.input_shape)))
+        temp = summary(
+            self, input_data=torch.zeros([1] + list(self.input_shape)), verbose=0
+        )
 
         return {"MAC": temp.total_mult_adds, "params": temp.total_params}
 
@@ -607,8 +605,6 @@ class PhiNet(nn.Module):
             >>> from micromind import PhiNet
             >>> model = PhiNet((3, 224, 224))
             >>> model.get_MAC()
-            =...
-            ...
             9817670
         """
         return self.get_complexity()["MAC"]
@@ -627,8 +623,6 @@ class PhiNet(nn.Module):
             >>> from micromind import PhiNet
             >>> model = PhiNet((3, 224, 224))
             >>> model.get_params()
-            =...
-            ...
             30917
         """
         return self.get_complexity()["params"]
