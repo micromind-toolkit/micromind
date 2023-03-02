@@ -51,11 +51,11 @@ from timm.scheduler import create_scheduler
 from timm.utils import ApexScaler, NativeScaler
 
 # Model interface
-from phinet import PhiNet
+from micromind import PhiNet
 
 # For argparse from multiple files
-from phinet import configlib
-from phinet.configlib import config as args
+from micromind.utils import configlib
+from micromind.utils.configlib import config as args
 
 # should speed up backward-pass with depth-wise separable convolutions
 import torch.backends.cudnn as cudnn

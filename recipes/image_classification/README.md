@@ -5,7 +5,7 @@ It supports all data augmentation, datasets and architectures of the original im
 
 To reproduce our results, you can follow these steps:
 
-1. install PhiNets with `pip install git+https://github.com/fpaissan/phinet`
+1. install PhiNets with `pip install git+https://github.com/fpaissan/micromind`
 2. install the additional dependencies for this recipe with `pip install -r extra_requirements.txt`
 2. launch the training script on the dataset you want 
 
@@ -42,9 +42,9 @@ In the table is a list of PhiNet's performance on some common image classificati
 
 | Dataset | Model name         | Top 1 Accuracy  | Top 5 Accuracy |
 | -------- | ------------------ |---------------- | -------------- |
-| MNIST | `PhiNet(alpha=0.5, beta=1, t_zero=6, num_layers=4)`   |     98.97%         |      99.99%       |
-| CIFAR-10 | `PhiNet(alpha=3, beta=0.75, t_zero=6, num_layers=7)`   |     93.53%         |      99.68%       |
-| CIFAR-100 | `PhiNet(alpha=3, beta=0.75, t_zero=6, num_layers=7)`   |     76.41%         |      93.69%       |
+| MNIST | `PhiNet(alpha=0.5, beta=1, t_zero=6, num_layers=4)`   |     98.96%         |      100.00%       |
+| CIFAR-10 | `PhiNet(alpha=3, beta=0.75, t_zero=6, num_layers=7)`   |     93.61%         |      99.77%       |
+| CIFAR-100 | `PhiNet(alpha=3, beta=0.75, t_zero=6, num_layers=7)`   |     75.56%         |      93.5%       |
 
 ### Cite PhiNets
 ```

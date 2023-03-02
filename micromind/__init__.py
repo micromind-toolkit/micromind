@@ -1,5 +1,5 @@
-from .networks import PhiNet
-from .blocks import PhiNetConvBlock
+from .networks.phinet import PhiNet
+from .utils import configlib
 
 
 """datasets_info is a dictionary that contains information about the attributes
