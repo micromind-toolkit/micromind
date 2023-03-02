@@ -10,21 +10,31 @@ version = "0.0.1"
 description = "MicroMind"
 readme = "README.md"
 authors = [{ name = "Francesco Paissan", email = "francescopaissan@gmail.com" }]
-#license = { file = "LICENSE" }
-#classifiers = [
-    #"License :: OSI Approved :: MIT License",
-    #"Programming Language :: Python",
-    #"Programming Language :: Python :: 3",
-#]
+license = { file = "LICENSE" }
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+]
 keywords = ["feed", "reader", "tutorial"]
 dependencies = [
     "torch",
     "torchinfo",
+    "huggingface_hub",
+    "onnx",
+    "onnx_tf==1.10.0",
+    "onnx-simplifier==0.4.13",
+    "onnxruntime==1.13.1",
+    "openvino-dev==2022.3.0",
+    "openvino2tensorflow==1.34.0",
+    "tensorflow_datasets==4.8.1",
+    "tensorflow==2.11.0",
+    "tensorflow_probability"
 ]
 requires-python = ">=3.9"
 
 [project.optional-dependencies]
-dev = ["black", "bumpver", "isort", "pip-tools", "pytest"]
+dev = ["black", "bumpver", "flake8", "isort", "pip-tools", "pytest"]
 
 [project.urls]
 Homepage = "https://github.com/fpaissan/micromind"
@@ -34,3 +44,21 @@ phinet = "__main__:main"
 
 [tool.setuptools]
 py-modules = []
+
+[tool.bumpver]
+current_version = "0.0.1"
+version_pattern = "MAJOR.MINOR.PATCH"
+commit_message = "bump version {old_version} -> {new_version}"
+commit = true
+tag = true
+push = false
+
+[tool.bumpver.file_patterns]
+"pyproject.toml" = [
+    'current_version = "{version}"',
+]
+"README.md" = [
+    "{version}",
+    "{pep440_version}",
+]
+
