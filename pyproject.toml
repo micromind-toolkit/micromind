@@ -47,9 +47,11 @@ phinet = "__main__:main"
 [tool.setuptools]
 py-modules = []
 
+
+
 [tool.bumpver]
 current_version = "0.0.2"
-version_pattern = "MAJOR.MINOR.PATCH[PYTAGNUM]"
+version_pattern = "MAJOR.MINOR.PATCH"
 commit_message = "bump version {old_version} -> {new_version}"
 commit = true
 tag = true
@@ -59,8 +61,12 @@ push = false
 "pyproject.toml" = [
     'current_version = "{version}"',
 ]
-"README.md" = [
-    "{version}",
-    "{pep440_version}",
-]
+# "setup.py" = [
+    # "{version}",
+    # "{pep440_version}",
+# ]
+# "README.md" = [
+    # "{version}",
+    # "{pep440_version}",
+# ]
 
