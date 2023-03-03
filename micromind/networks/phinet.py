@@ -6,20 +6,19 @@ Authors:
     - Alberto Ancilotto, 2023
     - Matteo Beltrami, 2023
 """
-import micromind
-
+import logging
 from pathlib import Path
-from torchinfo import summary
+from types import SimpleNamespace
+from typing import List
+
+import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from huggingface_hub import hf_hub_download
 from huggingface_hub.utils import EntryNotFoundError
+from torchinfo import summary
 
-from typing import List
-from types import SimpleNamespace
-import logging
-
-import torch.nn as nn
-import torch
+import micromind
 
 
 def correct_pad(input_shape, kernel_size):

@@ -1,12 +1,14 @@
 # pyproject.toml
 
 [build-system]
-requires = ["setuptools>=61.0.0", "wheel"]
-build-backend = "setuptools.build_meta"
+# requires = ["setuptools>=61.0.0", "wheel"]
+# build-backend = "setuptools.build_meta"
+requires = ["flit_core>=3.4"]
+build-backend = "flit_core.buildapi"
 
 [project]
 name = "micromind"
-version="0.0.2"
+dynamic=["version"]
 description = "MicroMind"
 readme = "README.md"
 authors = [{ name = "Francesco Paissan & others", email = "francescopaissan@gmail.com" }]
@@ -42,23 +44,31 @@ Homepage = "https://github.com/fpaissan/micromind"
 [project.scripts]
 phinet = "__main__:main"
 
+[tool.isort]
+profile = "black"
+
 [tool.setuptools]
 py-modules = []
 
 [tool.bumpver]
-current_version = "0.0.2"
-version_pattern = "MAJOR.MINOR.PATCH[PYTAGNUM]"
+current_version = "0.0.3"
+version_pattern = "MAJOR.MINOR.PATCH"
 commit_message = "bump version {old_version} -> {new_version}"
 commit = true
 tag = true
 push = false
 
+
 [tool.bumpver.file_patterns]
 "pyproject.toml" = [
     'current_version = "{version}"',
 ]
-"README.md" = [
-    "{version}",
-    "{pep440_version}",
-]
+# "setup.py" = [
+    # "{version}",
+    # "{pep440_version}",
+# ]
+# "README.md" = [
+    # "{version}",
+    # "{pep440_version}",
+# ]
 
