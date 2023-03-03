@@ -8,7 +8,6 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "micromind"
-# version={current_version}
 dynamic=["version"]
 description = "MicroMind"
 readme = "README.md"
