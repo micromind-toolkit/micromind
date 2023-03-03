@@ -45,6 +45,9 @@ Homepage = "https://github.com/fpaissan/micromind"
 [project.scripts]
 phinet = "__main__:main"
 
+[tool.isort]
+profile = "black"
+
 [tool.setuptools]
 py-modules = []
 
