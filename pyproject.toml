@@ -63,12 +63,6 @@ push = false
 "pyproject.toml" = [
     'current_version = "{version}"',
 ]
-# "setup.py" = [
-    # "{version}",
-    # "{pep440_version}",
-# ]
 "micromind/__init__.py" = [
     "{version}",
-    # "{pep440_version}",
 ]
-
