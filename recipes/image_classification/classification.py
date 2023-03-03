@@ -16,49 +16,29 @@ from contextlib import suppress
 from datetime import datetime
 
 import torch
+# should speed up backward-pass with depth-wise separable convolutions
+import torch.backends.cudnn as cudnn
 import torch.nn as nn
 import torchvision.utils
 import yaml
-from torch.nn.parallel import DistributedDataParallel as NativeDDP
-
 from timm import utils
-from timm.data import (
-    create_dataset,
-    create_loader,
-    resolve_data_config,
-    Mixup,
-    FastCollateMixup,
-    AugMixDataset,
-)
-from timm.loss import (
-    JsdCrossEntropy,
-    SoftTargetCrossEntropy,
-    BinaryCrossEntropy,
-    LabelSmoothingCrossEntropy,
-)
-from timm.models import (
-    create_model,
-    safe_model_name,
-    resume_checkpoint,
-    load_checkpoint,
-    convert_splitbn_model,
-    convert_sync_batchnorm,
-    model_parameters,
-    set_fast_norm,
-)
+from timm.data import (AugMixDataset, FastCollateMixup, Mixup, create_dataset,
+                       create_loader, resolve_data_config)
+from timm.loss import (BinaryCrossEntropy, JsdCrossEntropy,
+                       LabelSmoothingCrossEntropy, SoftTargetCrossEntropy)
+from timm.models import (convert_splitbn_model, convert_sync_batchnorm,
+                         create_model, load_checkpoint, model_parameters,
+                         resume_checkpoint, safe_model_name, set_fast_norm)
 from timm.optim import create_optimizer_v2, optimizer_kwargs
 from timm.scheduler import create_scheduler
 from timm.utils import ApexScaler, NativeScaler
+from torch.nn.parallel import DistributedDataParallel as NativeDDP
 
 # Model interface
 from micromind import PhiNet
-
 # For argparse from multiple files
 from micromind.utils import configlib
 from micromind.utils.configlib import config as args
-
-# should speed up backward-pass with depth-wise separable convolutions
-import torch.backends.cudnn as cudnn
 
 cudnn.benchmark = True
 

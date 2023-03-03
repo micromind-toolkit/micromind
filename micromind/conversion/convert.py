@@ -6,20 +6,19 @@ Authors:
     - Francesco Paissan, 2023
     - Alberto Ancilotto, 2023
 """
-import torch
-import torch.nn as nn
-
-import onnx
-import onnxsim
-import numpy as np
-import tensorflow as tf
-from onnx_tf.backend import prepare
-from openvino.tools.mo import main as mo_main
-
-from pathlib import Path
+import os
 import shutil
 import sys
-import os
+from pathlib import Path
+
+import numpy as np
+import onnx
+import onnxsim
+import tensorflow as tf
+import torch
+import torch.nn as nn
+from onnx_tf.backend import prepare
+from openvino.tools.mo import main as mo_main
 
 
 @torch.no_grad()

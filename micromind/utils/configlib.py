@@ -4,12 +4,12 @@ Authors:
     Francesco Paissan, 2023
 
 """
-from typing import Dict, Any
+import argparse
 import logging
 import pprint
 import sys
-import argparse
 import types
+from typing import Any, Dict
 
 
 class SimpleNamespace(types.SimpleNamespace):
