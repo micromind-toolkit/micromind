@@ -8,7 +8,8 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "micromind"
-version="0.0.2"
+# version={current_version}
+dynamic=["version"]
 description = "MicroMind"
 readme = "README.md"
 authors = [{ name = "Francesco Paissan & others", email = "francescopaissan@gmail.com" }]
@@ -47,8 +48,6 @@ phinet = "__main__:main"
 [tool.setuptools]
 py-modules = []
 
-
-
 [tool.bumpver]
 current_version = "0.0.2"
 version_pattern = "MAJOR.MINOR.PATCH"
@@ -56,6 +55,7 @@ commit_message = "bump version {old_version} -> {new_version}"
 commit = true
 tag = true
 push = false
+
 
 [tool.bumpver.file_patterns]
 "pyproject.toml" = [
