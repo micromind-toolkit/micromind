@@ -2,7 +2,7 @@ from .networks.phinet import PhiNet
 from .utils import configlib
 
 # Package version
-__version__ = "0.0.2"
+__version__ = "0.0.3"
 
 
 """datasets_info is a dictionary that contains information about the attributes

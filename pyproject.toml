@@ -68,8 +68,8 @@ push = false
     # "{version}",
     # "{pep440_version}",
 # ]
-# "README.md" = [
-    # "{version}",
+"micromind/__init__.py" = [
+    "{version}",
     # "{pep440_version}",
-# ]
+]
 
