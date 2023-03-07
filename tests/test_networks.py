@@ -13,8 +13,8 @@ def test_onnx():
 
     save_path = "temp.onnx"
 
-    in_shape = list((3, 224, 224))
-    net = PhiNet(in_shape, compatibility=False)
+    in_shape = (3, 224, 224)
+    net = PhiNet(in_shape, compatibility=False, include_top=True)
 
     convert_to_onnx(net, save_path, simplify=True)
     import os
@@ -34,8 +34,8 @@ def test_openvino():
 
     save_dir = "vino"
 
-    in_shape = list((3, 224, 224))
-    net = PhiNet(in_shape, compatibility=False)
+    in_shape = (3, 224, 224)
+    net = PhiNet(in_shape, compatibility=False, include_top=True)
 
     convert_to_openvino(net, save_dir)
 
@@ -50,8 +50,8 @@ def test_tflite():
 
     save_path = "tflite"
 
-    in_shape = list((3, 224, 224))
-    net = PhiNet(in_shape, compatibility=False)
+    in_shape = (3, 224, 224)
+    net = PhiNet(in_shape, compatibility=False, include_top=True)
 
     convert_to_tflite(net, save_path)
 
