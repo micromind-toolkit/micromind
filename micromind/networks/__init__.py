@@ -1,1 +1,1 @@
-from .phinet.networks import PhiNet
+from .phinet import PhiNet

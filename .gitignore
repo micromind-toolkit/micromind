@@ -130,6 +130,7 @@ dmypy.json
 
 output/
 results/
+**/orion_exp/
 ckp/
 checkpoints/
 *.swp

@@ -114,7 +114,7 @@ _logger = logging.getLogger("train")
 # Dataset parameters
 group = configlib.add_parser("Dataset parameters")
 # Keep this argument outside of the dataset group because it is positional.
-group.add_argument("data_dir", metavar="DIR", help="path to dataset")
+group.add_argument("--data_dir", metavar="DIR", help="path to dataset")
 group.add_argument(
     "--dataset",
     "-d",
@@ -757,7 +757,7 @@ group.add_argument(
 group.add_argument(
     "--log-interval",
     type=int,
-    default=5,
+    default=50,
     metavar="N",
     help="how many batches to wait before logging training status",
 )
@@ -841,7 +841,7 @@ group.add_argument(
 )
 group.add_argument(
     "--eval-metric",
-    default="top1",
+    default="loss",
     type=str,
     metavar="EVAL_METRIC",
     help='Best metric (default: "top1"',
@@ -868,6 +868,41 @@ group.add_argument(
 )
 
 
+def optimized_params(args, phinet_params, num_classes, save_path):
+    # C, args_text = _parse_args()
+    args.data_dir = "~/data/cifar10" if num_classes == 10 else "~/data/cifar100"
+    args.dataset = "torch/cifar10" if num_classes == 10 else "torch/cifar100"
+    args.epochs = 100
+    args.amp = True
+    args.opt = "lamb"
+    args.sched = "cosine"
+    args.lr = 0.05
+    args.weight_decay = 0.02
+    args.warmup_epochs = 10
+    args.warmup_lr = 0.008
+    args.hflip = 0.5
+    args.aa = "rand-m3-mstd0.55"
+    args.mixup = 0.1
+    args.bce_loss = True
+    args.pin_mem = True
+    args.apex_amp = True
+    args.use_multi_epochs_loader = True
+    args.dataset_download = True
+    args.experiment = "cifar10" if num_classes == 10 else "cifar100"
+    args.model = "phinet"
+    #args.input_size = 3, phinet_params["res"], phinet_params["res"]
+    args.input_size = 3, 160, 160
+    args.alpha = phinet_params["alpha"]
+    args.num_layers = phinet_params["B0"]
+    args.beta = phinet_params["beta"]
+    args.t_zero = phinet_params["t_zero"]
+    args.num_classes = num_classes
+    args.output = save_path
+    args.batch_size = 64
+    args_text = yaml.safe_dump(args.__dict__, default_flow_style=False)
+
+    main(args, args_text, parse_args=False)
+
 def _parse_args():
     # Do we have a config file to parse?
     # args_config, remaining = config_parser.parse_known_args()
@@ -886,10 +921,12 @@ def _parse_args():
     return args, args_text
 
 
-def main():
-    utils.setup_default_logging()
-    args, args_text = _parse_args()
+def main(args,args_text,parse_args=True):
+    #utils.setup_default_logging()
+    if parse_args:
+        args, args_text = _parse_args()
 
+    #configlib.print_config()
     args.prefetcher = not args.no_prefetcher
     args.distributed = False
     if "WORLD_SIZE" in os.environ:

@@ -10,14 +10,13 @@ import micromind
 
 from pathlib import Path
 from torchinfo import summary
-import torch.nn as nn
-import torch
 from huggingface_hub import hf_hub_download
 from huggingface_hub.utils import EntryNotFoundError
 from types import SimpleNamespace
 import logging
 
 import torch.nn as nn
+import torch.nn.functional as F
 import torch
 
 def correct_pad(input_shape, kernel_size):
