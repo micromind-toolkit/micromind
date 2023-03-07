@@ -832,11 +832,8 @@ class PhiNet(nn.Module):
             self.classifier = nn.Sequential(
                 nn.AdaptiveAvgPool2d((1, 1)),
                 nn.Flatten(),
-                nn.Linear(
-                    int(block_filters * alpha), num_classes, bias=True
-                )
+                nn.Linear(int(block_filters * alpha), num_classes, bias=True),
             )
-
 
     def forward(self, x):
         """Executes PhiNet network
