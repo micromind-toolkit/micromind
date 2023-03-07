@@ -6,18 +6,21 @@ Authors:
     - Alberto Ancilotto, 2023
     - Matteo Beltrami, 2023
 """
-import micromind
-
+import logging
 from pathlib import Path
 from torchinfo import summary
-from huggingface_hub import hf_hub_download
-from huggingface_hub.utils import EntryNotFoundError
 from types import SimpleNamespace
-import logging
+from typing import List
 
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch
+from huggingface_hub import hf_hub_download
+from huggingface_hub.utils import EntryNotFoundError
+from torchinfo import summary
+
+import micromind
+
 
 def correct_pad(input_shape, kernel_size):
     """Returns a tuple for zero-padding for 2D convolution with downsampling
@@ -252,6 +255,7 @@ class SeparableConv2d(torch.nn.Module):
 
         return x
 
+
 class PhiNetConvBlock(nn.Module):
     """Implements PhiNet's convolutional block"""
 
@@ -328,7 +332,7 @@ class PhiNetConvBlock(nn.Module):
 
         if stride == 2:
             pad = nn.ZeroPad2d(
-                padding=correct_pad(in_shape, 3),
+                padding=correct_pad([res, res], 3),
             )
 
             self._layers.append(pad)
@@ -454,8 +458,11 @@ class PhiNet(nn.Module):
 
         Example
         -------
-        >>> from micromind import PhiNet
-        >>> model = PhiNet.from_pretrained("CIFAR-10", 3.0, 0.75, 6.0, 7, 160)
+        .. doctest::
+
+            >>> from micromind import PhiNet
+            >>> model = PhiNet.from_pretrained("CIFAR-10", 3.0, 0.75, 6.0, 7, 160)
+            Checkpoint loaded successfully.
         """
         if num_classes is None:
             num_classes = micromind.datasets_info[dataset]["Nclasses"]
@@ -531,9 +538,11 @@ class PhiNet(nn.Module):
 
         Example
         -------
-        >>> from micromind import PhiNet
-        >>> model = PhiNet((3, 224, 224))
-        >>> model.save_params("checkpoint.pt")
+        .. doctest::
+
+            >>> from micromind import PhiNet
+            >>> model = PhiNet((3, 224, 224))
+            >>> model.save_params("checkpoint.pt")
         """
         torch.save(self.state_dict(), save_path)
 
@@ -551,9 +560,12 @@ class PhiNet(nn.Module):
 
         Example
         -------
-        >>> from micromind import PhiNet
-        >>> model = PhiNet((3, 224, 224))
-        >>> model.from_checkpoint("checkpoint.pt")
+        .. doctest::
+
+            >>> from micromind import PhiNet
+            >>> model = PhiNet((3, 224, 224))
+            >>> model.save_params("checkpoint.pt")
+            >>> model.from_checkpoint("checkpoint.pt")
         """
         self.load_state_dict(torch.load(load_path))
 
@@ -562,15 +574,20 @@ class PhiNet(nn.Module):
 
         Returns
         -------
-            Dictionary containing MAC count and number of parameters for the network. : dict
+            Dictionary with complexity characterization of the network. : dict
 
         Example
         -------
-        >>> from micromind import PhiNet
-        >>> model = PhiNet((3, 224, 224))
-        >>> model.get_complexity()
+        .. doctest::
+
+            >>> from micromind import PhiNet
+            >>> model = PhiNet((3, 224, 224))
+            >>> model.get_complexity()
+            {'MAC': 9817670, 'params': 30917}
         """
-        temp = summary(self, input_data=torch.zeros([1] + list(self.input_shape)))
+        temp = summary(
+            self, input_data=torch.zeros([1] + list(self.input_shape)), verbose=0
+        )
 
         return {"MAC": temp.total_mult_adds, "params": temp.total_params}
 
@@ -583,9 +600,12 @@ class PhiNet(nn.Module):
 
         Example
         -------
-        >>> from micromind import PhiNet
-        >>> model = PhiNet((3, 224, 224))
-        >>> model.get_MAC()
+        .. doctest::
+
+            >>> from micromind import PhiNet
+            >>> model = PhiNet((3, 224, 224))
+            >>> model.get_MAC()
+            9817670
         """
         return self.get_complexity()["MAC"]
 
@@ -598,15 +618,18 @@ class PhiNet(nn.Module):
 
         Example
         -------
-        >>> from micromind import PhiNet
-        >>> model = PhiNet((3, 224, 224))
-        >>> model.get_params()
+        .. doctest::
+
+            >>> from micromind import PhiNet
+            >>> model = PhiNet((3, 224, 224))
+            >>> model.get_params()
+            30917
         """
         return self.get_complexity()["params"]
 
     def __init__(
         self,
-        input_shape: list[int],
+        input_shape: List[int],
         num_layers: int = 7,  # num_layers
         alpha: float = 0.2,
         beta: float = 1.0,
@@ -614,7 +637,7 @@ class PhiNet(nn.Module):
         include_top: bool = False,
         num_classes: int = 10,
         compatibility: bool = False,
-        downsampling_layers: list[int] = [5, 7],  # S2
+        downsampling_layers: List[int] = [5, 7],  # S2
         conv5_percent: float = 0.0,  # S2
         first_conv_stride: int = 2,  # S2
         residuals: bool = True,  # S2
@@ -642,8 +665,7 @@ class PhiNet(nn.Module):
         num_classes : int
             Number of classes for the classification head.
         compatibility : bool
-            True to maximise compatibility among embedded platforms. Compromises performance a bit.
-
+            `True` to maximise compatibility among embedded platforms (changes network).
         """
         super(PhiNet, self).__init__()
         self.alpha = alpha
@@ -667,7 +689,7 @@ class PhiNet(nn.Module):
 
         assert len(input_shape) == 3, "Expected 3 elements list as input_shape."
         in_channels = input_shape[0]
-        res = max(input_shape[0], input_shape[1])
+        res = max(input_shape[1], input_shape[2])  # assumes squared input
         self.input_shape = input_shape
 
         self.classify = include_top
@@ -683,7 +705,7 @@ class PhiNet(nn.Module):
 
         if not conv2d_input:
             pad = nn.ZeroPad2d(
-                padding=correct_pad(input_shape, 3),
+                padding=correct_pad([res, res], 3),
             )
 
             self._layers.append(pad)

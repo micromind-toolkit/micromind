@@ -3,23 +3,20 @@ name: code_style
 on: push
 
 jobs:
-  black:
+  style:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: psf/black@stable
+      - name: Black
+        uses: psf/black@stable
         with:
           options: "--check --verbose"
-  flake8_py3:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Setup Python
+      - name: Setup Python for flake8
         uses: actions/setup-python@v1
         with:
-          python-version: 3.9.16
+          python-version: 3.9
           architecture: x64
-      - name: Checkout PyTorch
-        uses: actions/checkout@master
+      - uses: actions/checkout@master
       - name: Install flake8
         run: pip install flake8
       - name: Run flake8
