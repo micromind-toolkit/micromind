@@ -1,8 +1,7 @@
 name: Verify docs generation
 
 # Runs on pushes to master and all pull requests
-on:    # yamllint disable-line rule:truthy
-    push:
+on: pull_request
 
 jobs:
     docs:
@@ -23,4 +22,3 @@ jobs:
                   cd docs
                   make doctest
                   make html
-                  
