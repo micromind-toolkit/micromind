@@ -829,7 +829,8 @@ class PhiNet(nn.Module):
 
         if include_top:
             # Includes classification head if required
-            self.glob_pooling = lambda x: nn.functional.avg_pool2d(x, x.size()[2:])
+            # self.glob_pooling = lambda x: nn.functional.avg_pool2d(x, x.size()[2:])
+            self.glob_pooling = nn.AdaptiveAvgPool2d((1, 1))
 
             self.new_convolution = nn.Conv2d(
                 int(block_filters * alpha), num_classes, kernel_size=1, bias=True

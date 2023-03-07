@@ -25,7 +25,7 @@ from openvino.tools.mo import main as mo_main
 def convert_to_onnx(net: nn.Module, save_path: Path, simplify: bool = True):
     """Converts nn.Module to onnx and saves it to save_path.
     Optionally simplifies it."""
-    x = torch.zeros([1] + net.input_shape)
+    x = torch.zeros([1] + list(net.input_shape))
 
     torch.onnx.export(
         net,
