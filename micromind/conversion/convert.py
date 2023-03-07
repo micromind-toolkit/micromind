@@ -28,7 +28,7 @@ def convert_to_onnx(net: nn.Module, save_path: Path, simplify: bool = True):
     x = torch.zeros([1] + list(net.input_shape))
 
     torch.onnx.export(
-        net,
+        net.cpu(),
         x,
         save_path,
         verbose=False,
@@ -88,13 +88,18 @@ def convert_to_tflite(
     if not isinstance(save_path, Path):
         save_path = Path(save_path)
 
+    if not (batch_quant is None):
+        batch_quant = batch_quant.cpu()
+
     vino_sub = save_path.joinpath("vino")
     os.makedirs(vino_sub, exist_ok=True)
     vino_path = convert_to_openvino(net, vino_sub)
     if os.name == "nt":
         openvino2tensorflow_exe_cmd = [
             sys.executable,
-            os.path.join(os.path.dirname(sys.executable), "openvino2tensorflow"),
+            os.path.join(
+                os.path.dirname(sys.executable), "Scripts", "openvino2tensorflow"
+            ),
         ]
     else:
         openvino2tensorflow_exe_cmd = ["openvino2tensorflow"]
