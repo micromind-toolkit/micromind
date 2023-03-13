@@ -1,3 +1,8 @@
+## NAS HPO with tpe 
+Test performance for NAS:
+python orion_search.py --algo tpe --classifier True --device 1
+
+
 test GitHub Actions
 ## Image classification
 
