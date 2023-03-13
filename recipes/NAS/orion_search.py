@@ -336,9 +336,9 @@ def objective(alpha, beta, B0, t_zero, res, epochs):
         #obj = loss - 100 * np.abs(nas_args.target - params)
     else:
         score = score_network(model, batch_size, loader_train)
-        obj = score * (params / nas_args.target) ** w
+        #obj = score * (params / nas_args.target) ** w
         #obj = score - (np.abs(params - nas_args.target)*1E-6)
-        #obj = score*1e-3 - np.abs(params - nas_args.target)*1e-6 
+        obj = score*1e-3 - np.abs(params - nas_args.target)*1e-6 
         #obj= score + ((nas_args.target - params)**2 * 1e-3)
         #obj = score - 100 * np.abs(nas_args.target - params)
     # obj = -1 * score - phi(params - nas_args.target)**w
