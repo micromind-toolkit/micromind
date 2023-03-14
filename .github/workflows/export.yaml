@@ -1,6 +1,9 @@
 name: Unit tests
 
-on: push
+on:
+  push:
+    branches-ignore:
+      - dev
 
 permissions:
   contents: read
