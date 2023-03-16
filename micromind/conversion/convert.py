@@ -6,19 +6,25 @@ Authors:
     - Francesco Paissan, 2023
     - Alberto Ancilotto, 2023
 """
-import os
-import shutil
-import sys
-from pathlib import Path
+try:
+    import os
+    import shutil
+    import sys
+    from pathlib import Path
 
-import numpy as np
-import onnx
-import onnxsim
-import tensorflow as tf
-import torch
-import torch.nn as nn
-from onnx_tf.backend import prepare
-from openvino.tools.mo import main as mo_main
+    import numpy as np
+    import onnx
+    import onnxsim
+    import tensorflow as tf
+    import torch
+    import torch.nn as nn
+    from onnx_tf.backend import prepare
+    from openvino.tools.mo import main as mo_main
+except Exception as e:
+    print(str(e))
+    print("Did you install micromind with conversion capabilities?")
+    print("Please try again after pip install micromind[conversion].")
+    quit()
 
 
 @torch.no_grad()

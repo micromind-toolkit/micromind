@@ -467,6 +467,7 @@ class PhiNet(nn.Module):
 
             >>> from micromind import PhiNet
             >>> model = PhiNet.from_pretrained("CIFAR-10", 3.0, 0.75, 6.0, 7, 160)
+            Checkpoint taken from HuggingHace hub.
             Checkpoint loaded successfully.
         """
         if num_classes is None:
