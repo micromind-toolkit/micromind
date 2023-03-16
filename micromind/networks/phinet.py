@@ -17,6 +17,7 @@ import torch.nn.functional as F
 from huggingface_hub import hf_hub_download
 from huggingface_hub.utils import EntryNotFoundError
 from torchinfo import summary
+import os
 
 import micromind
 
@@ -419,13 +420,15 @@ class PhiNet(nn.Module):
         t_zero,
         num_layers,
         resolution,
+        path=None,
         num_classes=None,
         classifier=True,
         device=None,
     ):
-        """Loads parameters from checkpoint through Hugging Face Hub.
-        This function constructs two strings, "repo_dir" to find the model on Hugging
-        Face Hub and "file_to_choose" to select the correct file inside the repo, and
+        """Loads parameters from checkpoint through Hugging Face Hub or through local
+        file system.
+        This function constructs two strings, `repo_dir` to find the model on Hugging
+        Face Hub and `file_to_choose` to select the correct file inside the repo, and
         use them to download the pretrained model and initialize the PhiNet.
 
         Arguments
@@ -442,6 +445,9 @@ class PhiNet(nn.Module):
             The number of layers.
         resolution : int
             The resolution of the images used during training.
+        path : string
+            The directory path or file path pointing to the checkpoint.
+            If None, the checkpoint is searched on HuggingFace.
         num_classes : int
             The number of classes that the model has been trained for.
             If None, it gets the specific value determined by the dataset used.
@@ -484,25 +490,41 @@ class PhiNet(nn.Module):
             else:
                 device = "cpu"
 
-        try:
-            downloaded_file_path = hf_hub_download(
-                repo_id=repo_dir, filename=file_to_choose
-            )
-            state_dict = torch.load(str(downloaded_file_path), map_location=device)
-            model_found = True
-
-        except EntryNotFoundError:
-            state_dict = {
-                "args": SimpleNamespace(
-                    alpha=alpha,
-                    beta=beta,
-                    t_zero=t_zero,
-                    num_layers=num_layers,
-                    num_classes=num_classes,
+        if path is not None:
+            path_to_search = os.path.join(path, file_to_choose)
+            if os.path.isfile(path):
+                path_to_search = path
+            if os.path.isfile(path_to_search):
+                state_dict = torch.load(str(path_to_search), map_location=device)
+                model_found = True
+                print("Checkpoint taken from local file system.")
+            else:
+                model_found = False
+                print(
+                    "Checkpoint not taken from local file system."
+                    + f"{path_to_search} is not a valid checkpoint."
                 )
-            }
-            model_found = False
-            logging.warning("Model initialized without loading checkpoint.")
+        if (path is None) or not model_found:
+            try:
+                downloaded_file_path = hf_hub_download(
+                    repo_id=repo_dir, filename=file_to_choose
+                )
+                state_dict = torch.load(str(downloaded_file_path), map_location=device)
+                print("Checkpoint taken from HuggingHace hub.")
+                model_found = True
+
+            except EntryNotFoundError:
+                state_dict = {
+                    "args": SimpleNamespace(
+                        alpha=alpha,
+                        beta=beta,
+                        t_zero=t_zero,
+                        num_layers=num_layers,
+                        num_classes=num_classes,
+                    )
+                }
+                model_found = False
+                logging.warning("Model initialized without loading checkpoint.")
 
         # model initialized
         model = cls(
