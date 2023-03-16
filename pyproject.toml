@@ -14,7 +14,7 @@ readme = "README.md"
 authors = [{ name = "Francesco Paissan & others", email = "francescopaissan@gmail.com" }]
 license = { file = "LICENSE" }
 classifiers = [
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
 ]
@@ -23,6 +23,12 @@ dependencies = [
     "torch",
     "torchinfo",
     "huggingface_hub",
+]
+requires-python = ">=3.9"
+
+[project.optional-dependencies]
+dev = ["black", "bumpver", "flake8", "isort", "pip-tools", "pytest", "pre-commit"]
+conversion = [
     "onnx",
     "onnx_tf==1.10.0",
     "onnx-simplifier==0.4.13",
@@ -33,10 +39,6 @@ dependencies = [
     "tensorflow==2.11.0",
     "tensorflow_probability"
 ]
-requires-python = ">=3.9"
-
-[project.optional-dependencies]
-dev = ["black", "bumpver", "flake8", "isort", "pip-tools", "pytest", "pre-commit"]
 
 [project.urls]
 Homepage = "https://github.com/fpaissan/micromind"
