@@ -1,53 +1,56 @@
-<div align="center">
+[![Python version: 3.9 | 3.10](https://img.shields.io/badge/python-3.6%20|%203.7%20|%203.8%20|%203.9%20|%203.10-blue)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/lucadellalib/bayestorch/blob/main/LICENSE)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
+![PyPI version](https://img.shields.io/pypi/v/micromind)
 
-[![Paper](http://img.shields.io/badge/paper-arxiv.1001.2234-B31B1B.svg)](https://arxiv.org/abs/2110.00337)
+This is the official repo of `micromind`, a toolkit that aims at bridging two communities: artificial intelligence and embedded systems. `micromind` is based on [PyTorch](https://pytorch.org) and provides exportability for the supported models in ONNX, Intel OpenVINO, and TFLite.
 
-</div>
+---------------------------------------------------------------------------------------------------------
 
-This repository is a collection of our efforts towards the design, implementation and evaluation of ML techniques in the field of tinyML.
+## 💡 Key features
 
-Here is a list of things you can do with the `phinet` package:
- - [image classification](recipes/image_classification)
+- Smooth flow from research to deployment
+- Support for multimedia analytics recipes (image classification, sound event detection, etc)
+- Detailed API documentation
+- Tutorials for embedded deployment
 
-## To install the package
+---------------------------------------------------------------------------------------------------------
 
-```setup
-pip install git+https://github.com/fpaissan/phinet
+## 🛠️️ Installation
+
+### Using Pip
+
+First of all, install [Python 3.9 or later](https://www.python.org). Open a terminal and run:
+
+```
+pip install micromind
+```
+for the basic install. To install `micromind` with the full exportability features, run
+
+```
+pip install micromind[conversion]
 ```
 
-## Cite us
+### From source
+
+First of all, install [Python 3.9 or later](https://www.python.org).
+Clone or download and extract the repository, navigate to `<path-to-repository>`, open a
+terminal and run:
+
 ```
-@article{10.1145/3510832,
-	author = {Paissan, Francesco and Ancilotto, Alberto and Farella, Elisabetta},
-	title = {PhiNets: A Scalable Backbone for Low-Power AI at the Edge},
-	year = {2022},
-	publisher = {Association for Computing Machinery},
-	address = {New York, NY, USA},
-	url = {https://doi.org/10.1145/3510832},
-	doi = {10.1145/3510832},
-	journal = {ACM Trans. Embed. Comput. Syst.},
-}
+pip install -e .
 ```
-<!---
+for the basic install. To install `micromind` with the full exportability features, run
 
-## Pre-trained Models
+```
+pip install -e .[conversion]
+```
 
-You can download pretrained models here:
+---------------------------------------------------------------------------------------------------------
 
-- [My awesome model](https://drive.google.com/mymodel.pth) trained on ImageNet using parameters x,y,z.
+## 📧 Contact
 
->📋  Give a link to where/how the pretrained models can be downloaded and how they were trained (if applicable).  Alternatively you can have an additional column in your results table with a link to the models.
+[francescopaissan@gmail.com](mailto:francescopaissan@gmail.com)
 
-## Results
-
-Our model achieves the following performance on :
-
-### [Image Classification on ImageNet](https://paperswithcode.com/sota/image-classification-on-imagenet)
-
-| Model name         | Top 1 Accuracy  | Top 5 Accuracy |
-| ------------------ |---------------- | -------------- |
-| My awesome model   |     85%         |      95%       |
-
-> Include a table of results from your paper, and link back to the leaderboard for clarity and context. If your main result is a figure, include that figure and link to the command or notebook to reproduce it.
-
---->
+---------------------------------------------------------------------------------------------------------
