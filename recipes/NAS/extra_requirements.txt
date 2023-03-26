@@ -4,3 +4,5 @@ orion
 torchinfo
 pandas
 scikit-learn
+matplotlib
+openpyxl

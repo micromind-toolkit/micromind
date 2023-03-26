@@ -36,7 +36,7 @@ dependencies = [
 requires-python = ">=3.9"
 
 [project.optional-dependencies]
-dev = ["black", "bumpver", "flake8", "isort", "pip-tools", "pytest"]
+dev = ["black", "bumpver", "flake8", "isort", "pip-tools", "pytest", "pre-commit"]
 
 [project.urls]
 Homepage = "https://github.com/fpaissan/micromind"
