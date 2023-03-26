@@ -9,15 +9,14 @@ import torch.nn as nn
 import torchinfo
 import sys
 import numpy as np
-sys.path.append("../")
-from image_classification.classification import optimized_params
+from recipes.image_classification.classification import optimized_params, train_one_epoch, validate
 from naswot import score_network
 from orion.client import build_experiment, get_experiment
 from micromind import PhiNet, configlib
-from timm.optim import create_optimizer_v2
+from timm.optim import create_optimizer
 from timm.scheduler import create_scheduler
 from timm.utils import AverageMeter, accuracy
-
+from timm.data import create_loader, create_transform, create_dataset
 
 group = configlib.add_parser("Orion experiments")
 
@@ -31,8 +30,19 @@ group.add_argument("--target", default=5e6, type=int)
 group.add_argument("--opt-goal", default="params", type=str)
 
 
-def create_loader(image_size, batch_size, data_mean, data_std):
-    train_transforms = timm.data.create_transform(
+def data_loader(image_size, batch_size):
+
+    if nas_args.dset == "cifar10":
+        # mean and std of cifar10 dataset
+        data_mean = (0.49139968, 0.48215827, 0.44653124)
+        data_std = (0.24703233, 0.24348505, 0.26158768)
+
+    elif nas_args.dset == "cifar100":
+        # mean and std of cifar100 dataset
+        data_mean = (0.5070751592371323, 0.48654887331495095, 0.4409178433670343)
+        data_std = (0.2673342858792401, 0.2564384629170883, 0.27615047132568404)
+
+    train_transforms = create_transform(
         input_size=image_size,
         is_training=True,
         mean=data_mean,
@@ -40,18 +50,18 @@ def create_loader(image_size, batch_size, data_mean, data_std):
         auto_augment="rand-m3-mstd0.55",
     )
 
-    eval_transforms = timm.data.create_transform(
+    eval_transforms = create_transform(
         input_size=image_size, mean=data_mean, std=data_std
     )
 
-    train_dataset = timm.data.create_dataset(
+    train_dataset = create_dataset(
         "torch/" + nas_args.dset,
         "~/data/" + nas_args.dset,
         download=True,
         split="train",
         transform=train_transforms,
     )
-    eval_dataset = timm.data.create_dataset(
+    eval_dataset = create_dataset(
         "torch/" + nas_args.dset,
         "~/data/" + nas_args.dset,
         download=True,
@@ -59,7 +69,7 @@ def create_loader(image_size, batch_size, data_mean, data_std):
         transform=eval_transforms,
     )
 
-    loader_train = timm.data.create_loader(
+    loader_train = create_loader(
         train_dataset,
         input_size=image_size,
         batch_size=batch_size,
@@ -75,7 +85,7 @@ def create_loader(image_size, batch_size, data_mean, data_std):
         persistent_workers=False,
     )
 
-    loader_eval = timm.data.create_loader(
+    loader_eval = create_loader(
         eval_dataset,
         input_size=image_size,
         batch_size=batch_size,
@@ -97,14 +107,19 @@ def create_loader(image_size, batch_size, data_mean, data_std):
 
 def train_and_evaluate(model, epochs, loader_train, loader_eval):
     model_ema = None
-    use_amp = False
+    amp_autocast = False
 
     train_loss_fn = nn.CrossEntropyLoss().cuda()
     validate_loss_fn = train_loss_fn
 
     # optimizer = create_optimizer(model)
+    #optimizer = create_optimizer_v2(model)
+    nas_args.opt='sgd'
+    nas_args.lr=0.05
+    nas_args.weight_decay=0.02
 
-    optimizer = create_optimizer_v2(model, opt="cosine", lr=0.005, weight_decay=0.02)
+
+    optimizer = create_optimizer(nas_args, model)
 
     # lr_scheduler, num_epochs = create_scheduler(
     #     optimizer, sched="cosine", num_epochs=epochs
@@ -134,19 +149,18 @@ def train_and_evaluate(model, epochs, loader_train, loader_eval):
 
     try:
         for epoch in range(start_epoch, num_epochs):
-            train_epoch(
+            train_one_epoch(
                 epoch,
                 model,
                 loader_train,
                 optimizer,
                 train_loss_fn,
+                nas_args,
                 lr_scheduler=lr_scheduler,
                 saver=saver,
                 output_dir=output_dir,
-                use_amp=use_amp,
-                model_ema=model_ema,
             )
-
+                
             eval_metrics = validate(
                 model,
                 loader_eval,
@@ -160,82 +174,82 @@ def train_and_evaluate(model, epochs, loader_train, loader_eval):
     return eval_metrics["loss"]
 
 
-def train_epoch(
-    epoch,
-    model,
-    loader,
-    optimizer,
-    loss_fn,
-    lr_scheduler=None,
-    saver=None,
-    output_dir="",
-    use_amp=False,
-    model_ema=None,
-):
-    log_interval = 200
-    batch_time_m = AverageMeter()
-    data_time_m = AverageMeter()
-    losses_m = AverageMeter()
+# def train_epoch(
+#     epoch,
+#     model,
+#     loader,
+#     optimizer,
+#     loss_fn,
+#     lr_scheduler=None,
+#     saver=None,
+#     output_dir="",
+#     use_amp=False,
+#     model_ema=None,
+# ):
+#     log_interval = 200
+#     batch_time_m = AverageMeter()
+#     data_time_m = AverageMeter()
+#     losses_m = AverageMeter()
 
-    model.train()
+#     model.train()
 
-    end = time.time()
-    last_idx = len(loader) - 1
-    num_updates = epoch * len(loader)
-    for batch_idx, (input, target) in enumerate(loader):
-        last_batch = batch_idx == last_idx
-        data_time_m.update(time.time() - end)
-        input, target = input.cuda(), target.cuda()
+#     end = time.time()
+#     last_idx = len(loader) - 1
+#     num_updates = epoch * len(loader)
+#     for batch_idx, (input, target) in enumerate(loader):
+#         last_batch = batch_idx == last_idx
+#         data_time_m.update(time.time() - end)
+#         input, target = input.cuda(), target.cuda()
 
-        output = model(input)
+#         output = model(input)
 
-        loss = loss_fn(output, target)
-        losses_m.update(loss.item(), input.size(0))
-        optimizer.zero_grad()
+#         loss = loss_fn(output, target)
+#         losses_m.update(loss.item(), input.size(0))
+#         optimizer.zero_grad()
 
-        loss.backward()
-        optimizer.step()
+#         loss.backward()
+#         optimizer.step()
 
-        torch.cuda.synchronize()
-        if model_ema is not None:
-            model_ema.update(model)
-        num_updates += 1
+#         torch.cuda.synchronize()
+#         if model_ema is not None:
+#             model_ema.update(model)
+#         num_updates += 1
 
-        batch_time_m.update(time.time() - end)
-        if last_batch or batch_idx % log_interval == 0:
-            lrl = [param_group["lr"] for param_group in optimizer.param_groups]
-            lr = sum(lrl) / len(lrl)
+#         batch_time_m.update(time.time() - end)
+#         if last_batch or batch_idx % log_interval == 0:
+#             lrl = [param_group["lr"] for param_group in optimizer.param_groups]
+#             lr = sum(lrl) / len(lrl)
 
-            # world_size = torch.distributed.get_world_size()
+#             # world_size = torch.distributed.get_world_size()
 
-            logging.info(
-                "Train: {} [{:>4d}/{} ({:>3.0f}%)]  "
-                "Loss: {loss.val:>9.6f} ({loss.avg:>6.4f})  "
-                "Time: {batch_time.val:.3f}s  "
-                "({batch_time.avg:.3f}s)  "
-                "LR: {lr:.3e}  "
-                "Data: {data_time.val:.3f} ({data_time.avg:.3f})".format(
-                    epoch,
-                    batch_idx,
-                    len(loader),
-                    100.0 * batch_idx / last_idx,
-                    loss=losses_m,
-                    batch_time=batch_time_m,
-                    lr=lr,
-                    data_time=data_time_m,
-                )
-            )
+#             logging.info(
+#                 "Train: {} [{:>4d}/{} ({:>3.0f}%)]  "
+#                 "Loss: {loss.val:>9.6f} ({loss.avg:>6.4f})  "
+#                 "Time: {batch_time.val:.3f}s  "
+#                 "({batch_time.avg:.3f}s)  "
+#                 "LR: {lr:.3e}  "
+#                 "Data: {data_time.val:.3f} ({data_time.avg:.3f})".format(
+#                     epoch,
+#                     batch_idx,
+#                     len(loader),
+#                     100.0 * batch_idx / last_idx,
+#                     loss=losses_m,
+#                     batch_time=batch_time_m,
+#                     lr=lr,
+#                     data_time=data_time_m,
+#                 )
+#             )
 
-        end = time.time()
-        # end for
+#         end = time.time()
+#         # end for
 
-    if hasattr(optimizer, "sync_lookahead"):
-        optimizer.sync_lookahead()
+#     if hasattr(optimizer, "sync_lookahead"):
+#         optimizer.sync_lookahead()
 
-    return OrderedDict([("loss", losses_m.avg)])
+#     return OrderedDict([("loss", losses_m.avg)])
 
 
-def validate(model, loader, loss_fn, log_suffix=""):
+# def validate(model, loader, loss_fn, log_suffix=""):
     batch_time_m = AverageMeter()
     losses_m = AverageMeter()
     prec1_m = AverageMeter()
@@ -290,9 +304,21 @@ def validate(model, loader, loss_fn, log_suffix=""):
     )
     return metrics
 
+def EA_objective(loss, params, target, w):
+    obj = -1 * loss * (params / nas_args.target) ** w
+    #obj = loss - 100 * np.abs(nas_args.target - params)
+    return obj
 
-def objective(alpha, beta, B0, t_zero, res, epochs):
-    batch_size = 32
+def score_objective(score, params, target, w):
+    #obj = score * (params / nas_args.target) ** w
+    #obj = score - (np.abs(params - nas_args.target)*1E-6)
+    obj = score*1e-3 - np.abs(params - nas_args.target)*1e-6 
+    #obj= score + ((nas_args.target - params)**2 * 1e-3)
+    #obj = score - 100 * np.abs(nas_args.target - params)
+    return obj
+
+def define_model(alpha, beta, B0, t_zero, res, batch_size):
+    batch_size = batch_size
     model = PhiNet(
         input_shape=[3, res, res],
         alpha=alpha,
@@ -305,42 +331,36 @@ def objective(alpha, beta, B0, t_zero, res, epochs):
         num_classes=nas_args.num_classes,
     )
     model.cuda()
+    return model
 
-    if nas_args.dset == "cifar10":
-        # mean and std of cifar10 dataset
-        TRAIN_MEAN = (0.49139968, 0.48215827, 0.44653124)
-        TRAIN_STD = (0.24703233, 0.24348505, 0.26158768)
+def get_params(model, res):
+    return torchinfo.summary(
+        model, (1, 3, res, res), device=nas_args.device, verbose=0
+    ).total_params
 
-    elif nas_args.dset == "cifar100":
-        # mean and std of cifar100 dataset
-        TRAIN_MEAN = (0.5070751592371323, 0.48654887331495095, 0.4409178433670343)
-        TRAIN_STD = (0.2673342858792401, 0.2564384629170883, 0.27615047132568404)
+def objective(alpha, beta, B0, t_zero, res, epochs):
+    batch_size = 32
+    w = nas_args.w
+    model = define_model(alpha, beta, B0, t_zero, res, batch_size)
 
-    loader_train, loader_eval = create_loader(
+    loader_train, loader_eval = data_loader(
         image_size=(3, res, res),
-        batch_size=batch_size,
-        data_mean=TRAIN_MEAN,
-        data_std=TRAIN_STD,
+        batch_size=batch_size
     )
     logging.info(
         "Phinet params: %s",
         {"alpha": alpha, "beta": beta, "t_zero": t_zero, "B0": B0, "res": res},
     )
-    w = nas_args.w
-    params = torchinfo.summary(
-        model, (1, 3, res, res), device=nas_args.device, verbose=0
-    ).total_params
+
+    params = get_params(model, res)
+    
     if nas_args.algo == "evo":
         loss = train_and_evaluate(model, epochs, loader_train, loader_eval)
-        #obj = -1 * loss * (params / nas_args.target) ** w
-        #obj = loss - 100 * np.abs(nas_args.target - params)
+        obj = EA_objective(loss, params, nas_args.target, w)
     else:
         score = score_network(model, batch_size, loader_train)
-        #obj = score * (params / nas_args.target) ** w
-        #obj = score - (np.abs(params - nas_args.target)*1E-6)
-        obj = score*1e-3 - np.abs(params - nas_args.target)*1e-6 
-        #obj= score + ((nas_args.target - params)**2 * 1e-3)
-        #obj = score - 100 * np.abs(nas_args.target - params)
+        obj = score_objective(score, params, nas_args.target, w)
+       
     # obj = -1 * score - phi(params - nas_args.target)**w
     #target_obj = (params / nas_args.target) ** w
     #target_obj = 100 * np.abs(nas_args.target - params)
@@ -492,8 +512,8 @@ if __name__ == "__main__":
     if nas_args.dset == "cifar100":
         nas_args.num_classes = 100
 
-    exp_name = "obj1_seed_1_" + nas_args.algo + "_w_" + str(nas_args.w) + "_" + str(int(nas_args.target/1e6)) + "M_cosine"
-    #exp_name = "test_obj_1"
+    #exp_name = "obj1_seed_1_" + nas_args.algo + "_w_" + str(nas_args.w) + "_" + str(int(nas_args.target/1e6)) + "M_cosine"
+    exp_name = "testttttttt"
     base_path = os.path.join(nas_args.save_path, nas_args.dset, nas_args.algo, exp_name)
     os.makedirs(
         base_path,
