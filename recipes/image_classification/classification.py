@@ -890,7 +890,7 @@ def optimized_params(args, phinet_params, num_classes, save_path):
     args.experiment = "cifar10" if num_classes == 10 else "cifar100"
     args.model = "phinet"
     args.input_size = 3, phinet_params["res"], phinet_params["res"]
-    #args.input_size = 3, 160, 160
+    # args.input_size = 3, 160, 160
     args.alpha = phinet_params["alpha"]
     args.num_layers = phinet_params["B0"]
     args.beta = phinet_params["beta"]
@@ -901,6 +901,7 @@ def optimized_params(args, phinet_params, num_classes, save_path):
     args_text = yaml.safe_dump(args.__dict__, default_flow_style=False)
 
     main(args, args_text, parse_args=False)
+
 
 def _parse_args():
     # Do we have a config file to parse?
@@ -920,12 +921,12 @@ def _parse_args():
     return args, args_text
 
 
-def main(args,args_text,parse_args=True):
-    #utils.setup_default_logging()
+def main(args, args_text, parse_args=True):
+    # utils.setup_default_logging()
     if parse_args:
         args, args_text = _parse_args()
 
-    #configlib.print_config()
+    # configlib.print_config()
     args.prefetcher = not args.no_prefetcher
     args.distributed = False
     if "WORLD_SIZE" in os.environ:

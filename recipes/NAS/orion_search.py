@@ -1,19 +1,20 @@
 import logging
 import os
-import matplotlib.pyplot as plt
-import timm
 import torch
 import torch.nn as nn
 import torchinfo
 import sys
 import numpy as np
-from recipes.image_classification.classification import optimized_params, train_one_epoch, validate
+from recipes.image_classification.classification import (
+    optimized_params,
+    train_one_epoch,
+    validate,
+)
 from naswot import score_network
 from orion.client import build_experiment, get_experiment
 from micromind import PhiNet, configlib
 from timm.optim import create_optimizer
 from timm.scheduler import create_scheduler
-from timm.utils import AverageMeter, accuracy
 from timm.data import create_loader, create_transform, create_dataset
 from utils import plot, plot_table
 
@@ -30,7 +31,6 @@ group.add_argument("--opt-goal", default="params", type=str)
 
 
 def data_loader(image_size, batch_size):
-
     if nas_args.dset == "cifar10":
         # mean and std of cifar10 dataset
         data_mean = (0.49139968, 0.48215827, 0.44653124)
@@ -105,9 +105,9 @@ def data_loader(image_size, batch_size):
 
 
 def train_and_evaluate(model, epochs, loader_train, loader_eval):
-    nas_args.opt='sgd'
-    nas_args.lr=0.05
-    nas_args.weight_decay=0.02
+    nas_args.opt = "sgd"
+    nas_args.lr = 0.05
+    nas_args.weight_decay = 0.02
     nas_args.prefetcher = not nas_args.no_prefetcher
     nas_args.distributed = False
     nas_args.device = "cuda:0"
@@ -120,7 +120,7 @@ def train_and_evaluate(model, epochs, loader_train, loader_eval):
 
     train_loss_fn = nn.CrossEntropyLoss().cuda()
     validate_loss_fn = train_loss_fn
-    optimizer = create_optimizer(nas_args, model)    
+    optimizer = create_optimizer(nas_args, model)
     lr_scheduler, num_epochs = create_scheduler(nas_args, optimizer)
     start_epoch = 0
     if lr_scheduler is not None and start_epoch > 0:
@@ -135,7 +135,7 @@ def train_and_evaluate(model, epochs, loader_train, loader_eval):
     output_dir = os.path.join(
         nas_args.save_path, nas_args.dset + "/", nas_args.algo + "/"
     )
-    
+
     try:
         for epoch in range(start_epoch, num_epochs):
             train_one_epoch(
@@ -149,13 +149,8 @@ def train_and_evaluate(model, epochs, loader_train, loader_eval):
                 saver=saver,
                 output_dir=output_dir,
             )
-                
-            eval_metrics = validate(
-                model,
-                loader_eval,
-                validate_loss_fn,
-                nas_args
-            )
+
+            eval_metrics = validate(model, loader_eval, validate_loss_fn, nas_args)
 
     except KeyboardInterrupt:
         pass
@@ -163,18 +158,21 @@ def train_and_evaluate(model, epochs, loader_train, loader_eval):
         logging.info("*** Best metric: {0} (epoch {1})".format(best_metric, best_epoch))
     return eval_metrics["loss"]
 
+
 def EA_objective(loss, params, target, w):
     obj = -1 * loss * (params / nas_args.target) ** w
-    #obj = loss - 100 * np.abs(nas_args.target - params)
+    # obj = loss - 100 * np.abs(nas_args.target - params)
     return obj
 
+
 def score_objective(score, params, target, w):
-    #obj = score * (params / nas_args.target) ** w
-    #obj = score - (np.abs(params - nas_args.target)*1E-6)
-    obj = score*1e-3 - np.abs(params - nas_args.target)*1e-6 
-    #obj= score + ((nas_args.target - params)**2 * 1e-3)
-    #obj = score - 100 * np.abs(nas_args.target - params)
+    # obj = score * (params / nas_args.target) ** w
+    # obj = score - (np.abs(params - nas_args.target)*1E-6)
+    obj = score * 1e-3 - np.abs(params - nas_args.target) * 1e-6
+    # obj= score + ((nas_args.target - params)**2 * 1e-3)
+    # obj = score - 100 * np.abs(nas_args.target - params)
     return obj
+
 
 def define_model(alpha, beta, B0, t_zero, res, batch_size):
     batch_size = batch_size
@@ -192,10 +190,12 @@ def define_model(alpha, beta, B0, t_zero, res, batch_size):
     model.cuda()
     return model
 
+
 def get_params(model, res):
     return torchinfo.summary(
         model, (1, 3, res, res), device=nas_args.device, verbose=0
     ).total_params
+
 
 def objective(alpha, beta, B0, t_zero, res, epochs):
     batch_size = 32
@@ -203,8 +203,7 @@ def objective(alpha, beta, B0, t_zero, res, epochs):
     model = define_model(alpha, beta, B0, t_zero, res, batch_size)
 
     loader_train, loader_eval = data_loader(
-        image_size=(3, res, res),
-        batch_size=batch_size
+        image_size=(3, res, res), batch_size=batch_size
     )
     logging.info(
         "Phinet params: %s",
@@ -212,18 +211,18 @@ def objective(alpha, beta, B0, t_zero, res, epochs):
     )
 
     params = get_params(model, res)
-    
+
     if nas_args.algo == "evo":
         loss = train_and_evaluate(model, epochs, loader_train, loader_eval)
         obj = EA_objective(loss, params, nas_args.target, w)
     else:
         score = score_network(model, batch_size, loader_train)
         obj = score_objective(score, params, nas_args.target, w)
-       
+
     # obj = -1 * score - phi(params - nas_args.target)**w
-    #target_obj = (params / nas_args.target) ** w
-    #target_obj = 100 * np.abs(nas_args.target - params)
-    target_obj = np.abs(params - nas_args.target)*1E-6
+    # target_obj = (params / nas_args.target) ** w
+    # target_obj = 100 * np.abs(nas_args.target - params)
+    target_obj = np.abs(params - nas_args.target) * 1e-6
     print(target_obj)
 
     logging.info("w: %f", w)
@@ -243,6 +242,7 @@ def objective(alpha, beta, B0, t_zero, res, epochs):
     target_objs.append(target_obj)
 
     return [{"name": "objective", "type": "objective", "value": -obj}]
+
 
 def run_hpo(exp_name):
     # Specify the database where the experiments are stored
@@ -353,8 +353,16 @@ if __name__ == "__main__":
     if nas_args.dset == "cifar100":
         nas_args.num_classes = 100
 
-    exp_name = "obj1_seed_1_" + nas_args.algo + "_w_" + str(nas_args.w) + "_" + str(int(nas_args.target/1e6)) + "M"
-    #exp_name = "tcdcdv"
+    exp_name = (
+        "obj1_seed_1_"
+        + nas_args.algo
+        + "_w_"
+        + str(nas_args.w)
+        + "_"
+        + str(int(nas_args.target / 1e6))
+        + "M"
+    )
+    # exp_name = "tcdcdv"
     base_path = os.path.join(nas_args.save_path, nas_args.dset, nas_args.algo, exp_name)
     os.makedirs(
         base_path,
@@ -384,13 +392,13 @@ if __name__ == "__main__":
     best_obj = experiment.stats.best_evaluation
     logging.info("Best params: {}".format(best_params))
     logging.info("Best obj value: {:.3f}".format(best_obj))
-    
+
     model = PhiNet(
-        input_shape=[3, best_params['res'], best_params['res']],
-        alpha=best_params['alpha'],
-        beta=best_params['beta'],
-        t_zero=best_params['t_zero'],
-        num_layers=best_params['B0'],
+        input_shape=[3, best_params["res"], best_params["res"]],
+        alpha=best_params["alpha"],
+        beta=best_params["beta"],
+        t_zero=best_params["t_zero"],
+        num_layers=best_params["B0"],
         squeeze_excite=True,
         h_swish=False,
         include_top=True,
@@ -398,22 +406,25 @@ if __name__ == "__main__":
     )
     model.cuda()
     total_param = torchinfo.summary(
-        model, (1, 3, best_params['res'], best_params['res']), device=nas_args.device, verbose=0
+        model,
+        (1, 3, best_params["res"], best_params["res"]),
+        device=nas_args.device,
+        verbose=0,
     ).total_params
-    logging.info("Best trial total params: {:.3f}".format(total_param/1e6))
+    logging.info("Best trial total params: {:.3f}".format(total_param / 1e6))
 
     plot_table(exp_name, param, scores, target_objs, base_path)
-   
+
     plot(param, objs, base_path, "objective")
     if nas_args.algo == "evo":
-       plot(param, losses, base_path, "loss")
+        plot(param, losses, base_path, "loss")
     else:
-       plot(param, scores, base_path, "naswot")
+        plot(param, scores, base_path, "naswot")
     plot(param, target_objs, base_path, "target")
 
     save_path = base_path
     print(nas_args.classifier)
-    #nas_args.classifier=False
+    # nas_args.classifier=False
     if nas_args.classifier or nas_args.algo == "evo":
         print(nas_args.classifier)
         optimized_params(nas_args, best_params, nas_args.num_classes, save_path)

@@ -17,7 +17,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from huggingface_hub import hf_hub_download
 from huggingface_hub.utils import EntryNotFoundError
-from torchinfo import summary
 
 import micromind
 
