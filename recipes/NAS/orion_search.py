@@ -1,7 +1,5 @@
 import logging
 import os
-import time
-from collections import OrderedDict
 import matplotlib.pyplot as plt
 import timm
 import torch
@@ -17,6 +15,7 @@ from timm.optim import create_optimizer
 from timm.scheduler import create_scheduler
 from timm.utils import AverageMeter, accuracy
 from timm.data import create_loader, create_transform, create_dataset
+from utils import plot, plot_table
 
 group = configlib.add_parser("Orion experiments")
 
@@ -106,30 +105,23 @@ def data_loader(image_size, batch_size):
 
 
 def train_and_evaluate(model, epochs, loader_train, loader_eval):
-    model_ema = None
-    amp_autocast = False
-
-    train_loss_fn = nn.CrossEntropyLoss().cuda()
-    validate_loss_fn = train_loss_fn
-
-    # optimizer = create_optimizer(model)
-    #optimizer = create_optimizer_v2(model)
     nas_args.opt='sgd'
     nas_args.lr=0.05
     nas_args.weight_decay=0.02
-
-
-    optimizer = create_optimizer(nas_args, model)
-
-    # lr_scheduler, num_epochs = create_scheduler(
-    #     optimizer, sched="cosine", num_epochs=epochs
-    # )
+    nas_args.prefetcher = not nas_args.no_prefetcher
+    nas_args.distributed = False
+    nas_args.device = "cuda:0"
+    nas_args.world_size = 1
+    nas_args.rank = 0  # global rank
     nas_args.epochs = epochs
     nas_args.warmup_epochs = 0
     nas_args.warmup_lr = None
     nas_args.cooldown_epochs = 0
-    lr_scheduler, num_epochs = create_scheduler(nas_args, optimizer)
 
+    train_loss_fn = nn.CrossEntropyLoss().cuda()
+    validate_loss_fn = train_loss_fn
+    optimizer = create_optimizer(nas_args, model)    
+    lr_scheduler, num_epochs = create_scheduler(nas_args, optimizer)
     start_epoch = 0
     if lr_scheduler is not None and start_epoch > 0:
         lr_scheduler.step(start_epoch)
@@ -143,10 +135,7 @@ def train_and_evaluate(model, epochs, loader_train, loader_eval):
     output_dir = os.path.join(
         nas_args.save_path, nas_args.dset + "/", nas_args.algo + "/"
     )
-    # output_dir = get_outdir(output_dir, exp_name)
-
-    # saver = CheckpointSaver(checkpoint_dir=output_dir, decreasing=decreasing)
-
+    
     try:
         for epoch in range(start_epoch, num_epochs):
             train_one_epoch(
@@ -165,6 +154,7 @@ def train_and_evaluate(model, epochs, loader_train, loader_eval):
                 model,
                 loader_eval,
                 validate_loss_fn,
+                nas_args
             )
 
     except KeyboardInterrupt:
@@ -172,137 +162,6 @@ def train_and_evaluate(model, epochs, loader_train, loader_eval):
     if best_metric is not None:
         logging.info("*** Best metric: {0} (epoch {1})".format(best_metric, best_epoch))
     return eval_metrics["loss"]
-
-
-# def train_epoch(
-#     epoch,
-#     model,
-#     loader,
-#     optimizer,
-#     loss_fn,
-#     lr_scheduler=None,
-#     saver=None,
-#     output_dir="",
-#     use_amp=False,
-#     model_ema=None,
-# ):
-#     log_interval = 200
-#     batch_time_m = AverageMeter()
-#     data_time_m = AverageMeter()
-#     losses_m = AverageMeter()
-
-#     model.train()
-
-#     end = time.time()
-#     last_idx = len(loader) - 1
-#     num_updates = epoch * len(loader)
-#     for batch_idx, (input, target) in enumerate(loader):
-#         last_batch = batch_idx == last_idx
-#         data_time_m.update(time.time() - end)
-#         input, target = input.cuda(), target.cuda()
-
-#         output = model(input)
-
-#         loss = loss_fn(output, target)
-#         losses_m.update(loss.item(), input.size(0))
-#         optimizer.zero_grad()
-
-#         loss.backward()
-#         optimizer.step()
-
-#         torch.cuda.synchronize()
-#         if model_ema is not None:
-#             model_ema.update(model)
-#         num_updates += 1
-
-#         batch_time_m.update(time.time() - end)
-#         if last_batch or batch_idx % log_interval == 0:
-#             lrl = [param_group["lr"] for param_group in optimizer.param_groups]
-#             lr = sum(lrl) / len(lrl)
-
-#             # world_size = torch.distributed.get_world_size()
-
-#             logging.info(
-#                 "Train: {} [{:>4d}/{} ({:>3.0f}%)]  "
-#                 "Loss: {loss.val:>9.6f} ({loss.avg:>6.4f})  "
-#                 "Time: {batch_time.val:.3f}s  "
-#                 "({batch_time.avg:.3f}s)  "
-#                 "LR: {lr:.3e}  "
-#                 "Data: {data_time.val:.3f} ({data_time.avg:.3f})".format(
-#                     epoch,
-#                     batch_idx,
-#                     len(loader),
-#                     100.0 * batch_idx / last_idx,
-#                     loss=losses_m,
-#                     batch_time=batch_time_m,
-#                     lr=lr,
-#                     data_time=data_time_m,
-#                 )
-#             )
-
-#         end = time.time()
-#         # end for
-
-#     if hasattr(optimizer, "sync_lookahead"):
-#         optimizer.sync_lookahead()
-
-#     return OrderedDict([("loss", losses_m.avg)])
-
-
-# def validate(model, loader, loss_fn, log_suffix=""):
-    batch_time_m = AverageMeter()
-    losses_m = AverageMeter()
-    prec1_m = AverageMeter()
-    prec5_m = AverageMeter()
-
-    model.eval()
-    log_interval = 50
-    end = time.time()
-    last_idx = len(loader) - 1
-    with torch.no_grad():
-        for batch_idx, (input, target) in enumerate(loader):
-            last_batch = batch_idx == last_idx
-
-            output = model(input)
-            if isinstance(output, (tuple, list)):
-                output = output[0]
-
-            loss = loss_fn(output, target)
-            prec1, prec5 = accuracy(output, target, topk=(1, 5))
-
-            reduced_loss = loss.data
-
-            torch.cuda.synchronize()
-
-            losses_m.update(reduced_loss.item(), input.size(0))
-            prec1_m.update(prec1.item(), output.size(0))
-            prec5_m.update(prec5.item(), output.size(0))
-
-            batch_time_m.update(time.time() - end)
-
-            if last_batch or batch_idx % log_interval == 0:
-                log_name = "Test" + log_suffix
-                logging.info(
-                    "{0}: [{1:>4d}/{2}]  "
-                    "Time: {batch_time.val:.3f} ({batch_time.avg:.3f})  "
-                    "Loss: {loss.val:>7.4f} ({loss.avg:>6.4f})  "
-                    "Prec@1: {top1.val:>7.4f} ({top1.avg:>7.4f})  "
-                    "Prec@5: {top5.val:>7.4f} ({top5.avg:>7.4f})".format(
-                        log_name,
-                        batch_idx,
-                        last_idx,
-                        batch_time=batch_time_m,
-                        loss=losses_m,
-                        top1=prec1_m,
-                        top5=prec5_m,
-                    )
-                )
-            end = time.time()
-
-    metrics = OrderedDict(
-        [("loss", losses_m.avg), ("prec1", prec1_m.avg), ("prec5", prec5_m.avg)]
-    )
-    return metrics
 
 def EA_objective(loss, params, target, w):
     obj = -1 * loss * (params / nas_args.target) ** w
@@ -384,24 +243,6 @@ def objective(alpha, beta, B0, t_zero, res, epochs):
     target_objs.append(target_obj)
 
     return [{"name": "objective", "type": "objective", "value": -obj}]
-
-
-def plot(x, y, path, plot_type):
-    path = os.path.join(path + "_" + plot_type + ".jpg")
-    plt.scatter(x, y, color="blue", alpha=0.5)
-    if plot_type == "objective":
-        plt.ylabel("Objective")
-    elif plot_type == "naswot":
-        plt.ylabel("NASWOT Score")
-    elif plot_type == "loss":
-        plt.ylabel("Val loss")
-    elif plot_type == "target":
-        plt.ylabel("Target Objective")
-    else:
-        "This type of plot is not defined!"
-    plt.savefig(path)
-    plt.cla()
-
 
 def run_hpo(exp_name):
     # Specify the database where the experiments are stored
@@ -512,8 +353,8 @@ if __name__ == "__main__":
     if nas_args.dset == "cifar100":
         nas_args.num_classes = 100
 
-    #exp_name = "obj1_seed_1_" + nas_args.algo + "_w_" + str(nas_args.w) + "_" + str(int(nas_args.target/1e6)) + "M_cosine"
-    exp_name = "testttttttt"
+    exp_name = "obj1_seed_1_" + nas_args.algo + "_w_" + str(nas_args.w) + "_" + str(int(nas_args.target/1e6)) + "M"
+    #exp_name = "tcdcdv"
     base_path = os.path.join(nas_args.save_path, nas_args.dset, nas_args.algo, exp_name)
     os.makedirs(
         base_path,
@@ -561,14 +402,8 @@ if __name__ == "__main__":
     ).total_params
     logging.info("Best trial total params: {:.3f}".format(total_param/1e6))
 
-    df = experiment.to_pandas(True)
-    print(df)
-    df.drop(df.iloc[:, 0:6], inplace=True, axis=1)
-    df["Parameters"] = param
-    df["Score"] = scores
-    df["Target Objective"] = target_objs
-    df.to_excel(base_path + ".xlsx", index=False)
-
+    plot_table(exp_name, param, scores, target_objs, base_path)
+   
     plot(param, objs, base_path, "objective")
     if nas_args.algo == "evo":
        plot(param, losses, base_path, "loss")
