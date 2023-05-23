@@ -921,8 +921,8 @@ def _parse_args():
     return args, args_text
 
 
-def main(args, args_text, parse_args=True):
-    # utils.setup_default_logging()
+def main(args,args_text,parse_args=False):
+    #utils.setup_default_logging()
     if parse_args:
         args, args_text = _parse_args()
 
