@@ -2,12 +2,13 @@ import os
 import matplotlib.pyplot as plt
 from orion.client import get_experiment
 
+
 def plot_table(exp_name, base_path):
     experiment = get_experiment(name=exp_name)
     df = experiment.to_pandas(True)
     print(df)
     df.drop(df.iloc[:, 0:6], inplace=True, axis=1)
-    df.to_excel(os.path.join(base_path,exp_name) + ".xlsx", index=False)
+    df.to_excel(os.path.join(base_path, exp_name) + ".xlsx", index=False)
 
 
 def plot(x, y, path, plot_type):

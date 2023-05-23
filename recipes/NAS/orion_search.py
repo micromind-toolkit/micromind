@@ -226,7 +226,7 @@ def objective(alpha, beta, B0, t_zero, res, epochs):
     print(target_obj)
 
     logging.info("w: %f", w)
-    logging.info("Total params: %f", params/1e6)
+    logging.info("Total params: %f", params / 1e6)
     if nas_args.algo == "evo":
         logging.info("Loss: %f", loss)
     else:
@@ -234,14 +234,19 @@ def objective(alpha, beta, B0, t_zero, res, epochs):
     logging.info("Objective: %f", -obj)
 
     objs.append(-obj)
-    param.append(params/1e6)
+    param.append(params / 1e6)
     if nas_args.algo == "evo":
         losses.append(loss)
     else:
         scores.append(score)
     target_objs.append(target_obj)
 
-    return [{"name": "objective", "type": "objective", "value": -obj}, {"name": "params", "type": "statistic", "value": params/1e6}, {"name": "score", "type": "statistic", "value": score}, {"name": "target_obj", "type": "statistic", "value": target_obj}]
+    return [
+        {"name": "objective", "type": "objective", "value": -obj},
+        {"name": "params", "type": "statistic", "value": params / 1e6},
+        {"name": "score", "type": "statistic", "value": score},
+        {"name": "target_obj", "type": "statistic", "value": target_obj},
+    ]
 
 
 def run_hpo(exp_name):
@@ -378,7 +383,7 @@ if __name__ == "__main__":
         datefmt="%m/%d %I:%M:%S %p",
     )
 
-    fh = logging.FileHandler(os.path.join(base_path,"log.txt"), "w")
+    fh = logging.FileHandler(os.path.join(base_path, "log.txt"), "w")
 
     fh.setFormatter(logging.Formatter(log_format))
     logging.getLogger().addHandler(fh)
