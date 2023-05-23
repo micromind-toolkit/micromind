@@ -168,7 +168,7 @@ def EA_objective(loss, params, target, w):
 def score_objective(score, params, target, w):
     # obj = score * (params / nas_args.target) ** w
     # obj = score - (np.abs(params - nas_args.target)*1E-6)
-    obj = score * 1e-3 - np.abs(params - nas_args.target) * 1e-6
+    obj = score * 1e-3 - (np.abs(params - nas_args.target) * 1e-6)
     # obj= score + ((nas_args.target - params)**2 * 1e-3)
     # obj = score - 100 * np.abs(nas_args.target - params)
     return obj
@@ -226,7 +226,7 @@ def objective(alpha, beta, B0, t_zero, res, epochs):
     print(target_obj)
 
     logging.info("w: %f", w)
-    logging.info("Total params: %f", params / 1e6)
+    logging.info("Total params: %f", params/1e6)
     if nas_args.algo == "evo":
         logging.info("Loss: %f", loss)
     else:
@@ -234,7 +234,7 @@ def objective(alpha, beta, B0, t_zero, res, epochs):
     logging.info("Objective: %f", -obj)
 
     objs.append(-obj)
-    param.append(params / 1e6)
+    param.append(params/1e6)
     if nas_args.algo == "evo":
         losses.append(loss)
     else:
@@ -258,13 +258,13 @@ def run_hpo(exp_name):
     if nas_args.algo == "random":
         algorithm = {
             "random": {
-                "seed": 1,
+                "seed": 42,
             },
         }
     elif nas_args.algo == "tpe":
         algorithm = {
             "tpe": {
-                "seed": 1,
+                "seed": 42,
                 "n_initial_points": 20,
                 "n_ei_candidates": 25,
                 "gamma": 0.25,
@@ -289,7 +289,7 @@ def run_hpo(exp_name):
     elif nas_args.algo == "evo":
         algorithm = {
             "EvolutionES": {
-                "seed": 1,
+                "seed": 42,
                 "repetitions": 1,
                 "nums_population": 10,
                 "mutate": {
@@ -354,12 +354,12 @@ if __name__ == "__main__":
         nas_args.num_classes = 100
 
     exp_name = (
-        "obj1_seed_1_"
+        "hswish_false_lr_0.005__obj1_seed_42_"
         + nas_args.algo
         + "_w_"
         + str(nas_args.w)
         + "_"
-        + str(int(nas_args.target / 1e6))
+        + str(int(nas_args.target/1e6))
         + "M"
     )
     # exp_name = "tcdcdv"
@@ -413,14 +413,14 @@ if __name__ == "__main__":
     ).total_params
     logging.info("Best trial total params: {:.3f}".format(total_param / 1e6))
 
-    plot_table(exp_name, param, scores, target_objs, base_path)
+    #plot_table(exp_name, param, scores, target_objs, base_path)
 
-    plot(param, objs, base_path, "objective")
-    if nas_args.algo == "evo":
-        plot(param, losses, base_path, "loss")
-    else:
-        plot(param, scores, base_path, "naswot")
-    plot(param, target_objs, base_path, "target")
+    # plot(param, objs, base_path, "objective")
+    # if nas_args.algo == "evo":
+    #     plot(param, losses, base_path, "loss")
+    # else:
+    #     plot(param, scores, base_path, "naswot")
+    # plot(param, target_objs, base_path, "target")
 
     save_path = base_path
     print(nas_args.classifier)

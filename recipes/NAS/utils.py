@@ -1,5 +1,5 @@
 import os
-import matplotlib as plt
+import matplotlib.pyplot as plt
 from orion.client import get_experiment
 
 
