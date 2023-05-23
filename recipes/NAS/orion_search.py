@@ -26,7 +26,7 @@ group.add_argument("--dset", default="cifar10", type=str)
 group.add_argument("--save_path", default="./orion_exp/", type=str)
 group.add_argument("--classifier", default=None, type=bool)
 group.add_argument("--device", default=0, type=int)
-group.add_argument("--target", default=5e6, type=int)
+group.add_argument("--target", default=1e6, type=int)
 group.add_argument("--opt-goal", default="params", type=str)
 
 
@@ -241,7 +241,7 @@ def objective(alpha, beta, B0, t_zero, res, epochs):
         scores.append(score)
     target_objs.append(target_obj)
 
-    return [{"name": "objective", "type": "objective", "value": -obj}]
+    return [{"name": "objective", "type": "objective", "value": -obj}, {"name": "params", "type": "statistic", "value": params/1e6}, {"name": "score", "type": "statistic", "value": score}, {"name": "target_obj", "type": "statistic", "value": target_obj}]
 
 
 def run_hpo(exp_name):
@@ -321,7 +321,7 @@ def run_hpo(exp_name):
         },
         algorithms=algorithm,
         storage=storage,
-        max_trials=100,
+        max_trials=3,
     )
 
     trials = 1
@@ -353,16 +353,14 @@ if __name__ == "__main__":
     if nas_args.dset == "cifar100":
         nas_args.num_classes = 100
 
-    exp_name = (
-        "hswish_false_lr_0.005__obj1_seed_42_"
-        + nas_args.algo
-        + "_w_"
-        + str(nas_args.w)
-        + "_"
-        + str(int(nas_args.target/1e6))
-        + "M"
-    )
-    # exp_name = "tcdcdv"
+    # exp_name = (
+    #     "obj1_seed_42_"
+    #     + nas_args.algo
+    #     + "_"
+    #     + str(int(nas_args.target/1e6))
+    #     + "M"
+    # )
+    exp_name = "trial1"
     base_path = os.path.join(nas_args.save_path, nas_args.dset, nas_args.algo, exp_name)
     os.makedirs(
         base_path,
@@ -380,7 +378,7 @@ if __name__ == "__main__":
         datefmt="%m/%d %I:%M:%S %p",
     )
 
-    fh = logging.FileHandler(os.path.join(base_path + "_log.txt"), "w")
+    fh = logging.FileHandler(os.path.join(base_path,"log.txt"), "w")
 
     fh.setFormatter(logging.Formatter(log_format))
     logging.getLogger().addHandler(fh)
@@ -413,14 +411,14 @@ if __name__ == "__main__":
     ).total_params
     logging.info("Best trial total params: {:.3f}".format(total_param / 1e6))
 
-    #plot_table(exp_name, param, scores, target_objs, base_path)
+    plot_table(exp_name, base_path)
 
-    # plot(param, objs, base_path, "objective")
-    # if nas_args.algo == "evo":
-    #     plot(param, losses, base_path, "loss")
-    # else:
-    #     plot(param, scores, base_path, "naswot")
-    # plot(param, target_objs, base_path, "target")
+    plot(param, objs, base_path, "objective")
+    if nas_args.algo == "evo":
+        plot(param, losses, base_path, "loss")
+    else:
+        plot(param, scores, base_path, "naswot")
+    plot(param, target_objs, base_path, "target")
 
     save_path = base_path
     print(nas_args.classifier)
