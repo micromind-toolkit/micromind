@@ -875,7 +875,7 @@ def optimized_params(args, phinet_params, num_classes, save_path):
     args.amp = True
     args.opt = "lamb"
     args.sched = "cosine"
-    args.lr = 0.05
+    args.lr = 0.005
     args.weight_decay = 0.02
     args.warmup_epochs = 10
     args.warmup_lr = 0.008
@@ -890,7 +890,7 @@ def optimized_params(args, phinet_params, num_classes, save_path):
     args.experiment = "cifar10" if num_classes == 10 else "cifar100"
     args.model = "phinet"
     args.input_size = 3, phinet_params["res"], phinet_params["res"]
-    # args.input_size = 3, 160, 160
+    #args.input_size = 3, 160, 160
     args.alpha = phinet_params["alpha"]
     args.num_layers = phinet_params["B0"]
     args.beta = phinet_params["beta"]
@@ -995,6 +995,7 @@ def main(args, args_text, parse_args=True):
             include_top=True,
             num_classes=vars(args)["num_classes"],
             compatibility=False,
+            h_swish=False
         )
     else:
         model = create_model(
