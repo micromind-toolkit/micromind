@@ -37,7 +37,7 @@ conversion = [
     "openvino2tensorflow==1.34.0",
     "tensorflow_datasets==4.8.1",
     "tensorflow==2.11.0",
-    "tensorflow_probability"
+    # "tensorflow_probability"
 ]
 
 [project.urls]
