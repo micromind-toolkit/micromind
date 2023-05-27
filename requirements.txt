@@ -28,7 +28,7 @@ packaging==23.0
     # via huggingface-hub
 pyyaml==6.0
     # via huggingface-hub
-requests==2.28.2
+requests==2.31.0
     # via huggingface-hub
 torch==1.13.1
     # via micromind (pyproject.toml)
