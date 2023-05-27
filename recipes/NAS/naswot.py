@@ -36,6 +36,4 @@ def score_network(model, batch_size, loader_train):
     x, target = x, target
     network(x2)
     score = hooklogdet(network.K, target)
-    # print("ReLU based score")
-    # print(score)
     return score

@@ -24,7 +24,7 @@ group.add_argument("--w", default=-0.07, type=float)
 group.add_argument("--algo", default="random", type=str)
 group.add_argument("--dset", default="cifar10", type=str)
 group.add_argument("--save_path", default="./orion_exp/", type=str)
-group.add_argument("--classifier", default=None, type=bool)
+group.add_argument("--classifier", default=False, type=bool)
 group.add_argument("--device", default=0, type=int)
 group.add_argument("--target", default=1e6, type=int)
 group.add_argument("--opt-goal", default="params", type=str)
@@ -168,7 +168,7 @@ def EA_objective(loss, params, target, w):
 def score_objective(score, params, target, w):
     # obj = score * (params / nas_args.target) ** w
     # obj = score - (np.abs(params - nas_args.target)*1E-6)
-    obj = score * 1e-3 - (np.abs(params - nas_args.target) * 1e-6)
+    obj = score * 1e-3 - (np.abs(params - nas_args.target) * 1e-5)
     # obj= score + ((nas_args.target - params)**2 * 1e-3)
     # obj = score - 100 * np.abs(nas_args.target - params)
     return obj
@@ -198,7 +198,7 @@ def get_params(model, res):
 
 
 def objective(alpha, beta, B0, t_zero, res, epochs):
-    batch_size = 32
+    batch_size = 64
     w = nas_args.w
     model = define_model(alpha, beta, B0, t_zero, res, batch_size)
 
@@ -217,13 +217,13 @@ def objective(alpha, beta, B0, t_zero, res, epochs):
         obj = EA_objective(loss, params, nas_args.target, w)
     else:
         score = score_network(model, batch_size, loader_train)
+        logging.info("Score: %f", score)
         obj = score_objective(score, params, nas_args.target, w)
 
     # obj = -1 * score - phi(params - nas_args.target)**w
     # target_obj = (params / nas_args.target) ** w
     # target_obj = 100 * np.abs(nas_args.target - params)
-    target_obj = np.abs(params - nas_args.target) * 1e-6
-    print(target_obj)
+    target_obj = np.abs(params - nas_args.target) * 1e-5
 
     logging.info("w: %f", w)
     logging.info("Total params: %f", params / 1e6)
@@ -244,7 +244,11 @@ def objective(alpha, beta, B0, t_zero, res, epochs):
     return [
         {"name": "objective", "type": "objective", "value": -obj},
         {"name": "params", "type": "statistic", "value": params / 1e6},
-        {"name": "score", "type": "statistic", "value": score},
+        {
+            "name": "loss" if nas_args.algo == "loss" else "score",
+            "type": "statistic",
+            "value": loss if nas_args.algo == "loss" else score,
+        },
         {"name": "target_obj", "type": "statistic", "value": target_obj},
     ]
 
@@ -326,7 +330,7 @@ def run_hpo(exp_name):
         },
         algorithms=algorithm,
         storage=storage,
-        max_trials=3,
+        max_trials=100,
     )
 
     trials = 1
@@ -358,14 +362,10 @@ if __name__ == "__main__":
     if nas_args.dset == "cifar100":
         nas_args.num_classes = 100
 
-    # exp_name = (
-    #     "obj1_seed_42_"
-    #     + nas_args.algo
-    #     + "_"
-    #     + str(int(nas_args.target/1e6))
-    #     + "M"
-    # )
-    exp_name = "trial1"
+    exp_name = (
+        "obj1_seed_42_" + nas_args.algo + "_" + str(float(nas_args.target / 1e6)) + "M"
+    )
+    # exp_name = "test"
     base_path = os.path.join(nas_args.save_path, nas_args.dset, nas_args.algo, exp_name)
     os.makedirs(
         base_path,
@@ -395,6 +395,11 @@ if __name__ == "__main__":
     best_obj = experiment.stats.best_evaluation
     logging.info("Best params: {}".format(best_params))
     logging.info("Best obj value: {:.3f}".format(best_obj))
+    best_loss = experiment.get_trial(uid=best_trial).statistics[1].value
+    if nas_args.algo == "evo":
+        logging.info("Best loss value: {:.3f}".format(best_loss))
+    else:
+        logging.info("Best score value: {:.3f}".format(best_loss))
 
     model = PhiNet(
         input_shape=[3, best_params["res"], best_params["res"]],
@@ -414,20 +419,25 @@ if __name__ == "__main__":
         device=nas_args.device,
         verbose=0,
     ).total_params
-    logging.info("Best trial total params: {:.3f}".format(total_param / 1e6))
+    logging.info("Best trial total params: {:.5f}".format(total_param / 1e6))
 
     plot_table(exp_name, base_path)
 
-    plot(param, objs, base_path, "objective")
+    plot(exp_name, base_path, "objective")
     if nas_args.algo == "evo":
-        plot(param, losses, base_path, "loss")
+        plot(exp_name, base_path, "loss")
     else:
-        plot(param, scores, base_path, "naswot")
-    plot(param, target_objs, base_path, "target")
+        plot(exp_name, base_path, "score")
+    plot(exp_name, base_path, "target_obj")
 
     save_path = base_path
-    print(nas_args.classifier)
-    # nas_args.classifier=False
     if nas_args.classifier or nas_args.algo == "evo":
-        print(nas_args.classifier)
-        optimized_params(nas_args, best_params, nas_args.num_classes, save_path)
+        optimized_params(
+            nas_args,
+            best_params,
+            best_obj,
+            best_loss,
+            nas_args.num_classes,
+            save_path,
+            exp_name,
+        )

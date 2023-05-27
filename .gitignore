@@ -131,6 +131,7 @@ dmypy.json
 output/
 results/
 **/orion_exp/
+**/wandb/
 ckp/
 checkpoints/
 *.swp

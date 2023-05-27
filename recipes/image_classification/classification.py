@@ -862,13 +862,15 @@ group.add_argument(
 group.add_argument(
     "--log-wandb",
     action="store_true",
-    default=False,
+    default=True,
     help="log training and validation metrics to wandb",
 )
 
 
-def optimized_params(args, phinet_params, num_classes, save_path):
-    # C, args_text = _parse_args()
+def optimized_params(
+    args, phinet_params, best_obj, best_loss, num_classes, save_path, exp_name
+):
+    # args, args_text = _parse_args()
     args.data_dir = "~/data/cifar10" if num_classes == 10 else "~/data/cifar100"
     args.dataset = "torch/cifar10" if num_classes == 10 else "torch/cifar100"
     args.epochs = 100
@@ -898,6 +900,17 @@ def optimized_params(args, phinet_params, num_classes, save_path):
     args.num_classes = num_classes
     args.output = save_path
     args.batch_size = 64
+    args.rank = 0
+    if args.rank == 0 and args.log_wandb:
+        if has_wandb:
+            wandb.init(project=args.experiment, config=args, name=exp_name)
+            wandb.log({"score": best_loss, "obj": best_obj})
+        else:
+            _logger.warning(
+                "You've requested to log metrics to wandb but package not found. "
+                "Metrics not being logged to wandb, try `pip install wandb`"
+            )
+
     args_text = yaml.safe_dump(args.__dict__, default_flow_style=False)
 
     main(args, args_text, parse_args=False)
@@ -925,6 +938,15 @@ def main(args, args_text, parse_args=False):
     # utils.setup_default_logging()
     if parse_args:
         args, args_text = _parse_args()
+        args.rank = 0  # global rank
+        if args.rank == 0 and args.log_wandb:
+            if has_wandb:
+                wandb.init(project=args.experiment, config=args)
+            else:
+                _logger.warning(
+                    "You've requested to log metrics to wandb but package not found. "
+                    "Metrics not being logged to wandb, try `pip install wandb`"
+                )
 
     # configlib.print_config()
     args.prefetcher = not args.no_prefetcher
@@ -933,7 +955,6 @@ def main(args, args_text, parse_args=False):
         args.distributed = int(os.environ["WORLD_SIZE"]) > 1
     args.device = "cuda:1"
     args.world_size = 1
-    args.rank = 0  # global rank
     if args.distributed:
         if "LOCAL_RANK" in os.environ:
             args.local_rank = int(os.getenv("LOCAL_RANK"))
@@ -950,15 +971,6 @@ def main(args, args_text, parse_args=False):
     else:
         _logger.info("Training with a single process on 1 GPUs.")
     assert args.rank >= 0
-
-    if args.rank == 0 and args.log_wandb:
-        if has_wandb:
-            wandb.init(project=args.experiment, config=args)
-        else:
-            _logger.warning(
-                "You've requested to log metrics to wandb but package not found. "
-                "Metrics not being logged to wandb, try `pip install wandb`"
-            )
 
     # resolve AMP arguments based on PyTorch / Apex availability
     use_amp = None
@@ -1012,6 +1024,12 @@ def main(args, args_text, parse_args=False):
             scriptable=args.torchscript,
             checkpoint_path=args.initial_checkpoint,
         )
+
+    if has_wandb:
+        if args.log_wandb:
+            wandb.log(
+                {"Params": model.get_params() / 1e6, "MAC": model.get_MAC() / 1e6}
+            )
 
     if args.num_classes is None:
         assert hasattr(
