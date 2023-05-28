@@ -37,3 +37,17 @@ def plot(exp_name, path, plot_type):
     path = os.path.join(path, plot_type + ".jpg")
     plt.savefig(path)
     plt.cla()
+
+
+def top3_net(base_path, exp_name):
+    data = pd.read_excel(os.path.join(base_path, exp_name) + ".xlsx")
+    sorted_data = data.sort_values("objective", ascending=True)
+    top_3 = sorted_data.head(3)
+    return top_3
+
+
+if __name__ == "__main__":
+    exp_name = "obj1_seed_42_tpe_0.5M"
+    base_path = os.path.join("./orion_exp/cifar10/tpe/", exp_name)
+    top_3 = top3_net(base_path, exp_name)
+    print(top_3)

@@ -16,7 +16,7 @@ from micromind import PhiNet, configlib
 from timm.optim import create_optimizer
 from timm.scheduler import create_scheduler
 from timm.data import create_loader, create_transform, create_dataset
-from utils import plot, plot_table
+from utils import plot, plot_table, top3_net
 
 group = configlib.add_parser("Orion experiments")
 
@@ -276,7 +276,7 @@ def run_hpo(exp_name):
                 "seed": 42,
                 "n_initial_points": 20,
                 "n_ei_candidates": 25,
-                "gamma": 0.25,
+                "gamma": 0.10,
                 "equal_weight": False,
                 "prior_weight": 1.0,
                 "full_weight_num": 25,
@@ -365,7 +365,13 @@ if __name__ == "__main__":
     exp_name = (
         "obj1_seed_42_" + nas_args.algo + "_" + str(float(nas_args.target / 1e6)) + "M"
     )
-    # exp_name = "test"
+    # exp_name = (
+    #     nas_args.algo
+    #     + "_gamma_0.1_ei_10"
+    #     + "_"
+    #     + str(float(nas_args.target / 1e6))
+    #     + "M"
+    # )
     base_path = os.path.join(nas_args.save_path, nas_args.dset, nas_args.algo, exp_name)
     os.makedirs(
         base_path,
@@ -432,12 +438,26 @@ if __name__ == "__main__":
 
     save_path = base_path
     if nas_args.classifier or nas_args.algo == "evo":
-        optimized_params(
-            nas_args,
-            best_params,
-            best_obj,
-            best_loss,
-            nas_args.num_classes,
-            save_path,
-            exp_name,
-        )
+        top_3_net = top3_net(base_path, exp_name)
+
+        for index, row in top_3_net.iterrows():
+            # Create a dictionary with the extracted values
+            best_params = {
+                "B0": int(row["B0"]),
+                "alpha": float(row["alpha"]),
+                "beta": float(row["beta"]),
+                "res": int(row["res"]),
+                "t_zero": float(row["t_zero"]),
+            }
+            print(best_params)
+            print(type(best_params))
+
+            optimized_params(
+                nas_args,
+                best_params,
+                float(row["objective"]),
+                float(row["score"]),
+                nas_args.num_classes,
+                save_path,
+                exp_name + "_" + str(index),
+            )

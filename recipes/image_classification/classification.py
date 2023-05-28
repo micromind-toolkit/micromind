@@ -498,7 +498,7 @@ group.add_argument(
 group.add_argument(
     "--cooldown-epochs",
     type=int,
-    default=10,
+    default=0,
     metavar="N",
     help="epochs to cooldown LR at min_lr, after cyclic schedule ends",
 )
@@ -873,13 +873,13 @@ def optimized_params(
     # args, args_text = _parse_args()
     args.data_dir = "~/data/cifar10" if num_classes == 10 else "~/data/cifar100"
     args.dataset = "torch/cifar10" if num_classes == 10 else "torch/cifar100"
-    args.epochs = 100
+    args.epochs = 1
     args.amp = True
     args.opt = "lamb"
     args.sched = "cosine"
     args.lr = 0.005
     args.weight_decay = 0.02
-    args.warmup_epochs = 10
+    args.warmup_epochs = 0
     args.warmup_lr = 0.008
     args.hflip = 0.5
     args.aa = "rand-m3-mstd0.55"
@@ -901,6 +901,7 @@ def optimized_params(
     args.output = save_path
     args.batch_size = 64
     args.rank = 0
+    args.experiment = exp_name
     if args.rank == 0 and args.log_wandb:
         if has_wandb:
             wandb.init(project=args.experiment, config=args, name=exp_name)
