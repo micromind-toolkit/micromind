@@ -1,3 +1,9 @@
+"""
+Hyperparamater Optimization of Phinets using Orion
+
+Authors:
+    - Mariam Jamal, 2023
+"""
 import logging
 import os
 import torch
@@ -16,18 +22,37 @@ from micromind import PhiNet, configlib
 from timm.optim import create_optimizer
 from timm.scheduler import create_scheduler
 from timm.data import create_loader, create_transform, create_dataset
-from utils import plot, plot_table, top3_net
+from utils import plot, plot_table, topk_net
 
 group = configlib.add_parser("Orion experiments")
 
 group.add_argument("--w", default=-0.07, type=float)
-group.add_argument("--algo", default="random", type=str)
-group.add_argument("--dset", default="cifar10", type=str)
-group.add_argument("--save_path", default="./orion_exp/", type=str)
-group.add_argument("--classifier", default=False, type=bool)
-group.add_argument("--device", default=0, type=int)
-group.add_argument("--target", default=1e6, type=int)
-group.add_argument("--opt-goal", default="params", type=str)
+group.add_argument(
+    "--algo", default="random", type=str, help="Algorithm for optimization"
+)
+group.add_argument("--dset", default="cifar10", type=str, help="Dataset")
+group.add_argument(
+    "--save_path", default="./orion_exp/", type=str, help="Path to save results"
+)
+group.add_argument(
+    "--classifier",
+    default=False,
+    type=bool,
+    help="True to train the network with found hyperparameters",
+)
+group.add_argument("--device", default=0, type=int, help="GPU/CPU")
+group.add_argument(
+    "--target", default=1e6, type=int, help="Target value of the metric (default: 1M)"
+)
+group.add_argument(
+    "--opt-goal",
+    default="params",
+    type=str,
+    help="Metric to optimize (default: params)",
+)
+group.add_argument(
+    "--k", default=1, type=int, help="No. of top k networks to train (default: 1)"
+)
 
 
 def data_loader(image_size, batch_size):
@@ -438,7 +463,7 @@ if __name__ == "__main__":
 
     save_path = base_path
     if nas_args.classifier or nas_args.algo == "evo":
-        top_3_net = top3_net(base_path, exp_name)
+        top_3_net = topk_net(base_path, exp_name, nas_args.k)
 
         for index, row in top_3_net.iterrows():
             # Create a dictionary with the extracted values
