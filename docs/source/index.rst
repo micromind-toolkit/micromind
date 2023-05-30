@@ -23,12 +23,6 @@ Indices and tables
 
 .. toctree::
    :maxdepth: 2
-   :caption: Tutorial:
-
-   tutorial
-
-.. toctree::
-   :maxdepth: 2
    :caption: How To Contribute
 
    contribution
