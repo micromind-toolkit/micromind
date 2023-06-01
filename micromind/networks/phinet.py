@@ -301,6 +301,7 @@ class PhiNetConvBlock(nn.Module):
         self.param_count = 0
 
         self.skip_conn = False
+        self.num_filters = filters
 
         self._layers = torch.nn.ModuleList()
         in_channels = in_shape[0]
