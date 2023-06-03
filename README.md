@@ -1,4 +1,4 @@
-[![Python version: 3.9 | 3.10](https://img.shields.io/badge/python-3.9%20|%203.10-blue)](https://www.python.org/downloads/)
+[![Python version: 3.8 | 3.9 | 3.10](https://img.shields.io/badge/python-3.9%20|%203.10-blue)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/fpaissan/micromind/blob/main/LICENSE)
 ![PyPI version](https://img.shields.io/pypi/v/micromind)
 
@@ -19,7 +19,7 @@ This is the official repo of `micromind`, a toolkit that aims at bridging two co
 
 ### Using Pip
 
-First of all, install [Python 3.9 or later](https://www.python.org). Open a terminal and run:
+First of all, install [Python 3.8 or later](https://www.python.org). Open a terminal and run:
 
 ```
 pip install micromind

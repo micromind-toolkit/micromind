@@ -1,0 +1,7 @@
+# Release 0.0.5
+
+1. Improved unit tests;
+2. Extended CI to multiple python versions (including 3.8 compatibility);
+3. Updated LICENSE to Apache 2.0;
+4. Minor fixes to image classification recipes;
+5. Added guide to contribution in the documentation;
