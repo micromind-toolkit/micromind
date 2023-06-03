@@ -7,7 +7,7 @@ To reproduce our results, you can follow these steps:
 
 1. install PhiNets with `pip install git+https://github.com/fpaissan/micromind`
 2. install the additional dependencies for this recipe with `pip install -r extra_requirements.txt`
-2. launch the training script on the dataset you want 
+2. launch the training script on the dataset you want
 
 ### MNIST
 ```
