@@ -1,26 +1,10 @@
-import contextlib
-from pathlib import Path
-
 import torch
 import torch.nn as nn
 
-from micromind import PhiNet
-
-from ultralytics.nn.tasks import DetectionModel
-
-from ultralytics.nn.modules import (
-    SPPF,
-    C2f,
-    Concat,
-    Conv,
-    Detect
-)
+from ultralytics.nn.modules import SPPF, C2f, Concat, Conv, Detect
 from ultralytics.yolo.utils import (
     LOGGER,
-    yaml_load,
 )
-from ultralytics.yolo.utils.checks import check_yaml
-from ultralytics.yolo.utils.torch_utils import initialize_weights
 
 try:
     import thop
@@ -29,13 +13,8 @@ except ImportError:
 
 
 class Microhead(nn.Module):
-
-    def __init__(
-    self
-    ) -> None:
-        """This class is an implementation of the head
-
-        """
+    def __init__(self) -> None:
+        """This class is an implementation of the head"""
         super().__init__()
         self._layers = torch.nn.ModuleList()
         self._save = []
@@ -231,17 +210,19 @@ class Microhead(nn.Module):
             1,
         )
         self._save.extend(
-            x % head.i for x in ([head.f] if isinstance(head.f, int) else head.f) if x != -1
+            x % head.i
+            for x in ([head.f] if isinstance(head.f, int) else head.f)
+            if x != -1
         )  # append to savelist
         self._layers.append(head)
 
         for i, layer in enumerate(self._layers):
             i, f, t, n = layer.i, layer.f, layer.type, layer.n
             layer.np = sum(x.numel() for x in layer.parameters())  # number params
-            n_ = max(round(n * 0.33), 1) if n > 1 else n  # depth gain            
+            n_ = max(round(n * 0.33), 1) if n > 1 else n  # depth gain
             args = []
-            LOGGER.info(                
-                f"{i:>3}{str(f):>20}{n_:>3}{layer.np:10.0f}  {t:<45}{str(args):<30}"
+            LOGGER.info(
+                f"{i:>3}{str(f):>20}{n_:>3}{layer.np:10.0f}" f"{t:<45}{str(args):<30}"
             )  # print
 
-        # END HARDCODED HEAD ------------------------------------------------------------
+        # END HARDCODED HEAD -----------------------------------------------------------

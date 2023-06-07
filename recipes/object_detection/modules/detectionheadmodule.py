@@ -11,10 +11,6 @@ from micromind import PhiNet
 from ultralytics.nn.tasks import DetectionModel
 
 from ultralytics.nn.modules import (
-    SPPF,
-    C2f,
-    Concat,
-    Conv,
     Detect,
     Pose,
     Segment,
@@ -163,7 +159,7 @@ def parse_model_custom(nc, ch, verbose=True):
         compatibility=False,
     )
     layers = list(model._layers)
-    
+
     # END layers phinet ------------------------------------
     #
     # maybe we can take away this code?
@@ -172,7 +168,7 @@ def parse_model_custom(nc, ch, verbose=True):
 
     for i, layer in enumerate(model._layers):
         f = -1
-        n = n_ = 1
+        n_ = 1
         args = res[0][i]
         t = str(layer.__class__).replace("<class '", "").replace("'>", "")
         layer.np = sum(x.numel() for x in layer.parameters())  # number params
@@ -181,9 +177,9 @@ def parse_model_custom(nc, ch, verbose=True):
             LOGGER.info(
                 f"{i:>3}{str(f):>20}{n_:>3}{layer.np:10.0f}  {t:<45}{str(args):<30}"
             )  # print
-            
+
     # START HARDCODED detection head ------------------------------------
-    
+
     module_head = Microhead()
     layers += list(module_head._layers)
     save = module_head._save
