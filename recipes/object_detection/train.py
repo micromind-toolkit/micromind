@@ -3,7 +3,7 @@
 from ultralytics.yolo.utils import DEFAULT_CFG, RANK
 
 from ultralytics.yolo.v8.detect import DetectionTrainer
-from DetectionHeadModule import DetectionHeadModel
+from modules.detectionheadmodule import DetectionHeadModel
 
 
 # BaseTrainer python usage
