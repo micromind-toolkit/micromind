@@ -21,9 +21,9 @@ python classification.py ~/data/mnist -b 128 --dataset torch/mnist --num-classes
 In the table is a list of PhiNet's performance on some common image classification benchmarks.
 
 | Dataset | Model name         | mAP50   |
-| -------- | ------------------ |---------------- | -------------- |
+| -------- | ------------------ |---------------- |
 | COCO	  | `PhiNet(alpha=0.5, beta=1, t_zero=6, num_layers=4)`   |     98.96%         |
-| CIFAR-10 | `PhiNet(alpha=3, beta=0.75, t_zero=6, num_layers=7)`   |     93.61%         | 
+| CIFAR-10 | `PhiNet(alpha=3, beta=0.75, t_zero=6, num_layers=7)`   |     93.61%         |
 | CIFAR-100 | `PhiNet(alpha=3, beta=0.75, t_zero=6, num_layers=7)`   |     75.56%         |
 
 
