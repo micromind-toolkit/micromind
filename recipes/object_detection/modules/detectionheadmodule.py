@@ -158,7 +158,7 @@ def parse_model_custom_backbone_head(nc, ch, backbone=None, head=None, verbose=T
         raise ValueError("backbone cannot be None")
     if head is None:
         raise ValueError("head cannot be None")
-
+    # printing summary of the model
     if verbose:
         LOGGER.info(
             f"\n{'':>3}{'from':>20}{'n':>3}{'params':>10}"
@@ -171,9 +171,7 @@ def parse_model_custom_backbone_head(nc, ch, backbone=None, head=None, verbose=T
     layers = list(backbone._layers)
 
     # print_data_backbone
-    data_config = {"input_size": (3, 320, 320)}
-    res = get_output_dim(data_config, backbone)
-
+    res = get_output_dim({"input_size": (3, 320, 320)}, backbone)
     for i, layer in enumerate(backbone._layers):
         f = -1
         n_ = 1
@@ -186,6 +184,10 @@ def parse_model_custom_backbone_head(nc, ch, backbone=None, head=None, verbose=T
                 f"{i:>3}{str(f):>20}{n_:>3}{layer.np:10.0f}  {t:<45}{str(args):<30}"
             )  # print
 
+    # add layers to the model
+    layers += list(head._layers)
+    save = head._save
+
     # print data head
     for i, layer in enumerate(head._layers):
         i, f, t, n = layer.i, layer.f, layer.type, layer.n
@@ -195,63 +197,5 @@ def parse_model_custom_backbone_head(nc, ch, backbone=None, head=None, verbose=T
         LOGGER.info(
             f"{i:>3}{str(f):>20}{n_:>3}{layer.np:10.0f}" f"{t:<45}{str(args):<30}"
         )  # print
-
-    # add layers to the model
-    layers += list(head._layers)
-    save = head._save
-
-    # END HARDCODED HEAD ------------------------------------------------------------
-
-    return nn.Sequential(*layers), sorted(save)
-
-
-def parse_model_custom(nc, ch, verbose=True):
-
-    if verbose:
-        LOGGER.info(
-            f"\n{'':>3}{'from':>20}{'n':>3}{'params':>10}"
-            f"  {'module':<45}{'dimensions':<30}"
-        )
-    ch = [ch]
-    layers, save = [], []  # layers, savelist, ch out
-
-    # START layers phinet ------------------------------------
-    model = PhiNet(
-        input_shape=(3, 320, 320),
-        alpha=2.67,
-        num_layers=6,
-        beta=1,
-        t_zero=4,
-        include_top=False,
-        num_classes=nc,
-        compatibility=False,
-    )
-    layers = list(model._layers)
-
-    # END layers phinet ------------------------------------
-    #
-    # maybe we can take away this code?
-    data_config = {"input_size": (3, 320, 320)}
-    res = get_output_dim(data_config, model)
-
-    for i, layer in enumerate(model._layers):
-        f = -1
-        n_ = 1
-        args = res[0][i]
-        t = str(layer.__class__).replace("<class '", "").replace("'>", "")
-        layer.np = sum(x.numel() for x in layer.parameters())  # number params
-        layer.i, layer.f, layer.type = i, f, t  # attach index, 'from' index, type
-        if verbose:
-            LOGGER.info(
-                f"{i:>3}{str(f):>20}{n_:>3}{layer.np:10.0f}  {t:<45}{str(args):<30}"
-            )  # print
-
-    # START HARDCODED detection head ------------------------------------
-
-    module_head = Microhead()
-    layers += list(module_head._layers)
-    save = module_head._save
-
-    # END HARDCODED HEAD ------------------------------------------------------------
 
     return nn.Sequential(*layers), sorted(save)
