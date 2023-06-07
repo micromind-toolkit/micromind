@@ -40,9 +40,23 @@ class DetectionHeadModel(DetectionModel):
         super(DetectionModel, self).__init__()
         self.yaml = cfg if isinstance(cfg, dict) else yaml_model_load(cfg)  # cfg dict
 
+        # define backbone
+        backbone = PhiNet(
+            input_shape=(3, 320, 320),
+            alpha=2.67,
+            num_layers=6,
+            beta=1,
+            t_zero=4,
+            include_top=False,
+            num_classes=nc,
+            compatibility=False,
+        )
+        # define head
+        head = Microhead()
+
         # Read custom hardcoded model
-        self.model, self.save = parse_model_custom(
-            nc, ch=ch, verbose=verbose
+        self.model, self.save = parse_model_custom_backbone_head(
+            nc, ch=ch, backbone=backbone, head=head, verbose=verbose
         )  # model, savelist
         self.names = {i: f"{i}" for i in range(self.yaml["nc"])}  # default names dict
         self.inplace = self.yaml.get("inplace", True)
@@ -135,6 +149,60 @@ def get_output_dim_layers(data_config, layers):
         out_dim.append(layer(out_dim[-1]))
         names.append(layer.__class__)
     return [list(o.shape)[1:] for o in out_dim], names
+
+
+def parse_model_custom_backbone_head(nc, ch, backbone=None, head=None, verbose=True):
+
+    # some checks
+    if backbone is None:
+        raise ValueError("backbone cannot be None")
+    if head is None:
+        raise ValueError("head cannot be None")
+
+    if verbose:
+        LOGGER.info(
+            f"\n{'':>3}{'from':>20}{'n':>3}{'params':>10}"
+            f"  {'module':<45}{'dimensions':<30}"
+        )
+    ch = [ch]
+    layers, save = [], []  # layers, save list, ch out
+
+    # add layers to the model
+    layers = list(backbone._layers)
+
+    # print_data_backbone
+    data_config = {"input_size": (3, 320, 320)}
+    res = get_output_dim(data_config, backbone)
+
+    for i, layer in enumerate(backbone._layers):
+        f = -1
+        n_ = 1
+        args = res[0][i]
+        t = str(layer.__class__).replace("<class '", "").replace("'>", "")
+        layer.np = sum(x.numel() for x in layer.parameters())  # number params
+        layer.i, layer.f, layer.type = i, f, t  # attach index, 'from' index, type
+        if verbose:
+            LOGGER.info(
+                f"{i:>3}{str(f):>20}{n_:>3}{layer.np:10.0f}  {t:<45}{str(args):<30}"
+            )  # print
+
+    # print data head
+    for i, layer in enumerate(head._layers):
+        i, f, t, n = layer.i, layer.f, layer.type, layer.n
+        layer.np = sum(x.numel() for x in layer.parameters())  # number params
+        n_ = max(round(n * 0.33), 1) if n > 1 else n  # depth gain
+        args = []
+        LOGGER.info(
+            f"{i:>3}{str(f):>20}{n_:>3}{layer.np:10.0f}" f"{t:<45}{str(args):<30}"
+        )  # print
+
+    # add layers to the model
+    layers += list(head._layers)
+    save = head._save
+
+    # END HARDCODED HEAD ------------------------------------------------------------
+
+    return nn.Sequential(*layers), sorted(save)
 
 
 def parse_model_custom(nc, ch, verbose=True):

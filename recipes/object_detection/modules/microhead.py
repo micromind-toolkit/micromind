@@ -2,9 +2,6 @@ import torch
 import torch.nn as nn
 
 from ultralytics.nn.modules import SPPF, C2f, Concat, Conv, Detect
-from ultralytics.yolo.utils import (
-    LOGGER,
-)
 
 try:
     import thop
@@ -215,14 +212,5 @@ class Microhead(nn.Module):
             if x != -1
         )  # append to savelist
         self._layers.append(head)
-
-        for i, layer in enumerate(self._layers):
-            i, f, t, n = layer.i, layer.f, layer.type, layer.n
-            layer.np = sum(x.numel() for x in layer.parameters())  # number params
-            n_ = max(round(n * 0.33), 1) if n > 1 else n  # depth gain
-            args = []
-            LOGGER.info(
-                f"{i:>3}{str(f):>20}{n_:>3}{layer.np:10.0f}" f"{t:<45}{str(args):<30}"
-            )  # print
 
         # END HARDCODED HEAD -----------------------------------------------------------
