@@ -102,13 +102,76 @@ def parse_model_custom(ch, verbose=True):
     layers = list(model._layers)
     # END layers phinet ------------------------------------ 
 
-    # START HARDCODED detection head ------------------------------------
+    # START HARDCODED detection head ------------------------------------    
+    layer9 = SPPF(256,256, 5)
+    layer9.i, layer9.f, layer9.type = 9, -1, 'ultralytics.nn.modules.block.SPPF'
+    layers.append(layer9)
+    save.extend(x % i for x in ([layer9.f] if isinstance(f, int) else f) if x != -1)  # append to savelist
+
+    layer10 = nn.Upsample(scale_factor=2, mode='nearest')
+    layer10.i, layer10.f, layer10.type = 10, -1, 'torch.nn.modules.upsampling.Upsample'
+    layers.append(layer10)
+    save.extend(x % i for x in ([layer10.f] if isinstance(f, int) else f) if x != -1)  # append to savelist
+
+    layer11 = Concat(layers[-1], layers[6], 1)
+    layer11.i, layer11.f, layer11.type = 11, [-1,6], 'ultralytics.nn.modules.conv.Concat'
+    layers.append(layer11)
+    save.extend(x % i for x in ([layer11.f] if isinstance(f, int) else f) if x != -1)  # append to savelist
+
+    layer12 = C2f(384, 128, 1)
+    layer12.i, layer12.f, layer12.type = 12, -1, 'ultralytics.nn.modules.block.C2f'
+    layers.append(layer12)
+    save.extend(x % i for x in ([layer12.f] if isinstance(f, int) else f) if x != -1)  # append to savelist
+
+    layer13 = nn.Upsample(scale_factor=2, mode='nearest')
+    layer13.i, layer13.f, layer13.type = 13, -1, 'torch.nn.modules.upsampling.Upsample'
+    layers.append(layer13)   
+    save.extend(x % i for x in ([layer13.f] if isinstance(f, int) else f) if x != -1)  # append to savelist
+
+    layer14 = Concat(layers[-1], layers[4], 1)
+    layer14.i, layer14.f, layer14.type = 14, [-1,4], 'ultralytics.nn.modules.conv.Concat'
+    layers.append(layer14)
+    save.extend(x % i for x in ([layer14.f] if isinstance(f, int) else f) if x != -1)  # append to savelist
+
+    layer15 = C2f(192, 64, 1)
+    layer15.i, layer15.f, layer15.type = 15, -1, 'ultralytics.nn.modules.block.C2f'
+    layers.append(layer15)
+    save.extend(x % i for x in ([layer15.f] if isinstance(f, int) else f) if x != -1)  # append to savelist
+
+    layer16 = Conv(64,64,3,2)
+    layer16.i, layer16.f, layer16.type = 16, -1, 'ultralytics.nn.modules.conv.Conv'
+    layers.append(layer16)
+    save.extend(x % i for x in ([layer16.f] if isinstance(f, int) else f) if x != -1)  # append to savelist
+
+    layer17 = Concat(layers[-1], layers[12], 1)
+    layer17.i, layer17.f, layer17.type = 17, [-1,12], 'ultralytics.nn.modules.conv.Concat'
+    layers.append(layer17)
+    save.extend(x % i for x in ([layer17.f] if isinstance(f, int) else f) if x != -1)  # append to savelist
+
+    layer18 = C2f(192, 128, 1)
+    layer18.i, layer18.f, layer18.type = 18, -1, 'ultralytics.nn.modules.block.C2f'
+    layers.append(layer18)
+    save.extend(x % i for x in ([layer18.f] if isinstance(f, int) else f) if x != -1)  # append to savelist
     
-    layers.append(SPPF(256,256, 5))
-    layers.append(nn.Upsample(scale_factor=2, mode='nearest'))
+    layer19 = Conv(128,128,3,2)
+    layer19.i, layer19.f, layer19.type = 19, -1, 'ultralytics.nn.modules.conv.Conv'
+    layers.append(layer19)
+    save.extend(x % i for x in ([layer19.f] if isinstance(f, int) else f) if x != -1)  # append to savelist
 
-    #https://discuss.pytorch.org/t/how-to-concatenate-layers-in-pytorch-similar-to-tf-keras-layers-concatenate/33736
+    layer20 = Concat(layers[-1], layers[8], 1)
+    layer20.i, layer20.f, layer20.type = 20, [-1,8], 'ultralytics.nn.modules.conv.Concat'
+    layers.append(layer20)
+    save.extend(x % i for x in ([layer20.f] if isinstance(f, int) else f) if x != -1)  # append to savelist
 
+    layer21 = C2f(384, 256, 1)
+    layer21.i, layer21.f, layer21.type = 21, -1, 'ultralytics.nn.modules.block.C2f'
+    layers.append(layer21)
+    save.extend(x % i for x in ([layer21.f] if isinstance(f, int) else f) if x != -1)  # append to savelist
 
+    head = Detect(80, [64,128,256])
+    head.i, head.f, head.type = 22, [18,20,22], 'ultralytics.nn.modules.conv.Detect'
+    save.extend(x % i for x in ([head.f] if isinstance(f, int) else f) if x != -1)  # append to savelist
 
-    pass
+    layers.append(head)    
+
+    return nn.Sequential(*layers), sorted(save)
