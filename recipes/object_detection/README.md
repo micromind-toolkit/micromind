@@ -22,9 +22,7 @@ In the table is a list of PhiNet's performance on some common image classificati
 
 | Dataset | Model name         | mAP50   |
 | -------- | ------------------ |---------------- |
-| COCO	  | `PhiNet(alpha=0.5, beta=1, t_zero=6, num_layers=4)`   |     98.96%         |
-| CIFAR-10 | `PhiNet(alpha=3, beta=0.75, t_zero=6, num_layers=7)`   |     93.61%         |
-| CIFAR-100 | `PhiNet(alpha=3, beta=0.75, t_zero=6, num_layers=7)`   |     75.56%         |
+| COCO	  | `PhiNet(alpha=2.67, beta=1, t_zero=4, num_layers=6)`   |     ???         |
 
 
 ### Cite PhiNets
