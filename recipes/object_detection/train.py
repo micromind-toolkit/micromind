@@ -30,7 +30,8 @@ def train(cfg=DEFAULT_CFG, use_python=False):
     data = cfg.data or 'coco128.yaml'  # or yolo.ClassificationDataset("mnist")
     device = cfg.device if cfg.device is not None else ''
 
-    args = dict(model=model, data=data, device=device)   
+    # parse arguments here from sh command
+    args = dict(model=model, data=data, device=device, epochs=300, imgsz=320)   
     trainer = DetectionMicroTrainer(overrides=args)
     trainer.train()
 
