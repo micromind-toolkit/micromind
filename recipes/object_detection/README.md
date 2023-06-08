@@ -18,6 +18,14 @@ python classification.py ~/data/mnist -b 128 --dataset torch/mnist --num-classes
 	--alpha 0.5 --num_layers 4 --beta 1 --t_zero 6 --experiment mnist
 ```
 
+
+### Benchmark
+
+In general this is the graph that is going to be showed --> comparison with OMNX CPU and accuracy, number of parameters and mAP
+We just need to gather the data for the "microYOLO"
+
+[MicroYOLO benchmark](./plots/yolov8.png)
+
 In the table is a list of PhiNet's performance on some common image classification benchmarks.
 
 | Dataset | Model name         | mAP50   |
