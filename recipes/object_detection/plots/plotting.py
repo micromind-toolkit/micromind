@@ -2,13 +2,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 data = {
-    'Model': ['YOLOv8n', 'YOLOv8s', 'YOLOv8m', 'YOLOv8l', 'YOLOv8x'],
-    'Size (pixels)': [640, 640, 640, 640, 640],
-    'mAPval 50-95': [37.3, 44.9, 50.2, 52.9, 53.9],
-    'Speed CPU ONNX (ms)': [80.4, 128.4, 234.7, 375.2, 479.1],
-    'Speed A100 TensorRT (ms)': [0.99, 1.20, 1.83, 2.39, 3.53],
-    'Params (M)': [3.2, 11.2, 25.9, 43.7, 68.2],
-    'FLOPs (B)': [8.7, 28.6, 78.9, 165.2, 257.8]
+    'Model': ['YOLOv8m', 'YOLOv8n', 'YOLOv8s', 'YOLOv8m', 'YOLOv8l', 'YOLOv8x'],
+    'Size (pixels)': [320, 640, 640, 640, 640, 640],
+    'mAPval 50-95': [0.17, 37.3, 44.9, 50.2, 52.9, 53.9],
+    'Speed CPU ONNX (ms)': [20, 80.4, 128.4, 234.7, 375.2, 479.1],    
+    'Params (M)': [0.8, 3.2, 11.2, 25.9, 43.7, 68.2],
+    'FLOPs (B)': [3, 8.7, 28.6, 78.9, 165.2, 257.8]
 }
 
 df = pd.DataFrame(data)
