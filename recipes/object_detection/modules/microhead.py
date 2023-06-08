@@ -10,8 +10,50 @@ except ImportError:
 
 
 class Microhead(nn.Module):
-    def __init__(self) -> None:
-        """This class is an implementation of the head"""
+    def __init__(self, nc=80, number_heads=3, feature_sizes=[64, 128, 256]) -> None:
+
+        """This class represents the implementation of a head.
+
+        In particular it is an adaptation of the yoloV8 head for the micromind toolkit.
+        This head is going to be used with the phinet backbone in a
+        particular configuration so to match the input size, and the
+        various intermediate steps of the network.
+
+        The head is responsible for processing the intermediate features
+        of the neural network and generating detections. It takes input from
+        multiple feature levels and performs operations such as
+        upsampling, concatenation, and convolution.
+
+        Args:
+            nc (int, required): Number of classes to be detected. Defaults to 80.
+            number_heads (int, required): Number of heads to be used. Defaults to 3.
+                (between 1 and 3)
+            feature_sizes (list, required): List of the intermediary feature.
+                Defaults to [64, 128, 256].
+                Note: the number of features will be added to the network from
+                the last one to the first. For example if the list has only one
+                element, only the last concatenation in sequence of the head will
+                be made. If the list has two elements, the last two concatenations
+                will be made, and so on.
+
+        Returns:
+            None
+
+        """
+
+        # some errors checks
+        if number_heads not in [1, 2, 3]:
+            raise ValueError("Number of heads must be between 1 and 3")
+        if nc < 1:
+            raise ValueError("Number of classes must be greater than 0")
+        if any([x < 1 and x > 1024 for x in feature_sizes]):
+            raise ValueError("Feature sizes must be greater than 0")
+
+        # some helper variables
+        number_feature_maps = len(feature_sizes)
+        skipped_concat_layer = 0
+
+        # if we reached this point we are good to go!
         super().__init__()
         self._layers = torch.nn.ModuleList()
         self._save = []
@@ -44,20 +86,23 @@ class Microhead(nn.Module):
             if x != -1
         )  # append to savelist
 
-        layer11 = Concat(1)
-        layer11.i, layer11.f, layer11.type, layer11.n = (
-            11,
-            [-1, 6],
-            "ultralytics.nn.modules.conv.Concat",
-            1,
-        )
-        # c2 = sum(ch[x] for x in layer11.f)
-        self._layers.append(layer11)
-        self._save.extend(
-            x % layer11.i
-            for x in ([layer11.f] if isinstance(layer11.f, int) else layer11.f)
-            if x != -1
-        )  # append to savelist
+        if number_feature_maps == 3:
+            layer11 = Concat(1)
+            layer11.i, layer11.f, layer11.type, layer11.n = (
+                11,
+                [-1, 6],
+                "ultralytics.nn.modules.conv.Concat",
+                1,
+            )
+            # c2 = sum(ch[x] for x in layer11.f)
+            self._layers.append(layer11)
+            self._save.extend(
+                x % layer11.i
+                for x in ([layer11.f] if isinstance(layer11.f, int) else layer11.f)
+                if x != -1
+            )  # append to savelist
+        else:
+            skipped_concat_layer += 1
 
         layer12 = C2f(384, 128, 1)
         layer12.i, layer12.f, layer12.type, layer12.n = (
@@ -87,19 +132,22 @@ class Microhead(nn.Module):
             if x != -1
         )  # append to savelist
 
-        layer14 = Concat(1)
-        layer14.i, layer14.f, layer14.type, layer14.n = (
-            14,
-            [-1, 4],
-            "ultralytics.nn.modules.conv.Concat",
-            1,
-        )
-        self._layers.append(layer14)
-        self._save.extend(
-            x % layer14.i
-            for x in ([layer14.f] if isinstance(layer14.f, int) else layer14.f)
-            if x != -1
-        )  # append to savelist
+        if number_feature_maps >= 2:
+            layer14 = Concat(1)
+            layer14.i, layer14.f, layer14.type, layer14.n = (
+                14,
+                [-1, 4],
+                "ultralytics.nn.modules.conv.Concat",
+                1,
+            )
+            self._layers.append(layer14)
+            self._save.extend(
+                x % layer14.i
+                for x in ([layer14.f] if isinstance(layer14.f, int) else layer14.f)
+                if x != -1
+            )  # append to savelist
+        else:
+            skipped_concat_layer += 1
 
         layer15 = C2f(192, 64, 1)
         layer15.i, layer15.f, layer15.type, layer15.n = (
@@ -132,7 +180,8 @@ class Microhead(nn.Module):
         layer17 = Concat(1)
         layer17.i, layer17.f, layer17.type, layer17.n = (
             17,
-            [-1, 12],
+            [-1, 12 - skipped_concat_layer],  # the skipped connection is added because
+            # there might be some skipped layer and the nn has to take that into account
             "ultralytics.nn.modules.conv.Concat",
             1,
         )
@@ -174,7 +223,7 @@ class Microhead(nn.Module):
         layer20 = Concat(1)
         layer20.i, layer20.f, layer20.type, layer20.n = (
             20,
-            [-1, 8],
+            [-1, 9],
             "ultralytics.nn.modules.conv.Concat",
             1,
         )
@@ -199,10 +248,21 @@ class Microhead(nn.Module):
             if x != -1
         )  # append to savelist
 
-        head = Detect(80, [64, 128, 256])
+        base_connections = [
+            15 - skipped_concat_layer,
+            18 - skipped_concat_layer,
+            21 - skipped_concat_layer,
+        ]
+        # the skipped connection is added because there might be some skipped
+        # layers and the head also has to take that into account
+
+        head_connections = get_connections_based_on_number_of_heads_arg(
+            base_connections, number_heads
+        )
+        head = Detect(nc, feature_sizes)
         head.i, head.f, head.type, head.n = (
             22,
-            [15, 18, 21],
+            head_connections,
             "ultralytics.nn.modules.conv.Detect",
             1,
         )
@@ -214,3 +274,8 @@ class Microhead(nn.Module):
         self._layers.append(head)
 
         # END HARDCODED HEAD -----------------------------------------------------------
+
+
+def get_connections_based_on_number_of_heads_arg(head_connections, number_of_heads):
+    start = 3 - number_of_heads
+    return head_connections[start:]

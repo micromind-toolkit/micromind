@@ -137,3 +137,7 @@ checkpoints/
 Dockerfile
 build_dgx.sh
 run_dgx.sh
+
+
+# others
+/runs

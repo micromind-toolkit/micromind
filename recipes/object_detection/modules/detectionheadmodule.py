@@ -66,6 +66,7 @@ class DetectionHeadModel(DetectionModel):
         if isinstance(m, (Detect, Segment, Pose)):
             s = 256  # 2x min stride
             m.inplace = self.inplace
+            # to be removed if the segmentation and pose is not used
             forward = (
                 lambda x: self.forward(x)[0]
                 if isinstance(m, (Segment, Pose))
@@ -195,7 +196,8 @@ def parse_model_custom_backbone_head(nc, ch, backbone=None, head=None, verbose=T
         n_ = max(round(n * 0.33), 1) if n > 1 else n  # depth gain
         args = []
         LOGGER.info(
-            f"{i:>3}{str(f):>20}{n_:>3}{layer.np:10.0f}" f"{t:<45}{str(args):<30}"
+            f"{i:>3}{str(f):>20}{n_:>3}{layer.np:10.0f}" 
+            f"  {t:<45}{str(args):<30}"
         )  # print
 
     return nn.Sequential(*layers), sorted(save)
