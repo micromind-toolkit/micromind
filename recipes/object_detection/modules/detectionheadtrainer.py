@@ -5,6 +5,7 @@ from ultralytics.yolo.utils import RANK
 from ultralytics.yolo.v8.detect import DetectionTrainer
 from modules.detectionheadmodule import DetectionHeadModel
 
+
 class DetectionHeadTrainer(DetectionTrainer):
     def get_model(self, cfg=None, weights=None, verbose=True):
         """Return a YOLO detection model."""
