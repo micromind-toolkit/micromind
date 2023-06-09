@@ -31,7 +31,7 @@ except ImportError:
 
 
 class DetectionHeadModel(DetectionModel):
-    """YOLOv8 detection model."""
+    """YOLOv8 custom detection model for micromind backbone."""
 
     def __init__(
         self, cfg="yolov8n.yaml", ch=3, nc=None, verbose=True
