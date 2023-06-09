@@ -32,7 +32,17 @@ from modules.detectionheadtrainer import DetectionHeadTrainer
 
 class microYOLO(YOLO):
     """
-    YOLO (You Only Look Once) object detection model.
+    microYOLO (You Only Look Once) object detection model class adapted to work with the
+    phinet backbone.
+
+    Note: this class is a subclass of the YOLO class from the ultralytics.yolo package.
+    It has been adapted to only work with the object detection tasks and it uses
+    the classes that have been defined in the module so that no changes are needed
+    in the ultralytics.yolo package.
+
+    It uses a very similar script to train.py from the ultralytics.yolo package,
+    but it has been adapted to work with the DetectionHeadTrainer class
+    instead of the DetectionTrainer class.
 
     Args:
         model (str, Path): Path to the model file to load or create.

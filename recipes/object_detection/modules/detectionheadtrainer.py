@@ -8,7 +8,9 @@ from modules.detectionheadmodule import DetectionHeadModel
 
 class DetectionHeadTrainer(DetectionTrainer):
     def get_model(self, cfg=None, weights=None, verbose=True):
-        """Return a YOLO detection model."""
+        """Return a YOLO detection model especially adapted to work with the phinet
+        backbone.
+        """
         model = DetectionHeadModel(nc=self.data["nc"], verbose=verbose and RANK == -1)
         if weights:
             model.load(weights)
