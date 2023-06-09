@@ -1,6 +1,6 @@
 PyYAML
 timm
-orion
+orion==0.2.7
 torchinfo
 pandas
 scikit-learn

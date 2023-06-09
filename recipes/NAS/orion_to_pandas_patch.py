@@ -14,7 +14,7 @@ class orion_patch(Experiment):
             "_id",
             "max_trials",
             "max_broken",
-            "algorithms",
+            "algorithm",
             "working_dir",
             "metadata",
             "refers",

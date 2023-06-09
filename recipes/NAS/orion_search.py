@@ -17,12 +17,13 @@ from recipes.image_classification.classification import (
     validate,
 )
 from naswot import score_network
+from naswot_naslib import compute_nwot
 from orion.client import build_experiment, get_experiment
 from micromind import PhiNet, configlib
 from timm.optim import create_optimizer
 from timm.scheduler import create_scheduler
 from timm.data import create_loader, create_transform, create_dataset
-from utils import plot, plot_table, topk_net
+from utils import plot, plot_table, topk_net, get_mod_data
 
 group = configlib.add_parser("Orion experiments")
 
@@ -222,14 +223,14 @@ def get_params(model, res):
     ).total_params
 
 
-def objective(alpha, beta, B0, t_zero, res, epochs):
+def objective(inputs, targets, alpha, beta, B0, t_zero, res, epochs):
     batch_size = 64
     w = nas_args.w
     model = define_model(alpha, beta, B0, t_zero, res, batch_size)
 
-    loader_train, loader_eval = data_loader(
-        image_size=(3, res, res), batch_size=batch_size
-    )
+    # loader_train, loader_eval = data_loader(
+    #     image_size=(3, res, res), batch_size=batch_size
+    # )
     logging.info(
         "Phinet params: %s",
         {"alpha": alpha, "beta": beta, "t_zero": t_zero, "B0": B0, "res": res},
@@ -238,10 +239,11 @@ def objective(alpha, beta, B0, t_zero, res, epochs):
     params = get_params(model, res)
 
     if nas_args.algo == "evo":
-        loss = train_and_evaluate(model, epochs, loader_train, loader_eval)
+        #loss = train_and_evaluate(model, epochs, loader_train, loader_eval)
         obj = EA_objective(loss, params, nas_args.target, w)
     else:
-        score = score_network(model, batch_size, loader_train)
+        #score = score_network(model, batch_size, loader_train)
+        score = compute_nwot(model, inputs, targets, split_data=1, loss_fn=None )
         logging.info("Score: %f", score)
         obj = score_objective(score, params, nas_args.target, w)
 
@@ -284,7 +286,7 @@ def run_hpo(exp_name):
         "type": "legacy",
         "database": {
             "type": "pickleddb",
-            "host": "./orion_exp/exp_database.pkl",
+            "host": "/home/majam001/mj/micromind/recipes/NAS/orion_exp/exp_database.pkl",
         },
     }
 
@@ -350,21 +352,27 @@ def run_hpo(exp_name):
             "beta": "loguniform(0.5, 1.3)",
             "B0": "uniform(5, 8, discrete=True)",
             "t_zero": "uniform(2, 6, discrete=True)",
-            "res": "choices([32,64,128,160,240,256])",
+            #"res": "choices([32,64,128,160,240,256])",
+            "res": "choices([64])",
             "epochs": "fidelity(1, 10, base=2)",
         },
-        algorithms=algorithm,
+        algorithm=algorithm,
         storage=storage,
         max_trials=100,
     )
+    #fixed res=64 and batch_size=64
+    loader_train, loader_eval = data_loader(
+        image_size=(3, 64, 64), batch_size=64
+    )
 
+    inputs, targets = get_mod_data(loader_train, nas_args.num_classes, 6, nas_args.device)
     trials = 1
     while not experiment.is_done:
         print("trial", trials)
         trial = experiment.suggest()
         if trial is None and experiment.is_done:
             break
-        obj = objective(**trial.params)
+        obj = objective(inputs, targets, **trial.params)
         experiment.observe(trial, obj)
         trials += 1
     return experiment
@@ -387,9 +395,9 @@ if __name__ == "__main__":
     if nas_args.dset == "cifar100":
         nas_args.num_classes = 100
 
-    exp_name = (
-        "obj1_seed_42_" + nas_args.algo + "_" + str(float(nas_args.target / 1e6)) + "M"
-    )
+    # exp_name = (
+    #     "obj1_seed_42_" + nas_args.algo + "_" + str(float(nas_args.target / 1e6)) + "M"
+    # )
     # exp_name = (
     #     nas_args.algo
     #     + "_gamma_0.1_ei_10"
@@ -397,6 +405,8 @@ if __name__ == "__main__":
     #     + str(float(nas_args.target / 1e6))
     #     + "M"
     # )
+
+    exp_name = "Naswot_"+ nas_args.algo + "_" + str(float(nas_args.target / 1e6)) + "M"
     base_path = os.path.join(nas_args.save_path, nas_args.dset, nas_args.algo, exp_name)
     os.makedirs(
         base_path,
@@ -462,6 +472,7 @@ if __name__ == "__main__":
     plot(exp_name, base_path, "target_obj")
 
     save_path = base_path
+    nas_args.classifier = False
     if nas_args.classifier or nas_args.algo == "evo":
         top_3_net = topk_net(base_path, exp_name, nas_args.k)
 
