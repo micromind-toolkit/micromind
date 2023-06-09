@@ -141,3 +141,8 @@ run_dgx.sh
 
 # others
 /runs
+/recipes/object_detection/plots/data.csv
+/recipes/object_detection/plots/data/
+/recipes/object_detection/runs/
+/recipes/object_detection/yolov8n_saved_model
+/recipes/object_detection/yolov8s_saved_model
