@@ -4,32 +4,35 @@ import matplotlib.pyplot as plt
 
 # read the data from folder /data
 
+
 def parse_text_file(file_name):
     data = []
-    with open(file_name, 'r', encoding='utf-8') as file:
+    with open(file_name, "r", encoding="utf-8") as file:
         lines = file.readlines()
-        
+
         if len(lines) < 4:
             print("The file does not contain enough lines.")
             return
-        
+
         # Extract the first line (column names) and the line starting with "2"
-        column_names = lines[2].strip().split("  ")    
+        column_names = lines[2].strip().split("  ")
         data_line = lines[5].split()[1:]
         data_line = [float(x) if can_be_float(x) else x for x in data_line]
         print([type(x) for x in data_line])
 
         print(data_line)
-        data.append(data_line)        
-        
+        data.append(data_line)
+
         return column_names, data_line
+
 
 def can_be_float(x):
     try:
         _ = float(x)
         return True
-    except:
+    except TypeError:
         return False
+
 
 def read_data():
     data = []
@@ -42,8 +45,8 @@ def read_data():
             data.append(data_line)
     print("ok", column_names, type(column_names))
     column_names.insert(0, "Model")
-    column_names.insert(0, "format")    
-    ## add the string "format" at the beginning of the list        
+    column_names.insert(0, "format")
+    # add the string "format" at the beginning of the list
     print(column_names)
 
     parsed_data = {column_names[i]: [] for i in range(len(column_names))}
@@ -52,12 +55,13 @@ def read_data():
         for i, x in enumerate(line):
             parsed_data[column_names[i]].append(x)
 
-    # Create a dictionary to store the parsed data    
+    # Create a dictionary to store the parsed data
     print(parsed_data)
     return parsed_data
 
+
 def plot_data(data):
-        
+
     df = pd.DataFrame(data)
     print(df)
 
@@ -69,7 +73,9 @@ def plot_data(data):
 
     # Plot Size (MB) vs metrics/mAP50-95(B)
     axs[0].scatter(df["Size (MB)"], df["metrics/mAP50-95(B)"], color="blue")
-    axs[0].plot(df["Size (MB)"], df["metrics/mAP50-95(B)"], color="blue", linestyle="dashed")
+    axs[0].plot(
+        df["Size (MB)"], df["metrics/mAP50-95(B)"], color="blue", linestyle="dashed"
+    )
 
     # Annotate points with the model name
     for i, model in enumerate(df["Model"]):
@@ -80,14 +86,21 @@ def plot_data(data):
     axs[0].set_ylabel("metrics/mAP50-95(B)")
 
     # Plot Inference time (ms/im) vs metrics/mAP50-95(B)
-    axs[1].scatter(df["Inference time (ms/im)"], df["metrics/mAP50-95(B)"], color="orange")
+    axs[1].scatter(
+        df["Inference time (ms/im)"], df["metrics/mAP50-95(B)"], color="orange"
+    )
     axs[1].plot(
-        df["Inference time (ms/im)"], df["metrics/mAP50-95(B)"], color="orange", linestyle="dashed"
+        df["Inference time (ms/im)"],
+        df["metrics/mAP50-95(B)"],
+        color="orange",
+        linestyle="dashed",
     )
 
     # Annotate points with the model name
     for i, model in enumerate(df["Model"]):
-        axs[1].annotate(model, (df["Inference time (ms/im)"][i], df["metrics/mAP50-95(B)"][i]))
+        axs[1].annotate(
+            model, (df["Inference time (ms/im)"][i], df["metrics/mAP50-95(B)"][i])
+        )
 
     axs[1].set_title("Latency CPU ONNX (ms) vs metrics/mAP50-95(B)")
     axs[1].set_xlabel("Latency CPU ONNX (ms)")
@@ -96,6 +109,7 @@ def plot_data(data):
     plt.tight_layout()
     plt.savefig("yolov8.png")
     plt.show()
+
 
 r = read_data()
 plot_data(r)
