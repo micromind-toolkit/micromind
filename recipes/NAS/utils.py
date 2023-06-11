@@ -46,6 +46,7 @@ def topk_net(base_path, exp_name, k):
     top_k = sorted_data.head(k)
     return top_k
 
+# Gives a modified train batch with k samples of each class
 def get_mod_data(loader_train, num_classes, samples_per_class, device):
     datas = [[] for _ in range(num_classes)]
     labels = [[] for _ in range(num_classes)]
