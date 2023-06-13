@@ -326,7 +326,8 @@ class ProfileModels:
         check_requirements("onnxruntime")
         import onnxruntime as ort
 
-        # Session with either 'TensorrtExecutionProvider', 'CUDAExecutionProvider', 'CPUExecutionProvider'
+        # Session with either 'TensorrtExecutionProvider', 'CUDAExecutionProvider',
+        # 'CPUExecutionProvider'
         sess_options = ort.SessionOptions()
         sess_options.graph_optimization_level = (
             ort.GraphOptimizationLevel.ORT_ENABLE_ALL
@@ -377,7 +378,11 @@ class ProfileModels:
 
     def generate_table_row(self, model_name, t_onnx, t_engine, model_info):
         layers, params, gradients, flops = model_info
-        return f"| {model_name:18s} | {self.imgsz} | - | {t_onnx[0]:.2f} ± {t_onnx[1]:.2f} ms | {t_engine[0]:.2f} ± {t_engine[1]:.2f} ms | {params / 1e6:.1f} | {flops:.1f} |"
+        return (
+            f"| {model_name:18s} | {self.imgsz} | - | {t_onnx[0]:.2f} ± "
+            " {t_onnx[1]:.2f} ms | {t_engine[0]:.2f} ± {t_engine[1]:.2f} ms | "
+            " {params / 1e6:.1f} | {flops:.1f} |"
+        )
 
     def generate_results_dict(self, model_name, t_onnx, t_engine, model_info):
         layers, params, gradients, flops = model_info
@@ -391,8 +396,18 @@ class ProfileModels:
 
     def print_table(self, table_rows):
         gpu = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "GPU"
-        header = f"| Model | size<br><sup>(pixels) | mAP<sup>val<br>50-95 | Speed<br><sup>CPU ONNX<br>(ms) | Speed<br><sup>{gpu} TensorRT<br>(ms) | params<br><sup>(M) | FLOPs<br><sup>(B) |"
-        separator = "|-------------|---------------------|--------------------|------------------------------|-----------------------------------|------------------|-----------------|"
+
+        header = (
+            f"| Model | size<br><sup>(pixels) | mAP<sup>val<br>50-95 "
+            f"| Speed<br><sup>CPU ONNX<br>(ms) | Speed<br><sup>{gpu} TensorRT<br>(ms) "
+            f"| params<br><sup>(M) | FLOPs<br><sup>(B) |"
+        )
+
+        separator = (
+            "|-------------|---------------------|--------------------"
+            "|------------------------------|-----------------------------------"
+            "|------------------|-----------------|"
+        )
 
         print(f"\n\n{header}")
         print(separator)

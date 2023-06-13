@@ -62,7 +62,7 @@ def read_data():
 
 def plot_data(data):
 
-    star_size=400
+    star_size = 400
 
     df = pd.DataFrame(data)
     print(df)
@@ -75,9 +75,18 @@ def plot_data(data):
 
     # Plot Size (MB) vs metrics/mAP50-95(B)
     axs[0].scatter(df["Size (MB)"][1:], df["metrics/mAP50-95(B)"][1:], color="blue")
-    axs[0].scatter(df["Size (MB)"][:1], df["metrics/mAP50-95(B)"][:1], color="purple", marker="*", s=star_size)
+    axs[0].scatter(
+        df["Size (MB)"][:1],
+        df["metrics/mAP50-95(B)"][:1],
+        color="purple",
+        marker="*",
+        s=star_size,
+    )
     axs[0].plot(
-        df["Size (MB)"][1:], df["metrics/mAP50-95(B)"][1:], color="blue", linestyle="dashed"
+        df["Size (MB)"][1:],
+        df["metrics/mAP50-95(B)"][1:],
+        color="blue",
+        linestyle="dashed",
     )
 
     # Annotate points with the model name
@@ -93,7 +102,11 @@ def plot_data(data):
         df["Inference time (ms/im)"][1:], df["metrics/mAP50-95(B)"][1:], color="orange"
     )
     axs[1].scatter(
-        df["Inference time (ms/im)"][:1], df["metrics/mAP50-95(B)"][:1], color="purple", marker="*", s=star_size
+        df["Inference time (ms/im)"][:1],
+        df["metrics/mAP50-95(B)"][:1],
+        color="purple",
+        marker="*",
+        s=star_size,
     )
     axs[1].plot(
         df["Inference time (ms/im)"][1:],

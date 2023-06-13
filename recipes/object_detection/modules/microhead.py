@@ -57,7 +57,7 @@ class Microhead(nn.Module):
         super().__init__()
         self._layers = torch.nn.ModuleList()
         self._save = []
-        
+
         layer9 = SPPF(64, 64, 5)
         layer9.i, layer9.f, layer9.type, layer9.n = (
             9,
