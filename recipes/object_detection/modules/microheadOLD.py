@@ -10,7 +10,7 @@ except ImportError:
 
 
 class Microhead(nn.Module):
-    def __init__(self, nc=80, number_heads=3, feature_sizes=[16, 32, 64]) -> None:
+    def __init__(self, nc=80, number_heads=3, feature_sizes=[64, 128, 256]) -> None:
 
         """This class represents the implementation of a head.
 
@@ -58,7 +58,7 @@ class Microhead(nn.Module):
         self._layers = torch.nn.ModuleList()
         self._save = []
 
-        layer9 = SPPF(feature_sizes[2], feature_sizes[2], 5)  # idk for the 5
+        layer9 = SPPF(64, 64, 5)
         layer9.i, layer9.f, layer9.type, layer9.n = (
             9,
             -1,
@@ -104,7 +104,7 @@ class Microhead(nn.Module):
         else:
             skipped_concat_layer += 1
 
-        layer12 = C2f(feature_sizes[1] + feature_sizes[2], feature_sizes[1], 1)
+        layer12 = C2f(384, 128, 1)
         layer12.i, layer12.f, layer12.type, layer12.n = (
             12,
             -1,
@@ -149,7 +149,7 @@ class Microhead(nn.Module):
         else:
             skipped_concat_layer += 1
 
-        layer15 = C2f(feature_sizes[0] + feature_sizes[1], feature_sizes[0], 1)
+        layer15 = C2f(192, 64, 1)
         layer15.i, layer15.f, layer15.type, layer15.n = (
             15,
             -1,
@@ -163,7 +163,7 @@ class Microhead(nn.Module):
             if x != -1
         )  # append to savelist
 
-        layer16 = Conv(feature_sizes[0], feature_sizes[0], 3, 2)
+        layer16 = Conv(64, 64, 3, 2)
         layer16.i, layer16.f, layer16.type, layer16.n = (
             16,
             -1,
@@ -192,7 +192,7 @@ class Microhead(nn.Module):
             if x != -1
         )  # append to savelist
 
-        layer18 = C2f(feature_sizes[0] + feature_sizes[1], feature_sizes[1], 1)
+        layer18 = C2f(192, 128, 1)
         layer18.i, layer18.f, layer18.type, layer18.n = (
             18,
             -1,
@@ -206,7 +206,7 @@ class Microhead(nn.Module):
             if x != -1
         )  # append to savelist
 
-        layer19 = Conv(feature_sizes[1], feature_sizes[1], 3, 2)
+        layer19 = Conv(128, 128, 3, 2)
         layer19.i, layer19.f, layer19.type, layer19.n = (
             19,
             -1,
@@ -234,7 +234,7 @@ class Microhead(nn.Module):
             if x != -1
         )  # append to savelist
 
-        layer21 = C2f(feature_sizes[1] + feature_sizes[2], feature_sizes[2], 1)
+        layer21 = C2f(384, 256, 1)
         layer21.i, layer21.f, layer21.type, layer21.n = (
             21,
             -1,
@@ -259,7 +259,7 @@ class Microhead(nn.Module):
         head_connections = get_connections_based_on_number_of_heads_arg(
             base_connections, number_heads
         )
-        head = Detect(nc, [64, 32, 16])
+        head = Detect(nc, feature_sizes)
         head.i, head.f, head.type, head.n = (
             22,
             head_connections,
@@ -273,7 +273,7 @@ class Microhead(nn.Module):
         )  # append to savelist
         self._layers.append(head)
 
-        # END HARDCODED HEAD ---------------------------------------------
+        # END HARDCODED HEAD -----------------------------------------------------------
 
 
 def get_connections_based_on_number_of_heads_arg(head_connections, number_of_heads):

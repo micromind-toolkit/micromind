@@ -43,7 +43,7 @@ class DetectionHeadModel(DetectionModel):
         # define backbone
         backbone = PhiNet(
             input_shape=(3, 320, 320),
-            alpha=2.67,
+            alpha=0.67,
             num_layers=6,
             beta=1,
             t_zero=4,
@@ -146,9 +146,14 @@ def get_output_dim_layers(data_config, layers):
     x = torch.randn(*[1] + list(data_config["input_size"]))
     out_dim = [layers[0](x)]
     names = [layers[0].__class__]
-    for layer in layers[1:]:
-        out_dim.append(layer(out_dim[-1]))
+    print(0, out_dim[-1].shape, names[-1])
+    for i, layer in enumerate(layers[1:], 1):
+        if layer.__class__.__name__ == "Concat":
+            out_dim.append(layer((out_dim[-1], out_dim[layer.f[1]])))
+        else:
+            out_dim.append(layer(out_dim[-1]))
         names.append(layer.__class__)
+        print(i, out_dim[-1].shape, names[-1])
     return [list(o.shape)[1:] for o in out_dim], names
 
 
@@ -159,17 +164,19 @@ def parse_model_custom_backbone_head(nc, ch, backbone=None, head=None, verbose=T
         raise ValueError("backbone cannot be None")
     if head is None:
         raise ValueError("head cannot be None")
+
+    ch = [ch]
+    layers, save = [], []  # layers, save list, ch out
+
+    # add layers to the model
+    layers = list(backbone._layers)
+
     # printing summary of the model
     if verbose:
         LOGGER.info(
             f"\n{'':>3}{'from':>20}{'n':>3}{'params':>10}"
             f"  {'module':<45}{'dimensions':<30}"
         )
-    ch = [ch]
-    layers, save = [], []  # layers, save list, ch out
-
-    # add layers to the model
-    layers = list(backbone._layers)
 
     # print_data_backbone
     res = get_output_dim({"input_size": (3, 320, 320)}, backbone)
