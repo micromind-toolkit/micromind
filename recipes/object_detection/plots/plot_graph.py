@@ -30,7 +30,7 @@ def can_be_float(x):
     try:
         _ = float(x)
         return True
-    except TypeError:
+    except TypeError and ValueError:
         return False
 
 
@@ -62,6 +62,8 @@ def read_data():
 
 def plot_data(data):
 
+    star_size=400
+
     df = pd.DataFrame(data)
     print(df)
 
@@ -72,9 +74,10 @@ def plot_data(data):
     axs[1].grid(True)
 
     # Plot Size (MB) vs metrics/mAP50-95(B)
-    axs[0].scatter(df["Size (MB)"], df["metrics/mAP50-95(B)"], color="blue")
+    axs[0].scatter(df["Size (MB)"][1:], df["metrics/mAP50-95(B)"][1:], color="blue")
+    axs[0].scatter(df["Size (MB)"][:1], df["metrics/mAP50-95(B)"][:1], color="purple", marker="*", s=star_size)
     axs[0].plot(
-        df["Size (MB)"], df["metrics/mAP50-95(B)"], color="blue", linestyle="dashed"
+        df["Size (MB)"][1:], df["metrics/mAP50-95(B)"][1:], color="blue", linestyle="dashed"
     )
 
     # Annotate points with the model name
@@ -87,11 +90,14 @@ def plot_data(data):
 
     # Plot Inference time (ms/im) vs metrics/mAP50-95(B)
     axs[1].scatter(
-        df["Inference time (ms/im)"], df["metrics/mAP50-95(B)"], color="orange"
+        df["Inference time (ms/im)"][1:], df["metrics/mAP50-95(B)"][1:], color="orange"
+    )
+    axs[1].scatter(
+        df["Inference time (ms/im)"][:1], df["metrics/mAP50-95(B)"][:1], color="purple", marker="*", s=star_size
     )
     axs[1].plot(
-        df["Inference time (ms/im)"],
-        df["metrics/mAP50-95(B)"],
+        df["Inference time (ms/im)"][1:],
+        df["metrics/mAP50-95(B)"][1:],
         color="orange",
         linestyle="dashed",
     )

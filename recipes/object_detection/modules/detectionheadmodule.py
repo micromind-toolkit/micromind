@@ -190,6 +190,7 @@ def parse_model_custom_backbone_head(nc, ch, backbone=None, head=None, verbose=T
     save = head._save
 
     # print data head
+    res = get_output_dim_layers({"input_size": (3, 320, 320)}, layers)
     for i, layer in enumerate(head._layers):
         i, f, t, n = layer.i, layer.f, layer.type, layer.n
         layer.np = sum(x.numel() for x in layer.parameters())  # number params
