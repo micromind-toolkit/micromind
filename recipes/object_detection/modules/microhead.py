@@ -259,7 +259,7 @@ class Microhead(nn.Module):
         head_connections = get_connections_based_on_number_of_heads_arg(
             base_connections, number_heads
         )
-        head = Detect(nc, [64, 32, 16])
+        head = Detect(nc, [16, 32, 64])
         head.i, head.f, head.type, head.n = (
             22,
             head_connections,

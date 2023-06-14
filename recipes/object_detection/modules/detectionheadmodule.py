@@ -34,7 +34,7 @@ class DetectionHeadModel(DetectionModel):
     """YOLOv8 custom detection model for micromind backbone."""
 
     def __init__(
-        self, cfg="yolov8n.yaml", ch=3, nc=None, verbose=True
+        self, cfg="yolov8micro.yaml", ch=3, nc=None, verbose=True
     ):  # model, input channels, number of classes
 
         super(DetectionModel, self).__init__()
@@ -145,15 +145,15 @@ def get_output_dim(data_config, model):
 def get_output_dim_layers(data_config, layers):
     x = torch.randn(*[1] + list(data_config["input_size"]))
     out_dim = [layers[0](x)]
-    names = [layers[0].__class__]
-    print(0, out_dim[-1].shape, names[-1])
+    names = [layers[0].__class__]    
     for i, layer in enumerate(layers[1:], 1):
         if layer.__class__.__name__ == "Concat":
             out_dim.append(layer((out_dim[-1], out_dim[layer.f[1]])))
+        elif layer.__class__.__name__ == "Detect":
+            out_dim.append(layer([out_dim[i] for i in layer.f])[0])
         else:
             out_dim.append(layer(out_dim[-1]))
         names.append(layer.__class__)
-        print(i, out_dim[-1].shape, names[-1])
     return [list(o.shape)[1:] for o in out_dim], names
 
 
