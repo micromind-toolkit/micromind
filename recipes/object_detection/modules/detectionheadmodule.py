@@ -145,7 +145,7 @@ def get_output_dim(data_config, model):
 def get_output_dim_layers(data_config, layers):
     x = torch.randn(*[1] + list(data_config["input_size"]))
     out_dim = [layers[0](x)]
-    names = [layers[0].__class__]    
+    names = [layers[0].__class__]
     for i, layer in enumerate(layers[1:], 1):
         if layer.__class__.__name__ == "Concat":
             out_dim.append(layer((out_dim[-1], out_dim[layer.f[1]])))
