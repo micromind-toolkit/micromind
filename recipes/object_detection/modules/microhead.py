@@ -42,7 +42,7 @@ class Microhead(nn.Module):
                 element, only the last concatenation in sequence of the head will
                 be made. If the list has two elements, the last two concatenations
                 will be made, and so on.
-            concat_layers (list, required): List of the layers to be concatenated, 
+            concat_layers (list, required): List of the layers to be concatenated,
                 in the head layers (one for every scale). Defaults to [6, 4, 12].
             head_concat_layers (list, required): List of the layers where the heads
                 have to be connected. Defaults to [15, 18, 21].
