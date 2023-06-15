@@ -62,6 +62,7 @@ def read_data():
 
 def plot_data(data):
 
+    idx_divide = 2
     star_size = 400
 
     df = pd.DataFrame(data)
@@ -74,17 +75,21 @@ def plot_data(data):
     axs[1].grid(True)
 
     # Plot Size (MB) vs metrics/mAP50-95(B)
-    axs[0].scatter(df["Size (MB)"][1:], df["metrics/mAP50-95(B)"][1:], color="blue")
     axs[0].scatter(
-        df["Size (MB)"][:1],
-        df["metrics/mAP50-95(B)"][:1],
+        df["Size (MB)"][idx_divide:],
+        df["metrics/mAP50-95(B)"][idx_divide:],
+        color="blue",
+    )
+    axs[0].scatter(
+        df["Size (MB)"][:idx_divide],
+        df["metrics/mAP50-95(B)"][:idx_divide],
         color="purple",
         marker="*",
         s=star_size,
     )
     axs[0].plot(
-        df["Size (MB)"][1:],
-        df["metrics/mAP50-95(B)"][1:],
+        df["Size (MB)"][idx_divide:],
+        df["metrics/mAP50-95(B)"][idx_divide:],
         color="blue",
         linestyle="dashed",
     )
@@ -99,18 +104,20 @@ def plot_data(data):
 
     # Plot Inference time (ms/im) vs metrics/mAP50-95(B)
     axs[1].scatter(
-        df["Inference time (ms/im)"][1:], df["metrics/mAP50-95(B)"][1:], color="orange"
+        df["Inference time (ms/im)"][idx_divide:],
+        df["metrics/mAP50-95(B)"][idx_divide:],
+        color="orange",
     )
     axs[1].scatter(
-        df["Inference time (ms/im)"][:1],
-        df["metrics/mAP50-95(B)"][:1],
+        df["Inference time (ms/im)"][:idx_divide],
+        df["metrics/mAP50-95(B)"][:idx_divide],
         color="purple",
         marker="*",
         s=star_size,
     )
     axs[1].plot(
-        df["Inference time (ms/im)"][1:],
-        df["metrics/mAP50-95(B)"][1:],
+        df["Inference time (ms/im)"][idx_divide:],
+        df["metrics/mAP50-95(B)"][idx_divide:],
         color="orange",
         linestyle="dashed",
     )

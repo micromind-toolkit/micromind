@@ -34,7 +34,7 @@ class DetectionHeadModel(DetectionModel):
     """YOLOv8 custom detection model for micromind backbone."""
 
     def __init__(
-        self, cfg="yolov8micro.yaml", ch=3, nc=None, verbose=True
+        self, cfg="yolov8n.yaml", ch=3, nc=None, verbose=True
     ):  # model, input channels, number of classes
 
         super(DetectionModel, self).__init__()

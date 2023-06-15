@@ -10,7 +10,14 @@ except ImportError:
 
 
 class Microhead(nn.Module):
-    def __init__(self, nc=80, number_heads=3, feature_sizes=[16, 32, 64]) -> None:
+    def __init__(
+        self,
+        nc=80,
+        number_heads=3,
+        feature_sizes=[16, 32, 64],
+        concat_layers=[6, 4, 12],
+        head_concat_layers=[15, 18, 21],
+    ) -> None:
 
         """This class represents the implementation of a head.
 
@@ -35,6 +42,9 @@ class Microhead(nn.Module):
                 element, only the last concatenation in sequence of the head will
                 be made. If the list has two elements, the last two concatenations
                 will be made, and so on.
+            concat_layers (list, required): List of the layers to be concatenated.
+            head_concat_layers (list, required): List of the layers where the heads
+                have to be connected.
 
         Returns:
             None
@@ -90,11 +100,11 @@ class Microhead(nn.Module):
             layer11 = Concat(dimension=1)
             layer11.i, layer11.f, layer11.type, layer11.n = (
                 11,
-                [-1, 6],
+                # previous layer concatenated to the first of the list
+                [-1, concat_layers[0]],
                 "ultralytics.nn.modules.conv.Concat",
                 1,
             )
-            # c2 = sum(ch[x] for x in layer11.f)
             self._layers.append(layer11)
             self._save.extend(
                 x % layer11.i
@@ -136,7 +146,8 @@ class Microhead(nn.Module):
             layer14 = Concat(1)
             layer14.i, layer14.f, layer14.type, layer14.n = (
                 14,
-                [-1, 4],
+                # previous layer concatenated to the second of the list
+                [-1, concat_layers[1]],
                 "ultralytics.nn.modules.conv.Concat",
                 1,
             )
@@ -180,7 +191,12 @@ class Microhead(nn.Module):
         layer17 = Concat(1)
         layer17.i, layer17.f, layer17.type, layer17.n = (
             17,
-            [-1, 12 - skipped_concat_layer],  # the skipped connection is added because
+            # previous layer concatenated to the second of the list minus the skipped
+            # layer
+            [
+                -1,
+                concat_layers[2] - skipped_concat_layer,
+            ],  # the skipped connection is added because
             # there might be some skipped layer and the nn has to take that into account
             "ultralytics.nn.modules.conv.Concat",
             1,
@@ -248,11 +264,9 @@ class Microhead(nn.Module):
             if x != -1
         )  # append to savelist
 
-        base_connections = [
-            15 - skipped_concat_layer,
-            18 - skipped_concat_layer,
-            21 - skipped_concat_layer,
-        ]
+        # based on the number of detections scales create the detections layers
+        base_connections = [x - skipped_concat_layer for x in head_concat_layers]
+
         # the skipped connection is added because there might be some skipped
         # layers and the head also has to take that into account
 
