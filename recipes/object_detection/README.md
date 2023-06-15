@@ -1,7 +1,7 @@
 ## Object detection
 
 This object detection recipe is heavily based and depends on YOLO v8, developed by [Ultralytics](https://github.com/ultralytics/ultralytics)
-It supports training and inference, for now tested on the COCO dataset.
+It supports training and inference, for now, tested on the COCO dataset.
 
 To reproduce our results, you can follow these steps:
 
@@ -11,25 +11,20 @@ To reproduce our results, you can follow these steps:
 
 ### COCO
 ```
-python classification.py ~/data/mnist -b 128 --dataset torch/mnist --num-classes 10 \
-	--model phinet --input-size 1 28 28 --epochs 20 --amp \
-	--opt adam --lr 0.01 --weight-decay 0.01 --no-aug \
-	--pin-mem --apex-amp --use-multi-epochs-loader --mean 0.1307 --std 0.3081 --dataset-download --log-interval 100 \
-	--alpha 0.5 --num_layers 4 --beta 1 --t_zero 6 --experiment mnist
+python train.py
 ```
 
+For now, everything has to be changed inside the train.py code. We are working on a more user-friendly interface.
+
 ### Benchmark
-
-In general this is the graph that is going to be showed --> comparison with OMNX CPU and accuracy, number of parameters and mAP
-We just need to gather the data for the "microYOLO"
-
+Comparison between accuracy, number of parameters and mAP. ONNX test on CPU.
 ![MicroYOLO benchmark](./plots/yolov8.png)
 
 In the table is a list of PhiNet's performance on some common image classification benchmarks.
 
-| Dataset | Model name         | mAP50   |
-| -------- | ------------------ |---------------- |
-| COCO	  | `PhiNet(alpha=2.67, beta=1, t_zero=4, num_layers=6)`   |     ???         |
+| Dataset | Model name                                           | mAP50  | latency (ms) | size (MB) |
+| ------- | ---------------------------------------------------- | ------ | ------------ | --------- |
+| COCO    | `PhiNet(alpha=0.67, beta=1, t_zero=4, num_layers=6)` | 0.2561 | 114.75       | 2.7       |
 
 
 ### Cite PhiNets

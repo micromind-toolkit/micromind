@@ -42,9 +42,10 @@ class Microhead(nn.Module):
                 element, only the last concatenation in sequence of the head will
                 be made. If the list has two elements, the last two concatenations
                 will be made, and so on.
-            concat_layers (list, required): List of the layers to be concatenated.
+            concat_layers (list, required): List of the layers to be concatenated, 
+                in the head layers (one for every scale). Defaults to [6, 4, 12].
             head_concat_layers (list, required): List of the layers where the heads
-                have to be connected.
+                have to be connected. Defaults to [15, 18, 21].
 
         Returns:
             None
@@ -273,7 +274,7 @@ class Microhead(nn.Module):
         head_connections = get_connections_based_on_number_of_heads_arg(
             base_connections, number_heads
         )
-        head = Detect(nc, [16, 32, 64])
+        head = Detect(nc, feature_sizes)
         head.i, head.f, head.type, head.n = (
             22,
             head_connections,
