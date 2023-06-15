@@ -146,7 +146,7 @@ def get_output_dim_layers(data_config, layers):
     x = torch.randn(*[1] + list(data_config["input_size"]))
     out_dim = [layers[0](x)]
     names = [layers[0].__class__]
-    for i, layer in enumerate(layers[1:], 1):
+    for _, layer in enumerate(layers[1:], 1):
         if layer.__class__.__name__ == "Concat":
             out_dim.append(layer((out_dim[-1], out_dim[layer.f[1]])))
         elif layer.__class__.__name__ == "Detect":
@@ -168,8 +168,15 @@ def parse_model_custom_backbone_head(nc, ch, backbone=None, head=None, verbose=T
     ch = [ch]
     layers, save = [], []  # layers, save list, ch out
 
-    # add layers to the model
+    # add BACKBONE layers to the model
     layers = list(backbone._layers)
+
+    # add HEAD layers to the model
+    layers += list(head._layers)
+    save = head._save
+
+    # get data of all the layers
+    res = get_output_dim_layers({"input_size": (3, 320, 320)}, layers)
 
     # printing summary of the model
     if verbose:
@@ -178,8 +185,7 @@ def parse_model_custom_backbone_head(nc, ch, backbone=None, head=None, verbose=T
             f"  {'module':<45}{'dimensions':<30}"
         )
 
-    # print_data_backbone
-    res = get_output_dim({"input_size": (3, 320, 320)}, backbone)
+    # print data backbone
     for i, layer in enumerate(backbone._layers):
         f = -1
         n_ = 1
@@ -192,13 +198,8 @@ def parse_model_custom_backbone_head(nc, ch, backbone=None, head=None, verbose=T
                 f"{i:>3}{str(f):>20}{n_:>3}{layer.np:10.0f}  {t:<45}{str(args):<30}"
             )  # print
 
-    # add layers to the model
-    layers += list(head._layers)
-    save = head._save
-
     # print data head
-    res = get_output_dim_layers({"input_size": (3, 320, 320)}, layers)
-    for i, layer in enumerate(head._layers):
+    for _, layer in enumerate(head._layers):
         i, f, t, n = layer.i, layer.f, layer.type, layer.n
         layer.np = sum(x.numel() for x in layer.parameters())  # number params
         n_ = max(round(n * 0.33), 1) if n > 1 else n  # depth gain
