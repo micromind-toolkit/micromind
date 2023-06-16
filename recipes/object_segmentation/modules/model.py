@@ -26,9 +26,8 @@ from ultralytics.yolo.utils.checks import (
     check_yaml,
 )
 
-from modules.detectionmicromodule import DetectionMicroModel
-from modules.detectionmicrotrainer import DetectionMicroTrainer
-
+from modules.segmentationmicromodule import SegmentationMicroModel
+from modules.segmentationmicrotrainer import SegmentationMicroTrainer
 
 class microYOLO(YOLO):
     """
@@ -82,7 +81,7 @@ class microYOLO(YOLO):
         list(ultralytics.yolo.engine.results.Results): The prediction results.
     """
 
-    def __init__(self, model: Union[str, Path] = "yolov8n.yaml", task=None) -> None:
+    def __init__(self, model: Union[str, Path] = "yolov8n-seg.yaml", task=None) -> None:
         """
         Initializes the YOLO model.
 
@@ -123,7 +122,7 @@ class microYOLO(YOLO):
         cfg_dict = yaml_model_load(cfg)
         self.cfg = cfg
         self.task = task or guess_model_task(cfg_dict)
-        self.model = DetectionMicroModel(
+        self.model = SegmentationMicroModel(
             cfg=cfg, nc=cfg_dict["nc"], verbose=verbose and RANK == -1
         )
         self.overrides["model"] = self.cfg
@@ -215,7 +214,7 @@ class microYOLO(YOLO):
         if overrides.get("resume"):
             overrides["resume"] = self.ckpt_path
         self.task = overrides.get("task") or self.task
-        self.trainer = DetectionMicroTrainer(
+        self.trainer = SegmentationMicroTrainer(
             overrides=overrides, _callbacks=self.callbacks
         )
         if not overrides.get("resume"):  # manually set model only if not resuming

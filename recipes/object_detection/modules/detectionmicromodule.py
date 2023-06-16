@@ -22,15 +22,10 @@ from ultralytics.yolo.utils import (
 from ultralytics.yolo.utils.checks import check_yaml
 from ultralytics.yolo.utils.torch_utils import initialize_weights
 
-from modules.microhead import Microhead
-
-try:
-    import thop
-except ImportError:
-    thop = None
+from micromind.networks.microyolohead import Microhead
 
 
-class DetectionHeadModel(DetectionModel):
+class DetectionMicroModel(DetectionModel):
     """YOLOv8 custom detection model for micromind backbone."""
 
     def __init__(

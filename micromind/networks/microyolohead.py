@@ -3,12 +3,6 @@ import torch.nn as nn
 
 from ultralytics.nn.modules import SPPF, C2f, Concat, Conv, Detect
 
-try:
-    import thop
-except ImportError:
-    thop = None
-
-
 class Microhead(nn.Module):
     def __init__(
         self,
