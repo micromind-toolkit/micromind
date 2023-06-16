@@ -840,7 +840,7 @@ group.add_argument(
 )
 group.add_argument(
     "--eval-metric",
-    default="loss",
+    default="top1",
     type=str,
     metavar="EVAL_METRIC",
     help='Best metric (default: "top1"',
@@ -892,7 +892,8 @@ def optimized_params(
     args.experiment = "cifar10" if num_classes == 10 else "cifar100"
     args.model = "phinet"
     # args.input_size = 3, phinet_params["res"], phinet_params["res"]
-    args.input_size = 3, 160, 160
+    # args.input_size = 3, 160, 160
+    args.input_size = 3, 64, 64
     args.alpha = phinet_params["alpha"]
     args.num_layers = phinet_params["B0"]
     args.beta = phinet_params["beta"]
@@ -901,7 +902,7 @@ def optimized_params(
     args.output = save_path
     args.batch_size = 64
     args.rank = 0
-    args.experiment = exp_name
+    # args.experiment = exp_name
     if args.rank == 0 and args.log_wandb:
         if has_wandb:
             wandb.init(project=args.experiment, config=args, name=exp_name)

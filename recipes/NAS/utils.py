@@ -46,6 +46,7 @@ def topk_net(base_path, exp_name, k):
     top_k = sorted_data.head(k)
     return top_k
 
+
 # Gives a modified train batch with k samples of each class
 def get_mod_data(loader_train, num_classes, samples_per_class, device):
     datas = [[] for _ in range(num_classes)]
@@ -68,6 +69,7 @@ def get_mod_data(loader_train, num_classes, samples_per_class, device):
     x = torch.cat([torch.cat(_, 0) for _ in datas]).to(device)
     y = torch.cat([torch.cat(_) for _ in labels]).view(-1).to(device)
     return x, y
+
 
 if __name__ == "__main__":
     exp_name = "obj1_seed_42_tpe_0.5M"

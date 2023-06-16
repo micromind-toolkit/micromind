@@ -32,7 +32,7 @@ def score_network(model, batch_size, inputs, targets):
     # run batch through network
     x, target = next(iter(loader_train))
     print(target)
-    #TODO: One sample from each class in the batch 
+    # TODO: One sample from each class in the batch
     x2 = torch.clone(x)
 
     x, target = x, target

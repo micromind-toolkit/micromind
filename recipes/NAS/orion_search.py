@@ -19,6 +19,8 @@ from recipes.image_classification.classification import (
 from naswot import score_network
 from naswot_naslib import compute_nwot
 from epe_nas import compute_epe_score
+from synflow import compute_synflow_per_weight, sum_arr
+from logsynflow import compute_logsynflow
 from orion.client import build_experiment, get_experiment
 from micromind import PhiNet, configlib
 from timm.optim import create_optimizer
@@ -54,6 +56,12 @@ group.add_argument(
 )
 group.add_argument(
     "--k", default=1, type=int, help="No. of top k networks to train (default: 1)"
+)
+group.add_argument(
+    "--predictor",
+    default="naswot",
+    type=str,
+    help="Zero-cost proxy to use (default: naswot)",
 )
 
 
@@ -145,8 +153,8 @@ def train_and_evaluate(model, epochs, loader_train, loader_eval):
     nas_args.warmup_lr = None
     nas_args.cooldown_epochs = 0
 
-    #TODO: change this fixed image res and batch size for now
-    loader_train, loader_eval = data_loader(image_size=64,batch_size=64)
+    # TODO: change this fixed image res and batch size for now
+    loader_train, loader_eval = data_loader(image_size=64, batch_size=64)
     train_loss_fn = nn.CrossEntropyLoss().cuda()
     validate_loss_fn = train_loss_fn
     optimizer = create_optimizer(nas_args, model)
@@ -189,9 +197,9 @@ def train_and_evaluate(model, epochs, loader_train, loader_eval):
 
 
 def EA_objective(top1, params, target, w):
-    #obj = -1 * loss * (params / nas_args.target) ** w
+    # obj = -1 * loss * (params / nas_args.target) ** w
     power = np.floor(np.log10(nas_args.target))
-    obj =  top1 * 1e-3 - (np.abs(params - nas_args.target) / 10 ** power)
+    obj = top1 * 1e-3 - (np.abs(params - nas_args.target) / 10**power)
     # obj = loss - 100 * np.abs(nas_args.target - params)
     return obj
 
@@ -200,7 +208,8 @@ def score_objective(score, params, target, w):
     # obj = score * (params / nas_args.target) ** w
     # obj = score - (np.abs(params - nas_args.target)*1E-6)
     power = np.floor(np.log10(nas_args.target))
-    obj = score * 1e-3 - (np.abs(params - nas_args.target) / 10 ** power)
+    alpha = 1e-6 if nas_args.predictor == "synflow" else 1e-3
+    obj = score * alpha - (np.abs(params - nas_args.target) / 10**power)
     # obj= score + ((nas_args.target - params)**2 * 1e-3)
     # obj = score - 100 * np.abs(nas_args.target - params)
     return obj
@@ -245,27 +254,28 @@ def objective(inputs, targets, alpha, beta, B0, t_zero, res, epochs):
     params = get_params(model, res)
 
     if nas_args.algo == "evo":
-        #top1 = train_and_evaluate(model, epochs, loader_train, loader_eval)
-        #obj = EA_objective(top1, params, nas_args.target, w)
+        # top1 = train_and_evaluate(model, epochs, loader_train, loader_eval)
+        # obj = EA_objective(top1, params, nas_args.target, w)
         score = compute_nwot(model, inputs, targets, split_data=1, loss_fn=None)
         obj = score_objective(score, params, nas_args.target, w)
     else:
-        #score = score_network(model, batch_size, loader_train)
-        score = compute_nwot(model, inputs, targets, split_data=1, loss_fn=None)
-        #score = compute_epe_score(model, inputs, targets, split_data=1, loss_fn=None)
+        # score = score_network(model, batch_size, loader_train)
+        # score = compute_nwot(model, inputs, targets, split_data=1, loss_fn=None)
+        score = compute_logsynflow(model, inputs, nas_args.device, mode="param")
+        # score = compute_epe_score(model, inputs, targets, split_data=1, loss_fn=None)
         logging.info("Score: %f", score)
         obj = score_objective(score, params, nas_args.target, w)
 
     # obj = -1 * score - phi(params - nas_args.target)**w
     # target_obj = (params / nas_args.target) ** w
     # target_obj = 100 * np.abs(nas_args.target - params)
-    
+
     power = np.floor(np.log10(nas_args.target))
-    target_obj = (np.abs(params - nas_args.target) / 10 ** power)
+    target_obj = np.abs(params - nas_args.target) / 10**power
     logging.info("w: %f", w)
     logging.info("Total params: %f", params / 1e6)
     if nas_args.algo == "evo":
-        #logging.info("Loss: %f", loss)
+        # logging.info("Loss: %f", loss)
         logging.info("Score: %f", score)
     else:
         logging.info("Score: %f", score)
@@ -274,7 +284,7 @@ def objective(inputs, targets, alpha, beta, B0, t_zero, res, epochs):
     objs.append(-obj)
     param.append(params / 1e6)
     if nas_args.algo == "evo":
-        #losses.append(loss)
+        # losses.append(loss)
         scores.append(score)
     else:
         scores.append(score)
@@ -310,31 +320,22 @@ def run_hpo(exp_name):
             },
         }
     elif nas_args.algo == "grid_search":
-         algorithm = {
-            "gridsearch": {
-                "n_values": 100
-            },
+        algorithm = {
+            "gridsearch": {"n_values": 100},
         }
 
     elif nas_args.algo == "hyperband":
-         algorithm = {
-            "hyperband": {
-                "seed": 42,
-                "repetitions": 1
-            },
+        algorithm = {
+            "hyperband": {"seed": 42, "repetitions": 1},
         }
-    
+
     elif nas_args.algo == "asha":
-         algorithm = {
-            "asha": {
-                "seed": 42,
-                "repetitions": 1,
-                "num_brackets": 1
-            },
+        algorithm = {
+            "asha": {"seed": 42, "repetitions": 1, "num_brackets": 1},
         }
-    
+
     elif nas_args.algo == "dehb":
-         algorithm = {
+        algorithm = {
             "dehb": {
                 "seed": 42,
                 "mutation_factor": 0.5,
@@ -344,17 +345,17 @@ def run_hpo(exp_name):
                 "boundary_fix_type": "random",
             },
         }
-    
+
     elif nas_args.algo == "pbt":
-         algorithm = {
+        algorithm = {
             "pbt": {
                 "seed": 42,
                 "population_size": 50,
                 "generations": 10,
                 "fork_timeout": 60,
                 "exploit": {
-                   "of_type": "PipelineExploit",
-                   "exploit_configs": [
+                    "of_type": "PipelineExploit",
+                    "exploit_configs": [
                         {
                             "of_type": "BacktrackExploit",
                             "min_forking_population": 5,
@@ -373,22 +374,26 @@ def run_hpo(exp_name):
                     "of_type": "PipelineExplore",
                     "explore_configs": [
                         {"of_type": "ResampleExplore", "probability": 0.2},
-                        {"of_type": "PerturbExplore", "factor": 1.2, "volatility": 0.0001},
+                        {
+                            "of_type": "PerturbExplore",
+                            "factor": 1.2,
+                            "volatility": 0.0001,
+                        },
                     ],
                 },
             },
         }
-    
+
     elif nas_args.algo == "pb2":
-         algorithm = {
+        algorithm = {
             "pb2": {
                 "seed": 42,
                 "population_size": 50,
                 "generations": 10,
                 "fork_timeout": 60,
                 "exploit": {
-                   "of_type": "PipelineExploit",
-                   "exploit_configs": [
+                    "of_type": "PipelineExploit",
+                    "exploit_configs": [
                         {
                             "of_type": "BacktrackExploit",
                             "min_forking_population": 5,
@@ -405,18 +410,18 @@ def run_hpo(exp_name):
                 },
             },
         }
-    
+
     elif nas_args.algo == "mofa":
-         algorithm = {
+        algorithm = {
             "mofa": {
                 "seed": 42,
                 "index": 1,
                 "n_levels": 5,
                 "strength": 2,
-                "threshold": 0.1
+                "threshold": 0.1,
             },
         }
-    
+
     elif nas_args.algo == "nevergrad":
         algorithm = {
             "nevergradoptimizer": {
@@ -425,7 +430,7 @@ def run_hpo(exp_name):
                 "num_workers": 10,
                 "model_name": "NGOpt",
             },
-    }
+        }
 
     elif nas_args.algo == "hebo":
         algorithm = {
@@ -438,14 +443,14 @@ def run_hpo(exp_name):
                 "evolutionary_strategy": "nsga2",
                 "model_config": "null",
             },
-    }
+        }
 
     elif nas_args.algo == "ax":
         algorithm = {
             "ax": {
                 "seed": 42,
                 "n_initial_trials": 5,
-                 "parallel_strategy": {
+                "parallel_strategy": {
                     "of_type": "StatusBasedParallelStrategy",
                     "strategy_configs": {
                         "broken": {
@@ -454,7 +459,7 @@ def run_hpo(exp_name):
                     },
                 },
             },
-         }
+        }
 
     elif nas_args.algo == "evo":
         algorithm = {
@@ -469,7 +474,7 @@ def run_hpo(exp_name):
                 },
             }
         }
-    
+
     elif nas_args.algo == "bohb":
         algorithm = {
             "bohb": {
@@ -481,13 +486,35 @@ def run_hpo(exp_name):
                 "min_bandwidth": 1e-3,
                 "parallel_strategy": {
                     "of_type": "StatusBasedParallelStrategy",
-                    "strategy_configs": {
-                        "broken":{
-                            "of_type": "MaxParallelStrategy"
-                        }
-                    }
-                }
+                    "strategy_configs": {"broken": {"of_type": "MaxParallelStrategy"}},
+                },
             }
+        }
+
+    elif nas_args.algo == "tpe":
+        algorithm = {
+            "tpe": {
+                "seed": 42,
+                "n_initial_points": 20,
+                "n_ei_candidates": 25,
+                "gamma": 0.10,
+                "equal_weight": False,
+                "prior_weight": 1.0,
+                "full_weight_num": 25,
+                "parallel_strategy": {
+                    "of_type": "StatusBasedParallelStrategy",
+                    "strategy_configs": {
+                        "broken": {
+                            "of_type": "MaxParallelStrategy",
+                            "default_result": 100,
+                        },
+                    },
+                    "default_strategy": {
+                        "of_type": "meanparallelstrategy",
+                        "default_result": 50,
+                    },
+                },
+            },
         }
 
     experiment = build_experiment(
@@ -506,7 +533,7 @@ def run_hpo(exp_name):
             "beta": "loguniform(0.5, 1.3)",
             "B0": "uniform(5, 8, discrete=True)",
             "t_zero": "uniform(2, 6, discrete=True)",
-            #"res": "choices([32,64,128,160,240,256])",
+            # "res": "choices([32,64,128,160,240,256])",
             "res": "choices([64])",
             "epochs": "fidelity(1, 10, base=2)",
         },
@@ -514,12 +541,12 @@ def run_hpo(exp_name):
         storage=storage,
         max_trials=100,
     )
-    #fixed res=64 and batch_size=64
-    loader_train, loader_eval = data_loader(
-        image_size=(3, 64, 64), batch_size=64
-    )
+    # fixed res=64 and batch_size=64
+    loader_train, loader_eval = data_loader(image_size=(3, 64, 64), batch_size=64)
 
-    inputs, targets = get_mod_data(loader_train, nas_args.num_classes, 6, nas_args.device)
+    inputs, targets = get_mod_data(
+        loader_train, nas_args.num_classes, 6, nas_args.device
+    )
     trials = 1
     while not experiment.is_done:
         print("trial", trials)
@@ -542,6 +569,8 @@ if __name__ == "__main__":
     scores = []
     target_objs = []
     losses = []
+    nas_args.min_score = float("1e-8")
+    nas_args.max_score = float("1e+8")
 
     if nas_args.dset == "cifar10":
         nas_args.num_classes = 10
@@ -560,7 +589,9 @@ if __name__ == "__main__":
     #     + "M"
     # )
 
-    exp_name = "naswot_"+ nas_args.algo + "_" + str(float(nas_args.target / 1e6)) + "M"
+    exp_name = (
+        "lgsynflow_" + nas_args.algo + "_" + str(float(nas_args.target / 1e6)) + "M"
+    )
     base_path = os.path.join(nas_args.save_path, nas_args.dset, nas_args.algo, exp_name)
     os.makedirs(
         base_path,
@@ -592,7 +623,7 @@ if __name__ == "__main__":
     logging.info("Best obj value: {:.3f}".format(best_obj))
     best_loss = experiment.get_trial(uid=best_trial).statistics[1].value
     if nas_args.algo == "evo":
-        #logging.info("Best loss value: {:.3f}".format(best_loss))
+        # logging.info("Best loss value: {:.3f}".format(best_loss))
         logging.info("Best score value: {:.3f}".format(best_loss))
     else:
         logging.info("Best score value: {:.3f}".format(best_loss))
@@ -621,7 +652,7 @@ if __name__ == "__main__":
 
     plot(exp_name, base_path, "objective")
     if nas_args.algo == "evo":
-        #plot(exp_name, base_path, "loss")
+        # plot(exp_name, base_path, "loss")
         plot(exp_name, base_path, "score")
     else:
         plot(exp_name, base_path, "score")

@@ -135,6 +135,8 @@ results/
 ckp/
 checkpoints/
 *.swp
+sample-space/
+sspace/
 
 Dockerfile
 build_dgx.sh
