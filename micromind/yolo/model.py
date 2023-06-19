@@ -88,7 +88,7 @@ class microYOLO(YOLO):
         list(ultralytics.yolo.engine.results.Results): The prediction results.
     """
 
-    def __init__(self, model: Union[str, Path] = "yolov8n.yaml", task=None) -> None:
+    def __init__(self, model: Union[str, Path] = "yolov8n-seg.yaml", task='detection') -> None:
         """
         Initializes the YOLO model.
 
@@ -126,6 +126,10 @@ class microYOLO(YOLO):
             task (str) or (None): model task
             verbose (bool): display model info on load
         """
+
+        # only the nc and the name of the file are used from the cfg file
+        # add them an the rest should be independent from the yaml file then
+
         cfg_dict = yaml_model_load(cfg)
         self.cfg = cfg
         self.task = task or guess_model_task(cfg_dict)
