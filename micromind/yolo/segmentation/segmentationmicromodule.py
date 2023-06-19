@@ -8,7 +8,7 @@ import torch.nn as nn
 
 from micromind import PhiNet
 
-from object_detection.modules.detectionmicromodule import DetectionMicroModel
+from ..detection.detectionmicromodule import DetectionMicroModel
 
 from ultralytics.yolo.utils.loss import v8SegmentationLoss
 
@@ -24,7 +24,7 @@ from ultralytics.yolo.utils import (
 from ultralytics.yolo.utils.checks import check_yaml
 from ultralytics.yolo.utils.torch_utils import initialize_weights
 
-from micromind.networks.microyolohead import Microhead
+from micromind.yolo.microyolohead import Microhead
 
 class SegmentationMicroModel(DetectionMicroModel):
     """YOLOv8 custom detection model for micromind backbone."""

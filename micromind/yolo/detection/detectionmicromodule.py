@@ -22,7 +22,7 @@ from ultralytics.yolo.utils import (
 from ultralytics.yolo.utils.checks import check_yaml
 from ultralytics.yolo.utils.torch_utils import initialize_weights
 
-from micromind.networks.microyolohead import Microhead
+from micromind.yolo.microyolohead import Microhead
 
 
 class DetectionMicroModel(DetectionModel):
@@ -145,12 +145,12 @@ def get_output_dim_layers(data_config, layers):
         if layer.__class__.__name__ == "Concat":
             out_dim.append(layer((out_dim[-1], out_dim[layer.f[1]])))
         elif layer.__class__.__name__ == "Detect":
-            out_dim.append(layer([out_dim[i] for i in layer.f])[0])
+            res = layer([out_dim[i] for i in layer.f])[0]
+            out_dim.append(res)
         else:
             out_dim.append(layer(out_dim[-1]))
         names.append(layer.__class__)
     return [list(o.shape)[1:] for o in out_dim], names
-
 
 def parse_model_custom_backbone_head(nc, ch, backbone=None, head=None, verbose=True):
 

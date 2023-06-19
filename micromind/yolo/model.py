@@ -26,9 +26,15 @@ from ultralytics.yolo.utils.checks import (
     check_yaml,
 )
 
-from modules.detectionmicromodule import DetectionMicroModel
-from modules.detectionmicrotrainer import DetectionMicroTrainer
+from micromind.yolo.detection.detectionmicromodule import DetectionMicroModel
+from micromind.yolo.detection.detectionmicrotrainer import DetectionMicroTrainer
+from micromind.yolo.segmentation.segmentationmicromodule import SegmentationMicroModel
+from micromind.yolo.segmentation.segmentationmicrotrainer import SegmentationMicroTrainer
 
+TASK_MAP = {
+    "detect": [DetectionMicroModel, DetectionMicroTrainer],
+    "segment": [SegmentationMicroModel, SegmentationMicroTrainer],
+}
 
 class microYOLO(YOLO):
     """
@@ -123,7 +129,7 @@ class microYOLO(YOLO):
         cfg_dict = yaml_model_load(cfg)
         self.cfg = cfg
         self.task = task or guess_model_task(cfg_dict)
-        self.model = DetectionMicroModel(
+        self.model = TASK_MAP[self.task][0](        
             cfg=cfg, nc=cfg_dict["nc"], verbose=verbose and RANK == -1
         )
         self.overrides["model"] = self.cfg
@@ -215,7 +221,7 @@ class microYOLO(YOLO):
         if overrides.get("resume"):
             overrides["resume"] = self.ckpt_path
         self.task = overrides.get("task") or self.task
-        self.trainer = DetectionMicroTrainer(
+        self.trainer = TASK_MAP[self.task][1](        
             overrides=overrides, _callbacks=self.callbacks
         )
         if not overrides.get("resume"):  # manually set model only if not resuming

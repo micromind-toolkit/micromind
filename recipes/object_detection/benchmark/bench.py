@@ -1,8 +1,8 @@
-from modules.benchmarks import benchmark
+from benchmarks import benchmark
 
 # Benchmark on GPU
 benchmark(
-    model="./weights/microyolo-20-epochs-alpha067/best.pt",
+    model="./weights/microyolo-500-epochs-SGD-2/best.pt",
     imgsz=320,
     half=True,
     device="cpu",

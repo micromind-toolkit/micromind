@@ -3,8 +3,7 @@
 from ultralytics.yolo.utils import RANK
 
 from ultralytics.yolo.v8.detect import DetectionTrainer
-from modules.detectionmicromodule import DetectionMicroModel
-
+from ..detection.detectionmicromodule import DetectionMicroModel
 
 class DetectionMicroTrainer(DetectionTrainer):
     def get_model(self, cfg=None, weights=None, verbose=True):

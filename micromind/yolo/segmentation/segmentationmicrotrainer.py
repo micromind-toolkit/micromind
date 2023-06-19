@@ -2,8 +2,8 @@
 
 from ultralytics.yolo.utils import RANK
 
-from ultralytics.yolo.v8.detect import SegmentationTrainer
-from modules.segmentationmicromodule import SegmentationMicroModel
+from ultralytics.yolo.v8.segment import SegmentationTrainer
+from .segmentationmicromodule import SegmentationMicroModel
 
 
 class SegmentationMicroTrainer(SegmentationTrainer):

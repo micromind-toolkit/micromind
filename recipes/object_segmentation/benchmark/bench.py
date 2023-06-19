@@ -1,4 +1,4 @@
-from modules.benchmarks import benchmark
+from benchmarks import benchmark
 
 # Benchmark on GPU
 benchmark(

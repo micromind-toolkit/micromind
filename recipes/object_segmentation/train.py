@@ -1,7 +1,7 @@
-from modules.model import microYOLO
+from micromind.yolo.model import microYOLO
 
 # load a model
-model = microYOLO()  # build a new model from scratch DEFAULT_CFG
+model = microYOLO(task="segmentation")  # build a new model from scratch DEFAULT_CFG
 # model = microYOLO('weights.pt') # load a pretrained model (recommended for training)
 
 # Train the model

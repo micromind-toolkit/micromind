@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from ultralytics.nn.modules import SPPF, C2f, Concat, Conv, Detect
+from ultralytics.nn.modules import SPPF, C2f, Concat, Conv, Detect, Segment
 
 class Microhead(nn.Module):
     def __init__(
@@ -11,6 +11,7 @@ class Microhead(nn.Module):
         feature_sizes=[16, 32, 64],
         concat_layers=[6, 4, 12],
         head_concat_layers=[15, 18, 21],
+        task="detection",
     ) -> None:
 
         """This class represents the implementation of a head.
@@ -53,6 +54,8 @@ class Microhead(nn.Module):
             raise ValueError("Number of classes must be greater than 0")
         if any([x < 1 and x > 1024 for x in feature_sizes]):
             raise ValueError("Feature sizes must be greater than 0")
+        if task not in ["detection", "segmentation"]:            
+            raise ValueError("The task specified is not supported")
 
         # some helper variables
         number_feature_maps = len(feature_sizes)
@@ -268,21 +271,40 @@ class Microhead(nn.Module):
         head_connections = get_connections_based_on_number_of_heads_arg(
             base_connections, number_heads
         )
-        head = Detect(nc, feature_sizes)
-        head.i, head.f, head.type, head.n = (
-            22,
-            head_connections,
-            "ultralytics.nn.modules.conv.Detect",
-            1,
-        )
-        self._save.extend(
-            x % head.i
-            for x in ([head.f] if isinstance(head.f, int) else head.f)
-            if x != -1
-        )  # append to savelist
-        self._layers.append(head)
 
-        # END HARDCODED HEAD ---------------------------------------------
+        # change the last layer based on the task to be performed
+
+        if(task=="detection"):
+
+            head = Detect(nc, ch=feature_sizes)
+            head.i, head.f, head.type, head.n = (
+                22,
+                head_connections,
+                "ultralytics.nn.modules.conv.Detect",
+                1,
+            )
+            self._save.extend(
+                x % head.i
+                for x in ([head.f] if isinstance(head.f, int) else head.f)
+                if x != -1
+            )  # append to savelist
+            self._layers.append(head)
+        
+        elif(task=="segmentation"):
+            head = Segment(nc, ch=feature_sizes, nm=32, npr=256)
+            head.i, head.f, head.type, head.n = (
+                22,
+                head_connections,
+                "ultralytics.nn.modules.conv.Segment",
+                1,
+            )
+            self._save.extend(
+                x % head.i
+                for x in ([head.f] if isinstance(head.f, int) else head.f)
+                if x != -1
+            )  # append to savelist
+            self._layers.append(head)
+        
 
 
 def get_connections_based_on_number_of_heads_arg(head_connections, number_of_heads):
