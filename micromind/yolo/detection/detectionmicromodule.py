@@ -29,32 +29,23 @@ class DetectionMicroModel(DetectionModel):
     """YOLOv8 custom detection model for micromind backbone."""
 
     def __init__(
-        self, cfg="yolov8n.yaml", ch=3, nc=None, verbose=True
+        self, backbone, head, cfg="yolov8micro", ch=3, nc=None, verbose=True
     ):  # model, input channels, number of classes
 
-        super(DetectionModel, self).__init__()
-        self.yaml = cfg if isinstance(cfg, dict) else yaml_model_load(cfg)  # cfg dict
+        if(backbone is None):
+            raise ValueError("backbone cannot be None")
+        if(head is None):
+            raise ValueError("head cannot be None")                
 
-        # define backbone
-        backbone = PhiNet(
-            input_shape=(3, 320, 320),
-            alpha=0.67,
-            num_layers=6,
-            beta=1,
-            t_zero=4,
-            include_top=False,
-            num_classes=nc,
-            compatibility=False,
-        )
-        # define head
-        head = Microhead()
+        super(DetectionModel, self).__init__()
+        self.yaml = {"nc":nc, "yaml_file":cfg+".yaml"}
 
         # Read custom hardcoded model
         self.model, self.save = parse_model_custom_backbone_head(
             nc, ch=ch, backbone=backbone, head=head, verbose=verbose
         )  # model, savelist
-        self.names = {i: f"{i}" for i in range(self.yaml["nc"])}  # default names dict
-        self.inplace = self.yaml.get("inplace", True)
+        self.names = {i: f"{i}" for i in range(nc)}  # default names dict
+        self.inplace = self.yaml.get("inplace", True)        
 
         # Build strides
         m = self.model[-1]  # Detect()

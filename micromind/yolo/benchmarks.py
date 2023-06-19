@@ -42,7 +42,8 @@ from ultralytics.yolo.utils.torch_utils import select_device
 
 
 def benchmark(
-    model=Path(SETTINGS["weights_dir"]) / "yolov8n.pt",
+    
+    model=Path(SETTINGS["weights_dir"]) / "yolov8n.pt",    
     imgsz=160,
     half=False,
     int8=False,
@@ -72,13 +73,13 @@ def benchmark(
             format, including file size, metric, and inference time.
     """
 
-    import pandas as pd
+    import pandas as pd    
 
     pd.options.display.max_columns = 10
     pd.options.display.width = 120
     device = select_device(device, verbose=False)
     if isinstance(model, (str, Path)):
-        model = microYOLO(model)
+        model = microYOLO(model=model)
 
     y = []
     t0 = time.time()

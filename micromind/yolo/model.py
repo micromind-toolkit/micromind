@@ -6,8 +6,7 @@ from typing import Union
 from ultralytics import YOLO
 from ultralytics.nn.tasks import (
     attempt_load_one_weight,
-    guess_model_task,
-    yaml_model_load,
+    guess_model_task    
 )
 from ultralytics.yolo.cfg import get_cfg
 from ultralytics.yolo.engine.exporter import Exporter
@@ -88,7 +87,7 @@ class microYOLO(YOLO):
         list(ultralytics.yolo.engine.results.Results): The prediction results.
     """
 
-    def __init__(self, model: Union[str, Path] = "yolov8n-seg.yaml", task='detection') -> None:
+    def __init__(self, backbone=None, head=None, nc=80, task='detection', model=None) -> None:
         """
         Initializes the YOLO model.
 
@@ -101,23 +100,25 @@ class microYOLO(YOLO):
         self.predictor = None  # reuse predictor
         self.model = None  # model object
         self.trainer = None  # trainer object
-        self.task = None  # task type
+        self.task = task  # task type
         self.ckpt = None  # if loaded from *.pt
         self.cfg = None  # if loaded from *.yaml
         self.ckpt_path = None
         self.overrides = {}  # overrides for trainer object
         self.metrics = None  # validation/training metrics
         self.session = None  # HUB session
-        model = str(model).strip()  # strip spaces
-
-        # Load or create new YOLO model
-        suffix = Path(model).suffix
-        if suffix == ".yaml":  # new
-            self._new(model, task)
+        self.backbone = backbone
+        self.head = head   
+                
+        if model is None:
+            if(backbone or head is None):
+                raise ValueError("If no model is provided, backbone and head must be provided")
+            self._new(cfg="yolov8micro", nc=nc, task=task)
         else:
-            self._load(model, task)
+            self._load(model, task=task)
 
-    def _new(self, cfg: str, task=None, verbose=True):
+
+    def _new(self, nc:int, cfg: str, task=None, verbose=True):
         """
         Initializes a new model and infers the task type from the model definitions.
 
@@ -129,12 +130,11 @@ class microYOLO(YOLO):
 
         # only the nc and the name of the file are used from the cfg file
         # add them an the rest should be independent from the yaml file then
-
-        cfg_dict = yaml_model_load(cfg)
+        
         self.cfg = cfg
-        self.task = task or guess_model_task(cfg_dict)
+        self.task = task
         self.model = TASK_MAP[self.task][0](        
-            cfg=cfg, nc=cfg_dict["nc"], verbose=verbose and RANK == -1
+            cfg=cfg, backbone = self.backbone, head = self.head, nc=nc, verbose=verbose and RANK == -1
         )
         self.overrides["model"] = self.cfg
 
@@ -230,7 +230,7 @@ class microYOLO(YOLO):
         )
         if not overrides.get("resume"):  # manually set model only if not resuming
             self.trainer.model = self.trainer.get_model(
-                weights=self.model if self.ckpt else None, cfg=self.model.yaml
+                weights=self.model if self.ckpt else None, cfg=self.model.yaml, backbone=self.backbone, head=self.head
             )
             self.model = self.trainer.model
         self.trainer.hub_session = self.session  # attach optional HUB session
