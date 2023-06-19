@@ -6,8 +6,6 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 
-from micromind import PhiNet
-
 from ultralytics.nn.tasks import DetectionModel
 
 from ultralytics.nn.modules import (
@@ -22,8 +20,6 @@ from ultralytics.yolo.utils import (
 from ultralytics.yolo.utils.checks import check_yaml
 from ultralytics.yolo.utils.torch_utils import initialize_weights
 
-from micromind.yolo.microyolohead import Microhead
-
 
 class DetectionMicroModel(DetectionModel):
     """YOLOv8 custom detection model for micromind backbone."""
@@ -32,20 +28,20 @@ class DetectionMicroModel(DetectionModel):
         self, backbone, head, cfg="yolov8micro", ch=3, nc=None, verbose=True
     ):  # model, input channels, number of classes
 
-        if(backbone is None):
+        if backbone is None:
             raise ValueError("backbone cannot be None")
-        if(head is None):
-            raise ValueError("head cannot be None")                
+        if head is None:
+            raise ValueError("head cannot be None")
 
         super(DetectionModel, self).__init__()
-        self.yaml = {"nc":nc, "yaml_file":cfg+".yaml"}
+        self.yaml = {"nc": nc, "yaml_file": cfg + ".yaml"}
 
         # Read custom hardcoded model
         self.model, self.save = parse_model_custom_backbone_head(
             nc, ch=ch, backbone=backbone, head=head, verbose=verbose
         )  # model, savelist
         self.names = {i: f"{i}" for i in range(nc)}  # default names dict
-        self.inplace = self.yaml.get("inplace", True)        
+        self.inplace = self.yaml.get("inplace", True)
 
         # Build strides
         m = self.model[-1]  # Detect()
@@ -142,6 +138,7 @@ def get_output_dim_layers(data_config, layers):
             out_dim.append(layer(out_dim[-1]))
         names.append(layer.__class__)
     return [list(o.shape)[1:] for o in out_dim], names
+
 
 def parse_model_custom_backbone_head(nc, ch, backbone=None, head=None, verbose=True):
 

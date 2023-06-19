@@ -11,7 +11,9 @@ class SegmentationMicroTrainer(SegmentationTrainer):
         """Return a YOLO detection model especially adapted to work with the phinet
         backbone.
         """
-        model = SegmentationMicroModel(nc=self.data["nc"], verbose=verbose and RANK == -1)
+        model = SegmentationMicroModel(
+            nc=self.data["nc"], verbose=verbose and RANK == -1
+        )
         if weights:
             model.load(weights)
         return model

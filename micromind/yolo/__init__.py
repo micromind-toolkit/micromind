@@ -1,2 +1,2 @@
 from .model import microYOLO
-from .benchmarks import benchmark
+from .utils.benchmarks import benchmark

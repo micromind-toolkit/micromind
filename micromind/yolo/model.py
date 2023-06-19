@@ -1,13 +1,9 @@
 # Ultralytics YOLO 🚀, AGPL-3.0 license
 
 from pathlib import Path
-from typing import Union
 
 from ultralytics import YOLO
-from ultralytics.nn.tasks import (
-    attempt_load_one_weight,
-    guess_model_task    
-)
+from ultralytics.nn.tasks import attempt_load_one_weight, guess_model_task
 from ultralytics.yolo.cfg import get_cfg
 from ultralytics.yolo.engine.exporter import Exporter
 from ultralytics.yolo.utils import (
@@ -28,12 +24,15 @@ from ultralytics.yolo.utils.checks import (
 from micromind.yolo.detection.detectionmicromodule import DetectionMicroModel
 from micromind.yolo.detection.detectionmicrotrainer import DetectionMicroTrainer
 from micromind.yolo.segmentation.segmentationmicromodule import SegmentationMicroModel
-from micromind.yolo.segmentation.segmentationmicrotrainer import SegmentationMicroTrainer
+from micromind.yolo.segmentation.segmentationmicrotrainer import (
+    SegmentationMicroTrainer,
+)
 
 TASK_MAP = {
     "detect": [DetectionMicroModel, DetectionMicroTrainer],
     "segment": [SegmentationMicroModel, SegmentationMicroTrainer],
 }
+
 
 class microYOLO(YOLO):
     """
@@ -87,7 +86,9 @@ class microYOLO(YOLO):
         list(ultralytics.yolo.engine.results.Results): The prediction results.
     """
 
-    def __init__(self, backbone=None, head=None, nc=80, task='detection', model=None) -> None:
+    def __init__(
+        self, backbone=None, head=None, nc=80, task="detection", model=None
+    ) -> None:
         """
         Initializes the YOLO model.
 
@@ -108,17 +109,18 @@ class microYOLO(YOLO):
         self.metrics = None  # validation/training metrics
         self.session = None  # HUB session
         self.backbone = backbone
-        self.head = head   
-                
+        self.head = head
+
         if model is None:
-            if(backbone or head is None):
-                raise ValueError("If no model is provided, backbone and head must be provided")
+            if backbone or head is None:
+                raise ValueError(
+                    "If no model is provided, backbone and head must be provided"
+                )
             self._new(cfg="yolov8micro", nc=nc, task=task)
         else:
             self._load(model, task=task)
 
-
-    def _new(self, nc:int, cfg: str, task=None, verbose=True):
+    def _new(self, nc: int, cfg: str, task=None, verbose=True):
         """
         Initializes a new model and infers the task type from the model definitions.
 
@@ -130,11 +132,15 @@ class microYOLO(YOLO):
 
         # only the nc and the name of the file are used from the cfg file
         # add them an the rest should be independent from the yaml file then
-        
+
         self.cfg = cfg
         self.task = task
-        self.model = TASK_MAP[self.task][0](        
-            cfg=cfg, backbone = self.backbone, head = self.head, nc=nc, verbose=verbose and RANK == -1
+        self.model = TASK_MAP[self.task][0](
+            cfg=cfg,
+            backbone=self.backbone,
+            head=self.head,
+            nc=nc,
+            verbose=verbose and RANK == -1,
         )
         self.overrides["model"] = self.cfg
 
@@ -225,12 +231,15 @@ class microYOLO(YOLO):
         if overrides.get("resume"):
             overrides["resume"] = self.ckpt_path
         self.task = overrides.get("task") or self.task
-        self.trainer = TASK_MAP[self.task][1](        
+        self.trainer = TASK_MAP[self.task][1](
             overrides=overrides, _callbacks=self.callbacks
         )
         if not overrides.get("resume"):  # manually set model only if not resuming
             self.trainer.model = self.trainer.get_model(
-                weights=self.model if self.ckpt else None, cfg=self.model.yaml, backbone=self.backbone, head=self.head
+                weights=self.model if self.ckpt else None,
+                cfg=self.model.yaml,
+                backbone=self.backbone,
+                head=self.head,
             )
             self.model = self.trainer.model
         self.trainer.hub_session = self.session  # attach optional HUB session

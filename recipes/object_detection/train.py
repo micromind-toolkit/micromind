@@ -1,4 +1,3 @@
-
 from micromind import PhiNet
 from micromind import Microhead
 
@@ -20,10 +19,7 @@ head = Microhead()
 
 # load a model
 model = microYOLO(
-    backbone=backbone,
-    head=head,
-    task="detect",
-    nc=80    
+    backbone=backbone, head=head, task="detect", nc=80
 )  # build a new model from scratch DEFAULT_CFG
 # model = microYOLO('weights.pt') # load a pretrained model (recommended for training)
 

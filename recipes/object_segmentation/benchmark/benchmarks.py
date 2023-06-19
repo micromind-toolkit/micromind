@@ -3,7 +3,7 @@
 Benchmark a YOLO model formats for speed and accuracy
 
 
-## TODO --> migrate into micromind utils based on the input file format namely the 
+## TODO --> migrate into micromind utils based on the input file format namely the
 
 Usage:
     from ultralytics.yolo.utils.benchmarks import ProfileModels, benchmark
