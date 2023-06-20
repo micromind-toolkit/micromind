@@ -1,16 +1,6 @@
 from .networks.phinet import PhiNet
 from .utils import configlib
 
-from .yolo.model import microYOLO
-
-from .yolo.microyolohead import Microhead
-
-from .yolo.detection.detectionmicromodule import DetectionMicroModel
-from .yolo.detection.detectionmicrotrainer import DetectionMicroTrainer
-from .yolo.segmentation.segmentationmicrotrainer import SegmentationMicroTrainer
-from .yolo.segmentation.segmentationmicromodule import SegmentationMicroModel
-
-
 # Package version
 __version__ = "0.0.4"
 

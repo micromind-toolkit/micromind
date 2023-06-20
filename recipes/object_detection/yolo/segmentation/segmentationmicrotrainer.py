@@ -7,11 +7,16 @@ from .segmentationmicromodule import SegmentationMicroModel
 
 
 class SegmentationMicroTrainer(SegmentationTrainer):
-    def get_model(self, cfg=None, weights=None, verbose=True):
+    def get_model(self, backbone=None, head=None, cfg=None, weights=None, verbose=True):
         """Return a YOLO detection model especially adapted to work with the phinet
         backbone.
         """
-        model = SegmentationMicroModel(nc=self.data["nc"], verbose=verbose and RANK == -1)
+        model = SegmentationMicroModel(
+            backbone=backbone,
+            head=head,
+            nc=self.data["nc"],
+            verbose=verbose and RANK == -1,
+        )
         if weights:
             model.load(weights)
         return model

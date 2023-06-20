@@ -1,23 +1,34 @@
-from micromind.yolo.model import microYOLO
+from micromind import PhiNet
 
-# define backbone
-backbone = PhiNet(
-    input_shape=(3, 320, 320),
-    alpha=0.67,
-    num_layers=6,
-    beta=1,
-    t_zero=4,
-    include_top=False,
-    num_classes=nc,
-    compatibility=False,
-)
-# define head
-head = Microhead()
+from yolo.model import microYOLO
+from yolo.microyolohead import Microhead
 
-# load a model
-model = microYOLO()  # build a new model from scratch DEFAULT_CFG
-# model = microYOLO('weights.pt') # load a pretrained model (recommended for training)
 
-# Train the model
-model.train(data="coco128.yaml", epochs=5, imgsz=320, device="cpu", task="detect")
-model.export()
+def train_nn():
+
+    # define backbone
+    backbone = PhiNet(
+        input_shape=(3, 320, 320),
+        alpha=0.67,
+        num_layers=6,
+        beta=1,
+        t_zero=4,
+        include_top=False,
+        num_classes=80,
+        compatibility=False,
+    )
+    # define head
+    head = Microhead()
+
+    # load a model
+    model = microYOLO(
+        backbone=backbone, head=head, task="detect", nc=80
+    )  # build a new model from scratch DEFAULT_CFG
+
+    # Train the model
+    model.train(data="coco128.yaml", epochs=1, imgsz=320, device="cpu", task="detect")
+    model.export()
+
+
+if __name__ == "__main__":
+    train_nn()

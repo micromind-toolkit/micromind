@@ -6,8 +6,6 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 
-from micromind import PhiNet
-
 from ultralytics.nn.tasks import DetectionModel
 
 from ultralytics.nn.modules import (
@@ -22,38 +20,27 @@ from ultralytics.yolo.utils import (
 from ultralytics.yolo.utils.checks import check_yaml
 from ultralytics.yolo.utils.torch_utils import initialize_weights
 
-from micromind.yolo.microyolohead import Microhead
-
 
 class DetectionMicroModel(DetectionModel):
     """YOLOv8 custom detection model for micromind backbone."""
 
     def __init__(
-        self, cfg="yolov8n.yaml", ch=3, nc=None, verbose=True
+        self, backbone, head, cfg="yolov8micro", ch=3, nc=None, verbose=True
     ):  # model, input channels, number of classes
 
-        super(DetectionModel, self).__init__()
-        self.yaml = cfg if isinstance(cfg, dict) else yaml_model_load(cfg)  # cfg dict
+        if backbone is None:
+            raise ValueError("backbone cannot be None")
+        if head is None:
+            raise ValueError("head cannot be None")
 
-        # define backbone
-        backbone = PhiNet(
-            input_shape=(3, 320, 320),
-            alpha=0.67,
-            num_layers=6,
-            beta=1,
-            t_zero=4,
-            include_top=False,
-            num_classes=nc,
-            compatibility=False,
-        )
-        # define head
-        head = Microhead()
+        super(DetectionModel, self).__init__()
+        self.yaml = {"nc": nc, "yaml_file": cfg + ".yaml"}
 
         # Read custom hardcoded model
         self.model, self.save = parse_model_custom_backbone_head(
             nc, ch=ch, backbone=backbone, head=head, verbose=verbose
         )  # model, savelist
-        self.names = {i: f"{i}" for i in range(self.yaml["nc"])}  # default names dict
+        self.names = {i: f"{i}" for i in range(nc)}  # default names dict
         self.inplace = self.yaml.get("inplace", True)
 
         # Build strides
@@ -141,24 +128,23 @@ def get_output_dim_layers(data_config, layers):
     x = torch.randn(*[1] + list(data_config["input_size"]))
     out_dim = [layers[0](x)]
     names = [layers[0].__class__]
-    for _, layer in enumerate(layers[1:], 1):
+    for i, layer in enumerate(layers[1:], 1):
         if layer.__class__.__name__ == "Concat":
             out_dim.append(layer((out_dim[-1], out_dim[layer.f[1]])))
         elif layer.__class__.__name__ == "Detect":
             res = layer([out_dim[i] for i in layer.f])[0]
             out_dim.append(res)
+        elif layer.__class__.__name__ == "Segment":
+            res = layer([out_dim[i] for i in layer.f])[0][0]
+            out_dim.append(res)
         else:
             out_dim.append(layer(out_dim[-1]))
         names.append(layer.__class__)
+        print("Descr:", i, names[-1], out_dim[-1].shape)
     return [list(o.shape)[1:] for o in out_dim], names
 
-def parse_model_custom_backbone_head(nc, ch, backbone=None, head=None, verbose=True):
 
-    # some checks
-    if backbone is None:
-        raise ValueError("backbone cannot be None")
-    if head is None:
-        raise ValueError("head cannot be None")
+def parse_model_custom_backbone_head(nc, ch, backbone=None, head=None, verbose=True):
 
     ch = [ch]
     layers, save = [], []  # layers, save list, ch out

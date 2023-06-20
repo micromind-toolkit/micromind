@@ -138,8 +138,7 @@ Dockerfile
 build_dgx.sh
 run_dgx.sh
 
-
-# others
+# object detection
 /runs
 /recipes/object_detection/plots/data.csv
 /recipes/object_detection/plots/data/
@@ -148,3 +147,9 @@ run_dgx.sh
 /recipes/object_detection/yolov8n_saved_model
 /recipes/object_detection/yolov8s_saved_model
 /recipes/object_detection/datasets/
+
+# object segmentation
+/recipes/object_segmentation/datasets/
+/recipes/object_segmentation/runs/
+/recipes/object_segmentation/plots/data.csv
+/recipes/object_segmentation/plots/data/
