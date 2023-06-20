@@ -112,7 +112,7 @@ class microYOLO(YOLO):
         self.head = head
 
         if model is None:
-            if backbone or head is None:
+            if self.backbone is None or self.head is None:
                 raise ValueError(
                     "If no model is provided, backbone and head must be provided"
                 )

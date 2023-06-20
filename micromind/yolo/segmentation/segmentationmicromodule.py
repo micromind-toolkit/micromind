@@ -10,9 +10,9 @@ from ultralytics.yolo.utils import LOGGER
 class SegmentationMicroModel(DetectionMicroModel):
     """YOLOv8 custom detection model for micromind backbone."""
 
-    def __init__(self, cfg="yolov8n-seg.yaml", ch=3, nc=None, verbose=True):
+    def __init__(self, backbone=None, head=None, cfg="yolov8n-seg.yaml", ch=3, nc=None, verbose=True):
         """Initialize YOLOv8 segmentation model with given config and parameters."""
-        super().__init__(cfg=cfg, ch=ch, nc=nc, verbose=verbose)
+        super().__init__(cfg=cfg, backbone=backbone, head=head, ch=ch, nc=nc, verbose=verbose)
 
     def init_criterion(self):
         return v8SegmentationLoss(self)

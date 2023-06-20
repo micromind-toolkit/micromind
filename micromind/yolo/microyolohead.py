@@ -12,7 +12,7 @@ class Microhead(nn.Module):
         feature_sizes=[16, 32, 64],
         concat_layers=[6, 4, 12],
         head_concat_layers=[15, 18, 21],
-        task="detection",
+        task="detect",
     ) -> None:
 
         """This class represents the implementation of a head.
@@ -55,7 +55,7 @@ class Microhead(nn.Module):
             raise ValueError("Number of classes must be greater than 0")
         if any([x < 1 and x > 1024 for x in feature_sizes]):
             raise ValueError("Feature sizes must be greater than 0")
-        if task not in ["detection", "segmentation"]:
+        if task not in ["detect", "segment"]:
             raise ValueError("The task specified is not supported")
 
         # some helper variables
@@ -275,7 +275,7 @@ class Microhead(nn.Module):
 
         # change the last layer based on the task to be performed
 
-        if task == "detection":
+        if task == "detect":
 
             head = Detect(nc, ch=feature_sizes)
             head.i, head.f, head.type, head.n = (
@@ -291,8 +291,10 @@ class Microhead(nn.Module):
             )  # append to savelist
             self._layers.append(head)
 
-        elif task == "segmentation":
-            head = Segment(nc, ch=feature_sizes, nm=32, npr=256)
+        elif task == "segment":
+            # npr is a is the smallest channel number so it seems to be the
+
+            head = Segment(nc=nc, nm=32, npr=64, ch=feature_sizes)
             head.i, head.f, head.type, head.n = (
                 22,
                 head_connections,
@@ -306,6 +308,7 @@ class Microhead(nn.Module):
             )  # append to savelist
             self._layers.append(head)
 
+##Given groups=1, weight of size [64, 16, 3, 3], expected input[1, 64, 20, 20] to have 16 channels, but got 64 channels instead
 
 def get_connections_based_on_number_of_heads_arg(head_connections, number_of_heads):
     start = 3 - number_of_heads
