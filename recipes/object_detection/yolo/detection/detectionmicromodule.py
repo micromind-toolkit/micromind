@@ -123,23 +123,24 @@ def get_output_dim(data_config, model):
         names.append(layer.__class__)
     return [list(o.shape)[1:] for o in out_dim], names
 
+
 def get_output_dim_layers(data_config, layers):
     x = torch.randn(*[1] + list(data_config["input_size"]))
     out_dim = [layers[0](x)]
     names = [layers[0].__class__]
-    for i, layer in enumerate(layers[1:], 1):             
+    for i, layer in enumerate(layers[1:], 1):
         if layer.__class__.__name__ == "Concat":
             out_dim.append(layer((out_dim[-1], out_dim[layer.f[1]])))
         elif layer.__class__.__name__ == "Detect":
             res = layer([out_dim[i] for i in layer.f])[0]
-            out_dim.append(res) 
-        elif layer.__class__.__name__ == "Segment":            
+            out_dim.append(res)
+        elif layer.__class__.__name__ == "Segment":
             res = layer([out_dim[i] for i in layer.f])[0][0]
             out_dim.append(res)
         else:
             out_dim.append(layer(out_dim[-1]))
         names.append(layer.__class__)
-        print("Descr:", i, names[-1], out_dim[-1].shape)   
+        print("Descr:", i, names[-1], out_dim[-1].shape)
     return [list(o.shape)[1:] for o in out_dim], names
 
 

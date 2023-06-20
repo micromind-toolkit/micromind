@@ -21,10 +21,10 @@ from ultralytics.yolo.utils.checks import (
     check_yaml,
 )
 
-from micromind.yolo.detection.detectionmicromodule import DetectionMicroModel
-from micromind.yolo.detection.detectionmicrotrainer import DetectionMicroTrainer
-from micromind.yolo.segmentation.segmentationmicromodule import SegmentationMicroModel
-from micromind.yolo.segmentation.segmentationmicrotrainer import (
+from .detection.detectionmicromodule import DetectionMicroModel
+from .detection.detectionmicrotrainer import DetectionMicroTrainer
+from .segmentation.segmentationmicromodule import SegmentationMicroModel
+from .segmentation.segmentationmicrotrainer import (
     SegmentationMicroTrainer,
 )
 

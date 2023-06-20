@@ -138,7 +138,6 @@ Dockerfile
 build_dgx.sh
 run_dgx.sh
 
-
 # object detection
 /runs
 /recipes/object_detection/plots/data.csv

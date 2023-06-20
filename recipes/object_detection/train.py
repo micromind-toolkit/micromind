@@ -1,7 +1,8 @@
 from micromind import PhiNet
-from micromind import Microhead
 
-from micromind.yolo.model import microYOLO
+from yolo.model import microYOLO
+from yolo.microyolohead import Microhead
+
 
 def train_nn():
 
@@ -23,7 +24,6 @@ def train_nn():
     model = microYOLO(
         backbone=backbone, head=head, task="detect", nc=80
     )  # build a new model from scratch DEFAULT_CFG
-    # model = microYOLO('weights.pt') # load a pretrained model (recommended for training)
 
     # Train the model
     model.train(data="coco128.yaml", epochs=1, imgsz=320, device="cpu", task="detect")

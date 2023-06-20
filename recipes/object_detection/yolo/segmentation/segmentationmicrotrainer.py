@@ -12,7 +12,10 @@ class SegmentationMicroTrainer(SegmentationTrainer):
         backbone.
         """
         model = SegmentationMicroModel(
-            backbone=backbone, head=head, nc=self.data["nc"], verbose=verbose and RANK == -1
+            backbone=backbone,
+            head=head,
+            nc=self.data["nc"],
+            verbose=verbose and RANK == -1,
         )
         if weights:
             model.load(weights)

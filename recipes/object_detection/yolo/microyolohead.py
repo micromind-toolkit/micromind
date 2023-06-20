@@ -308,7 +308,6 @@ class Microhead(nn.Module):
             )  # append to savelist
             self._layers.append(head)
 
-##Given groups=1, weight of size [64, 16, 3, 3], expected input[1, 64, 20, 20] to have 16 channels, but got 64 channels instead
 
 def get_connections_based_on_number_of_heads_arg(head_connections, number_of_heads):
     start = 3 - number_of_heads
