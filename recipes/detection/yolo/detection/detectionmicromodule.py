@@ -140,7 +140,7 @@ def get_output_dim_layers(data_config, layers):
         else:
             out_dim.append(layer(out_dim[-1]))
         names.append(layer.__class__)
-        #print("Descr:", i, names[-1], out_dim[-1].shape)
+        # print("Descr:", i, names[-1], out_dim[-1].shape)
     return [list(o.shape)[1:] for o in out_dim], names
 
 
