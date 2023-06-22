@@ -140,16 +140,16 @@ run_dgx.sh
 
 # object detection
 /runs
-/recipes/object_detection/plots/data.csv
-/recipes/object_detection/plots/data/
-/recipes/object_detection/runs/
-/recipes/object_detection/benchmark/weights/
-/recipes/object_detection/yolov8n_saved_model
-/recipes/object_detection/yolov8s_saved_model
-/recipes/object_detection/datasets/
+/recipes/detection/plots/data.csv
+/recipes/detection/plots/data/
+/recipes/detection/runs/
+/recipes/detection/benchmark/weights/
+/recipes/detection/yolov8n_saved_model
+/recipes/detection/yolov8s_saved_model
+/recipes/detection/datasets/
 
 # object segmentation
-/recipes/object_segmentation/datasets/
-/recipes/object_segmentation/runs/
-/recipes/object_segmentation/plots/data.csv
-/recipes/object_segmentation/plots/data/
+/recipes/segmentation/datasets/
+/recipes/segmentation/runs/
+/recipes/segmentation/plots/data.csv
+/recipes/segmentation/plots/data/
