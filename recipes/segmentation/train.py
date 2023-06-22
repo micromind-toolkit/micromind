@@ -27,9 +27,12 @@ def train_nn():
         backbone=backbone, head=head, task="segment", nc=80
     )  # build a new model from scratch DEFAULT_CFG
 
-    # Train the model            
-    model.train(data=get_dataset("coco-seg.yaml"), epochs=50, imgsz=320, device="cpu", batch=4)
-    model.export()    
+    # Train the model
+    model.train(
+        data=get_dataset("coco-seg.yaml"), epochs=50, imgsz=320, device="cpu", batch=4
+    )
+    model.export()
+
 
 def get_dataset(dataset_name):
     cwd = os.getcwd()
@@ -37,7 +40,8 @@ def get_dataset(dataset_name):
     if not os.path.exists(dataset_path):
         raise Exception("Dataset not found")
     else:
-        return os.path.join(dataset_path, dataset_name)    
+        return os.path.join(dataset_path, dataset_name)
+
 
 if __name__ == "__main__":
     train_nn()
