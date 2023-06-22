@@ -19,6 +19,7 @@ def train_nn():
         num_classes=80,
         compatibility=False,
     )
+    
     # define head
     head = Microhead(task="segment")
 
