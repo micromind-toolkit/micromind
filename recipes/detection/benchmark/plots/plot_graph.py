@@ -34,12 +34,12 @@ def can_be_float(x):
         return False
 
 
-def read_data():
+def read_data(folder):
     data = []
     # read files in the dir /data
-    for file in os.listdir("data"):
+    for file in os.listdir(folder):
         if file.endswith(".log"):
-            column_names, data_line = parse_text_file(os.path.join("data", file))
+            column_names, data_line = parse_text_file(os.path.join(folder, file))
             model = file.replace("benchmarks_", "").replace(".log", "")
             data_line.insert(1, model)
             data.append(data_line)
@@ -60,13 +60,18 @@ def read_data():
     return parsed_data
 
 
-def plot_data(data):
+def plot_data(pre, trained, micro):
 
-    idx_divide = 2
     star_size = 400
 
-    df = pd.DataFrame(data)
-    print(df)
+    predf = pd.DataFrame(pre)
+    print(predf)
+
+    traindf = pd.DataFrame(trained)
+    print(traindf)
+
+    microdf = pd.DataFrame(micro)
+    print(microdf)
 
     fig, axs = plt.subplots(1, 2, figsize=(15, 7))
 
@@ -76,27 +81,40 @@ def plot_data(data):
 
     # Plot Size (MB) vs metrics/mAP50-95(B)
     axs[0].scatter(
-        df["Size (MB)"][idx_divide:],
-        df["metrics/mAP50-95(B)"][idx_divide:],
+        predf["Size (MB)"],
+        predf["metrics/mAP50-95(B)"],
         color="blue",
     )
-    axs[0].scatter(
-        df["Size (MB)"][:idx_divide],
-        df["metrics/mAP50-95(B)"][:idx_divide],
-        color="purple",
-        marker="*",
-        s=star_size,
-    )
     axs[0].plot(
-        df["Size (MB)"][idx_divide:],
-        df["metrics/mAP50-95(B)"][idx_divide:],
+        predf["Size (MB)"],
+        predf["metrics/mAP50-95(B)"],
         color="blue",
         linestyle="dashed",
     )
 
+    axs[0].scatter(
+        traindf["Size (MB)"],
+        traindf["metrics/mAP50-95(B)"],
+        color="blue",
+    )
+    axs[0].plot(
+        traindf["Size (MB)"],
+        traindf["metrics/mAP50-95(B)"],
+        color="blue",
+        linestyle="dashed",
+    )
+
+    axs[0].scatter(
+        microdf["Size (MB)"],
+        microdf["metrics/mAP50-95(B)"],
+        color="purple",
+        marker="*",
+        s=star_size,
+    )
+
     # Annotate points with the model name
-    for i, model in enumerate(df["Model"]):
-        axs[0].annotate(model, (df["Size (MB)"][i], df["metrics/mAP50-95(B)"][i]))
+    for i, model in enumerate(predf["Model"]):
+        axs[0].annotate(model, (predf["Size (MB)"][i], predf["metrics/mAP50-95(B)"][i]))
 
     axs[0].set_title("Size (MB) vs metrics/mAP50-95(B)")
     axs[0].set_xlabel("Size (MB)")
@@ -104,28 +122,42 @@ def plot_data(data):
 
     # Plot Inference time (ms/im) vs metrics/mAP50-95(B)
     axs[1].scatter(
-        df["Inference time (ms/im)"][idx_divide:],
-        df["metrics/mAP50-95(B)"][idx_divide:],
+        predf["Inference time (ms/im)"],
+        predf["metrics/mAP50-95(B)"],
         color="orange",
     )
-    axs[1].scatter(
-        df["Inference time (ms/im)"][:idx_divide],
-        df["metrics/mAP50-95(B)"][:idx_divide],
-        color="purple",
-        marker="*",
-        s=star_size,
-    )
     axs[1].plot(
-        df["Inference time (ms/im)"][idx_divide:],
-        df["metrics/mAP50-95(B)"][idx_divide:],
+        predf["Inference time (ms/im)"],
+        predf["metrics/mAP50-95(B)"],
         color="orange",
         linestyle="dashed",
     )
 
+    # Plot Inference time (ms/im) vs metrics/mAP50-95(B)
+    axs[1].scatter(
+        traindf["Inference time (ms/im)"],
+        traindf["metrics/mAP50-95(B)"],
+        color="orange",
+    )
+    axs[1].plot(
+        traindf["Inference time (ms/im)"],
+        traindf["metrics/mAP50-95(B)"],
+        color="orange",
+        linestyle="dashed",
+    )
+
+    axs[1].scatter(
+        microdf["Inference time (ms/im)"],
+        microdf["metrics/mAP50-95(B)"],
+        color="purple",
+        marker="*",
+        s=star_size,
+    )
+
     # Annotate points with the model name
-    for i, model in enumerate(df["Model"]):
+    for i, model in enumerate(predf["Model"]):
         axs[1].annotate(
-            model, (df["Inference time (ms/im)"][i], df["metrics/mAP50-95(B)"][i])
+            model, (predf["Inference time (ms/im)"][i], predf["metrics/mAP50-95(B)"][i])
         )
 
     axs[1].set_title("Latency CPU ONNX (ms) vs metrics/mAP50-95(B)")
@@ -137,5 +169,9 @@ def plot_data(data):
     plt.show()
 
 
-r = read_data()
-plot_data(r)
+if __name__ == "__main__":
+    pre = read_data("./data/pre-trained/")
+    trained = read_data("./data/trained/")
+    yolo_micro = read_data("./data/yolo_micro/")
+
+    plot_data(pre, trained, yolo_micro)
