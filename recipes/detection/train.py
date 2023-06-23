@@ -20,6 +20,7 @@ group.add_argument(
     default="",
     help="dataset type (default: ImageFolder/ImageTar if empty)",
 )
+
 group.add_argument(
     "--num_classes",
     "-nc",
