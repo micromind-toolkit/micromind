@@ -58,6 +58,7 @@ group.add_argument(
     help="Image patch size (default: None => model default)",
 )
 
+
 def _parse_args():
 
     # Do we have a config file to parse?
@@ -76,14 +77,17 @@ def _parse_args():
     args_text = yaml.safe_dump(args.__dict__, default_flow_style=False)
     return args, args_text
 
+
 def main():
     args, args_text = _parse_args()
     print(args)
     print(args.epochs)
     train_nn()
 
+
 def train_nn():
-    # how to tell people that the net has to be this way in order for the whole task to work?
+    # how to tell people that the net has to be this way in order for
+    # the whole task to work?
 
     # define backbone
     backbone = PhiNet(
@@ -105,8 +109,13 @@ def train_nn():
     )  # build a new model from scratch DEFAULT_CFG
 
     # Train the model
-    model.train(data=args.dataset, epochs=args.epochs, imgsz=args.img_size, 
-        device=(int(args.device) if args.device.isdigit() else args.device), task="detect")
+    model.train(
+        data=args.dataset,
+        epochs=args.epochs,
+        imgsz=args.img_size,
+        device=(int(args.device) if args.device.isdigit() else args.device),
+        task="detect",
+    )
     model.export()
 
 
