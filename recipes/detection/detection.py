@@ -20,16 +20,43 @@ group.add_argument(
     default="",
     help="dataset type (default: ImageFolder/ImageTar if empty)",
 )
-
 group.add_argument(
-    "--num_classes",
+    "-b",
+    "--batch-size",
+    type=int,
+    default=128,
+    metavar="N",
+    help="Input batch size for training (default: 128)",
+)
+group.add_argument(
+    "--epochs",
+    type=int,
+    default=300,
+    metavar="N",
+    help="number of epochs to train (default: 300)",
+)
+group.add_argument(
+    "--num-classes",
     "-nc",
+    type=int,
     metavar="NC",
     default="",
     help="number of classes (default: number of directory names)",
 )
-
-
+group.add_argument(
+    "--img-size",
+    type=int,
+    default=320,
+    metavar="N",
+    help="Image patch size (default: None => model default)",
+)
+group.add_argument(
+    "--device",
+    type=str,
+    default="0",
+    metavar="N",
+    help="Image patch size (default: None => model default)",
+)
 
 def _parse_args():
 
@@ -49,12 +76,14 @@ def _parse_args():
     args_text = yaml.safe_dump(args.__dict__, default_flow_style=False)
     return args, args_text
 
-
 def main():
     args, args_text = _parse_args()
     print(args)
+    print(args.epochs)
+    train_nn()
 
 def train_nn():
+    # how to tell people that the net has to be this way in order for the whole task to work?
 
     # define backbone
     backbone = PhiNet(
@@ -72,11 +101,12 @@ def train_nn():
 
     # load a model
     model = microYOLO(
-        backbone=backbone, head=head, task="detect", nc=80
+        backbone=backbone, head=head, task="detect", nc=args.num_classes
     )  # build a new model from scratch DEFAULT_CFG
 
     # Train the model
-    model.train(data="coco128.yaml", epochs=1, imgsz=320, device="cpu", task="detect")
+    model.train(data=args.dataset, epochs=args.epochs, imgsz=args.img_size, 
+        device=(int(args.device) if args.device.isdigit() else args.device), task="detect")
     model.export()
 
 

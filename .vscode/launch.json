@@ -4,6 +4,7 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+
         {
             "name": "Python: Current File",
             "type": "python",
@@ -12,6 +13,16 @@
             "cwd":"${fileDirname}",
             "console": "integratedTerminal",
             "justMyCode": false
+        },
+        {
+            "name": "Python: Current File, with args",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "cwd":"${fileDirname}",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": ["~/data/mnist", "-b", "128", "--dataset", "coco.yaml", "--num-classes", "80", "--device", "cpu"]
         }
     ]
 }
