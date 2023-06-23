@@ -1,5 +1,10 @@
 {
     "cSpell.words": [
-        "segmentationmicromodule"
+        "configlib",
+        "Microhead",
+        "micromind",
+        "microyolohead",
+        "segmentationmicromodule",
+        "yolo"
     ]
 }

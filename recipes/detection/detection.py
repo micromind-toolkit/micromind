@@ -1,3 +1,4 @@
+import os
 import yaml
 
 from micromind import PhiNet
@@ -83,6 +84,8 @@ def main():
     print(args)
     print(args.epochs)
     train_nn()
+    with open(os.path.join("./runs/", "args.yaml"), "w") as f:
+        f.write(args_text)
 
 
 def train_nn():
