@@ -35,7 +35,7 @@ def train_nn():
         data="coco.yaml",
         epochs=1,
         imgsz=320,
-        device=0,
+        device="cpu",
         task="detect",
     )
     model.export()
