@@ -13,6 +13,7 @@ class Microhead(nn.Module):
         concat_layers=[6, 4, 12],
         head_concat_layers=[15, 18, 21],
         task="detect",
+        deeper_head=False,
     ) -> None:
 
         """This class represents the implementation of a head.
@@ -75,7 +76,7 @@ class Microhead(nn.Module):
 
         layer9 = SPPF(feature_sizes[-1], feature_sizes[-1], 5)  # idk for the 5
         layer9.i, layer9.f, layer9.type, layer9.n = (
-            9,
+            9 + (1 if deeper_head else 0),
             -1,
             "ultralytics.nn.modules.block.SPPF",
             1,
@@ -89,7 +90,7 @@ class Microhead(nn.Module):
 
         layer10 = nn.Upsample(scale_factor=2, mode="nearest")
         layer10.i, layer10.f, layer10.type, layer10.n = (
-            10,
+            10 + (1 if deeper_head else 0),
             -1,
             "torch.nn.modules.upsampling.Upsample",
             1,
@@ -100,6 +101,23 @@ class Microhead(nn.Module):
             for x in ([layer10.f] if isinstance(layer10.f, int) else layer10.f)
             if x != -1
         )  # append to savelist
+
+        if deeper_head:
+            layer10_d = nn.Upsample(scale_factor=2, mode="nearest")
+            layer10_d.i, layer10_d.f, layer10_d.type, layer10_d.n = (
+                12,
+                -1,
+                "torch.nn.modules.upsampling.Upsample",
+                1,
+            )
+            self._layers.append(layer10_d)
+            self._save.extend(
+                x % layer10_d.i
+                for x in (
+                    [layer10_d.f] if isinstance(layer10_d.f, int) else layer10_d.f
+                )
+                if x != -1
+            )  # append to savelist
 
         if number_heads > 1:
             if number_feature_maps == 3:
@@ -263,7 +281,7 @@ class Microhead(nn.Module):
             layer21 = C2f(feature_sizes[-1], feature_sizes[-1], 1)
 
         layer21.i, layer21.f, layer21.type, layer21.n = (
-            11,
+            11 + (2 if deeper_head else 0),
             -1,
             "ultralytics.nn.modules.block.C2f",
             3,
@@ -291,7 +309,7 @@ class Microhead(nn.Module):
 
             head = Detect(nc, ch=feature_sizes)
             head.i, head.f, head.type, head.n = (
-                12,
+                12 + (2 if deeper_head else 0),
                 head_connections,
                 "ultralytics.nn.modules.conv.Detect",
                 1,
@@ -301,6 +319,7 @@ class Microhead(nn.Module):
                 for x in ([head.f] if isinstance(head.f, int) else head.f)
                 if x != -1
             )  # append to savelist
+
             self._layers.append(head)
 
         elif task == "segment":
