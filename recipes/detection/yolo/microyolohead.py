@@ -14,6 +14,7 @@ class Microhead(nn.Module):
         head_concat_layers=[15, 18, 21],
         task="detect",
         deeper_head=False,
+        no_SPPF=False,
     ) -> None:
 
         """This class represents the implementation of a head.
@@ -74,23 +75,24 @@ class Microhead(nn.Module):
         self._layers = torch.nn.ModuleList()
         self._save = []
 
-        layer9 = SPPF(feature_sizes[-1], feature_sizes[-1], 5)  # idk for the 5
-        layer9.i, layer9.f, layer9.type, layer9.n = (
-            9 + (1 if deeper_head else 0),
-            -1,
-            "ultralytics.nn.modules.block.SPPF",
-            1,
-        )
-        self._layers.append(layer9)
-        self._save.extend(
-            x % layer9.i
-            for x in ([layer9.f] if isinstance(layer9.f, int) else layer9.f)
-            if x != -1
-        )  # append to savelist
+        if not no_SPPF:
+            layer9 = SPPF(feature_sizes[-1], feature_sizes[-1], 5)  # idk for the 5
+            layer9.i, layer9.f, layer9.type, layer9.n = (
+                9 + (1 if deeper_head else 0),
+                -1,
+                "ultralytics.nn.modules.block.SPPF",
+                1,
+            )
+            self._layers.append(layer9)
+            self._save.extend(
+                x % layer9.i
+                for x in ([layer9.f] if isinstance(layer9.f, int) else layer9.f)
+                if x != -1
+            )  # append to savelist
 
         layer10 = nn.Upsample(scale_factor=2, mode="nearest")
         layer10.i, layer10.f, layer10.type, layer10.n = (
-            10 + (1 if deeper_head else 0),
+            10 + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
             -1,
             "torch.nn.modules.upsampling.Upsample",
             1,
@@ -105,7 +107,7 @@ class Microhead(nn.Module):
         if deeper_head:
             layer10_d = nn.Upsample(scale_factor=2, mode="nearest")
             layer10_d.i, layer10_d.f, layer10_d.type, layer10_d.n = (
-                12,
+                12 + (-1 if no_SPPF else 0),
                 -1,
                 "torch.nn.modules.upsampling.Upsample",
                 1,
@@ -123,7 +125,7 @@ class Microhead(nn.Module):
             if number_feature_maps == 3:
                 layer11 = Concat(dimension=1)
                 layer11.i, layer11.f, layer11.type, layer11.n = (
-                    11,
+                    11 + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
                     # previous layer concatenated to the first of the list
                     [-1, concat_layers[0]],
                     "ultralytics.nn.modules.conv.Concat",
@@ -140,7 +142,7 @@ class Microhead(nn.Module):
 
             layer12 = C2f(feature_sizes[1] + feature_sizes[2], feature_sizes[1], 1)
             layer12.i, layer12.f, layer12.type, layer12.n = (
-                12,
+                12 + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
                 -1,
                 "ultralytics.nn.modules.block.C2f",
                 3,
@@ -154,7 +156,7 @@ class Microhead(nn.Module):
 
             layer13 = nn.Upsample(scale_factor=2, mode="nearest")
             layer13.i, layer13.f, layer13.type, layer13.n = (
-                13,
+                13 + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
                 -1,
                 "torch.nn.modules.upsampling.Upsample",
                 1,
@@ -169,7 +171,7 @@ class Microhead(nn.Module):
             if number_feature_maps >= 2:
                 layer14 = Concat(1)
                 layer14.i, layer14.f, layer14.type, layer14.n = (
-                    14,
+                    14 + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
                     # previous layer concatenated to the second of the list
                     [-1, concat_layers[1]],
                     "ultralytics.nn.modules.conv.Concat",
@@ -186,7 +188,7 @@ class Microhead(nn.Module):
 
             layer15 = C2f(feature_sizes[0] + feature_sizes[1], feature_sizes[0], 1)
             layer15.i, layer15.f, layer15.type, layer15.n = (
-                15,
+                15 + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
                 -1,
                 "ultralytics.nn.modules.block.C2f",
                 3,
@@ -200,7 +202,7 @@ class Microhead(nn.Module):
 
             layer16 = Conv(feature_sizes[0], feature_sizes[0], 3, 2)
             layer16.i, layer16.f, layer16.type, layer16.n = (
-                16,
+                16 + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
                 -1,
                 "ultralytics.nn.modules.conv.Conv",
                 1,
@@ -214,12 +216,15 @@ class Microhead(nn.Module):
 
             layer17 = Concat(1)
             layer17.i, layer17.f, layer17.type, layer17.n = (
-                17,
+                17 + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
                 # previous layer concatenated to the second of the list minus the
                 # skipped layer
                 [
                     -1,
-                    concat_layers[2] - skipped_concat_layer,
+                    concat_layers[2]
+                    - skipped_concat_layer
+                    + (1 if deeper_head else 0)
+                    + (-1 if no_SPPF else 0),
                 ],  # the skipped connection is added because
                 # there might be some skipped layer and the nn has to take that into
                 # account
@@ -235,7 +240,7 @@ class Microhead(nn.Module):
 
             layer18 = C2f(feature_sizes[0] + feature_sizes[1], feature_sizes[1], 1)
             layer18.i, layer18.f, layer18.type, layer18.n = (
-                18,
+                18 + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
                 -1,
                 "ultralytics.nn.modules.block.C2f",
                 3,
@@ -249,7 +254,7 @@ class Microhead(nn.Module):
 
             layer19 = Conv(feature_sizes[1], feature_sizes[1], 3, 2)
             layer19.i, layer19.f, layer19.type, layer19.n = (
-                19,
+                19 + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
                 -1,
                 "ultralytics.nn.modules.conv.Conv",
                 1,
@@ -263,8 +268,8 @@ class Microhead(nn.Module):
 
             layer20 = Concat(1)
             layer20.i, layer20.f, layer20.type, layer20.n = (
-                20,
-                [-1, 9],
+                20 + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
+                [-1, (9 + (1 if deeper_head else 0) + (-1 if no_SPPF else 0))],
                 "ultralytics.nn.modules.conv.Concat",
                 1,
             )
@@ -281,7 +286,7 @@ class Microhead(nn.Module):
             layer21 = C2f(feature_sizes[-1], feature_sizes[-1], 1)
 
         layer21.i, layer21.f, layer21.type, layer21.n = (
-            11 + (2 if deeper_head else 0),
+            11 + (2 if deeper_head else 0) + (-1 if no_SPPF else 0),
             -1,
             "ultralytics.nn.modules.block.C2f",
             3,
@@ -309,7 +314,7 @@ class Microhead(nn.Module):
 
             head = Detect(nc, ch=feature_sizes)
             head.i, head.f, head.type, head.n = (
-                12 + (2 if deeper_head else 0),
+                12 + (2 if deeper_head else 0) + (-1 if no_SPPF else 0),
                 head_connections,
                 "ultralytics.nn.modules.conv.Detect",
                 1,
