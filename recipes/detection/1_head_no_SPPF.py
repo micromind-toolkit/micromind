@@ -23,7 +23,6 @@ def train_nn():
         feature_sizes=[64],
         concat_layers=[],
         head_concat_layers=[10],
-        deeper_head=False,
         no_SPPF=True,
     )
 

@@ -16,7 +16,7 @@ def train_nn():
         include_top=False,
         num_classes=80,
         compatibility=False,
-        downsampling_layers=[5, 7, 8],  # S2
+        downsampling_layers=[5, 7],  # S2
     )
     # define head
     head = Microhead(
