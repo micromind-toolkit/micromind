@@ -148,6 +148,8 @@ run_dgx.sh
 /recipes/detection/yolov8s_saved_model
 /recipes/detection/datasets/
 
+/recipes/object_detection/datasets/
+
 # object segmentation
 /recipes/segmentation/datasets/
 /recipes/segmentation/runs/
