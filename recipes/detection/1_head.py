@@ -10,19 +10,20 @@ def train_nn():
     backbone = PhiNet(
         input_shape=(3, 320, 320),
         alpha=0.67,
-        num_layers=6,
+        num_layers=7,
         beta=1,
         t_zero=4,
         include_top=False,
         num_classes=80,
         compatibility=False,
-        downsampling_layers=[5, 7],  # S2
+        downsampling_layers=[5, 7, 8],  # S2
     )
     # define head
     head = Microhead(
-        feature_sizes=[16, 32, 64],
-        concat_layers=[6, 4, 12],
-        head_concat_layers=[15, 18, 21],
+        feature_sizes=[32, 64, 128],
+        concat_layers=[8, 6],
+        head_concat_layers=[16],
+        deeper_head=True,
     )
 
     # load a model
