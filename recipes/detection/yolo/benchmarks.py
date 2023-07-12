@@ -35,7 +35,7 @@ import numpy as np
 import torch.cuda
 from tqdm import tqdm
 
-from micromind import microYOLO
+from .model import microYOLO
 from ultralytics.yolo.engine.exporter import export_formats
 from ultralytics.yolo.utils import LINUX, LOGGER, MACOS, ROOT, SETTINGS
 from ultralytics.yolo.utils.checks import check_requirements, check_yolo
@@ -81,7 +81,7 @@ def benchmark(
     pd.options.display.width = 120
     device = select_device(device, verbose=False)
     if isinstance(model, (str, Path)):
-        model = microYOLO(model)
+        model = microYOLO(model=model)
 
     y = []
     t0 = time.time()
@@ -91,7 +91,7 @@ def benchmark(
         suffix,
         cpu,
         gpu,
-    ) in export_formats().iterrows():  # index, (name, format, suffix, CPU, GPU)
+    ) in export_formats()[:3].iterrows():  # index, (name, format, suffix, CPU, GPU)
         emoji, filename = "❌", None  # export defaults
         try:
             assert i != 9 or LINUX, "Edge TPU export only supported on Linux"
@@ -110,7 +110,7 @@ def benchmark(
                 filename = model.export(
                     imgsz=imgsz, format=format, half=half, int8=int8, device=device
                 )  # all others
-                export = microYOLO(filename, task=model.task)
+                export = microYOLO(model=filename, task=model.task)
                 assert suffix in str(filename), "export failed"
             emoji = "❎"  # indicates export succeeded
 

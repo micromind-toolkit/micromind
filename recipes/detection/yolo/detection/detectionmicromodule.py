@@ -140,7 +140,7 @@ def get_output_dim_layers(data_config, layers):
         else:
             out_dim.append(layer(out_dim[-1]))
         names.append(layer.__class__)
-        print("Descr:", i, names[-1], out_dim[-1].shape)
+        # print("Descr:", i, names[-1], out_dim[-1].shape)
     return [list(o.shape)[1:] for o in out_dim], names
 
 
@@ -184,7 +184,9 @@ def parse_model_custom_backbone_head(nc, ch, backbone=None, head=None, verbose=T
         i, f, t, n = layer.i, layer.f, layer.type, layer.n
         layer.np = sum(x.numel() for x in layer.parameters())  # number params
         n_ = max(round(n * 0.33), 1) if n > 1 else n  # depth gain
-        args = []
+        args = res[0][i]
+        layer.np = sum(x.numel() for x in layer.parameters())  # number params
+        layer.i, layer.f, layer.type = i, f, t  # attach index, 'from' index, type
         LOGGER.info(
             f"{i:>3}{str(f):>20}{n_:>3}{layer.np:10.0f}" f"  {t:<45}{str(args):<30}"
         )  # print
