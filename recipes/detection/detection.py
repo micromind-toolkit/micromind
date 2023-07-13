@@ -6,30 +6,32 @@ from yolo.microyoloheadphiblock import Microhead
 
 def train_nn():
 
-    _alpha = 0.67
+    _alpha = 0.33
 
     # define backbone
     backbone = PhiNet(
         input_shape=(3, 320, 320),
         alpha=_alpha,
-        num_layers=6,
+        num_layers=7,
         beta=1,
         t_zero=4,
         include_top=False,
         num_classes=80,
         compatibility=True,
-        downsampling_layers=[5, 7],  # S2
+        downsampling_layers=[5, 7, 8],  # S2
+        squeeze_excite=False,
     )
     # define head
     head = Microhead(
         feature_sizes=[
-            int(16 * _alpha / 0.67),
             int(32 * _alpha / 0.67),
             int(64 * _alpha / 0.67),
+            int(128 * _alpha / 0.67),
         ],
-        concat_layers=[6, 4, 12],
+        concat_layers=[6, 4, 12, 9],
         head_concat_layers=[15, 18, 21],
-        deeper_head=False,
+        deeper_head=True,
+        no_SPPF=False,
     )
 
     # load a model

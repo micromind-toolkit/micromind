@@ -85,13 +85,9 @@ def benchmark(
 
     y = []
     t0 = time.time()
-    for i, (
-        name,
-        format,
-        suffix,
-        cpu,
-        gpu,
-    ) in export_formats()[:3].iterrows():  # index, (name, format, suffix, CPU, GPU)
+    for i, (name, format, suffix, cpu, gpu,) in export_formats()[
+        :3
+    ].iterrows():  # index, (name, format, suffix, CPU, GPU)
         emoji, filename = "❌", None  # export defaults
         try:
             assert i != 9 or LINUX, "Edge TPU export only supported on Linux"

@@ -12,7 +12,7 @@ class Microhead(nn.Module):
         nc=80,
         number_heads=3,
         feature_sizes=[16, 32, 64],
-        concat_layers=[6, 4, 12],
+        concat_layers=[6, 4, 12, 9],  # following the row in the yolov8 architecture
         head_concat_layers=[15, 18, 21],
         task="detect",
         deeper_head=False,
@@ -52,6 +52,7 @@ class Microhead(nn.Module):
         """
 
         number_heads = len(head_concat_layers)
+        scale_deep = 0.5 if deeper_head else 1
 
         # some errors checks
         if number_heads not in [1, 2, 3]:
@@ -97,10 +98,11 @@ class Microhead(nn.Module):
             if x != -1
         )
 
+        """
         if deeper_head:
             layer10_d = nn.Upsample(scale_factor=2, mode="nearest")
             layer10_d.i, layer10_d.f, layer10_d.type, layer10_d.n = (
-                12 + (-1 if no_SPPF else 0),
+                10 + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
                 -1,
                 "torch.nn.modules.upsampling.Upsample",
                 1,
@@ -113,13 +115,14 @@ class Microhead(nn.Module):
                 )
                 if x != -1
             )
+        """
 
         if number_heads >= 1:
             layer11 = Concat(dimension=1)
             layer11.i, layer11.f, layer11.type, layer11.n = (
                 11 + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
                 # previous layer concatenated to the first of the list
-                [-1, concat_layers[0]],
+                [-1, concat_layers[0] + (2 if deeper_head else 0)],
                 "ultralytics.nn.modules.conv.Concat",
                 1,
             )
@@ -131,7 +134,11 @@ class Microhead(nn.Module):
             )
 
             layer12 = PhiNetConvBlock(
-                in_shape=(feature_sizes[1] + feature_sizes[2], 40, 40),
+                in_shape=(
+                    feature_sizes[1] + feature_sizes[2],
+                    20 * scale_deep,
+                    20 * scale_deep,
+                ),
                 stride=1,
                 filters=feature_sizes[1],
                 expansion=0.5,
@@ -170,7 +177,7 @@ class Microhead(nn.Module):
             layer14.i, layer14.f, layer14.type, layer14.n = (
                 14 + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
                 # previous layer concatenated to the second of the list
-                [-1, concat_layers[1]],
+                [-1, concat_layers[1] + (2 if deeper_head else 0)],
                 "ultralytics.nn.modules.conv.Concat",
                 1,
             )
@@ -182,7 +189,11 @@ class Microhead(nn.Module):
             )
 
             layer15 = PhiNetConvBlock(
-                in_shape=(feature_sizes[0] + feature_sizes[1], 40, 40),
+                in_shape=(
+                    feature_sizes[0] + feature_sizes[1],
+                    40 * scale_deep,
+                    40 * scale_deep,
+                ),
                 stride=1,
                 filters=feature_sizes[0],
                 expansion=0.5,
@@ -241,7 +252,11 @@ class Microhead(nn.Module):
                 )
 
                 layer18 = PhiNetConvBlock(
-                    in_shape=(feature_sizes[0] + feature_sizes[1], 40, 40),
+                    in_shape=(
+                        feature_sizes[0] + feature_sizes[1],
+                        40 * scale_deep,
+                        40 * scale_deep,
+                    ),
                     stride=1,
                     filters=feature_sizes[1],
                     expansion=0.5,
@@ -280,7 +295,14 @@ class Microhead(nn.Module):
                 layer20 = Concat(1)
                 layer20.i, layer20.f, layer20.type, layer20.n = (
                     20 + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
-                    [-1, (9 + (1 if deeper_head else 0) + (-1 if no_SPPF else 0))],
+                    [
+                        -1,
+                        (
+                            concat_layers[3]
+                            + (1 if deeper_head else 0)
+                            + (-1 if no_SPPF else 0)
+                        ),
+                    ],
                     "ultralytics.nn.modules.conv.Concat",
                     1,
                 )
@@ -292,7 +314,11 @@ class Microhead(nn.Module):
                 )
 
                 layer21 = PhiNetConvBlock(
-                    in_shape=(feature_sizes[1] + feature_sizes[2], 40, 40),
+                    in_shape=(
+                        feature_sizes[1] + feature_sizes[2],
+                        20 * scale_deep,
+                        20 * scale_deep,
+                    ),
                     stride=1,
                     filters=feature_sizes[2],
                     expansion=0.5,
@@ -300,7 +326,7 @@ class Microhead(nn.Module):
                     block_id=21,
                 )
                 layer21.i, layer21.f, layer21.type, layer21.n = (
-                    21 + (2 if deeper_head else 0) + (-1 if no_SPPF else 0),
+                    21 + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
                     -1,
                     "micromind.networks.PhiNetConvBlock",
                     3,
@@ -316,8 +342,11 @@ class Microhead(nn.Module):
 
             head = Detect(nc, ch=feature_sizes)
             head.i, head.f, head.type, head.n = (
-                22 + (2 if deeper_head else 0) + (-1 if no_SPPF else 0),
-                head_concat_layers,
+                22 + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
+                [
+                    x - 1 if no_SPPF else x + 1 if deeper_head else x
+                    for x in head_concat_layers
+                ],
                 "ultralytics.nn.modules.conv.Detect",
                 1,
             )

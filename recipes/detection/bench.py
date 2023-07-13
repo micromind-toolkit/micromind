@@ -2,7 +2,7 @@ from yolo.benchmarks import benchmark
 
 # Benchmark on GPU
 benchmark(
-    model="./runs/detect/train11/weights/best.pt",
+    model="./runs/detect/train36/weights/best.pt",
     imgsz=320,
     half=True,
     device="cpu",
