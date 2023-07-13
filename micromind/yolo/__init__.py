@@ -1,6 +1,6 @@
 from .model import microYOLO
 
-from .microyolohead import Microhead
+from .microyoloheadphiblock import Microhead
 
 from .benchmarks import benchmark
 

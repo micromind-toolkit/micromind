@@ -1,4 +1,4 @@
-from yolo.benchmarks import benchmark
+from micromind import benchmark
 
 # Benchmark on GPU
 benchmark(

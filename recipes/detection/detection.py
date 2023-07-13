@@ -1,13 +1,19 @@
 from micromind import PhiNet
 
-from yolo.model import microYOLO
-from yolo.microyoloheadphiblock import Microhead
+from micromind import microYOLO
+from micromind import Microhead
 
 
 def train_nn():
 
     _alpha = 0.67
-    _deeper_head = False
+    _deeper_head = True
+
+    _feature_sizes = [
+        int(16 * _alpha / 0.67),
+        int(32 * _alpha / 0.67),
+        int(64 * _alpha / 0.67),
+    ]
 
     if _deeper_head:
         _feature_sizes = [
@@ -15,24 +21,18 @@ def train_nn():
             int(64 * _alpha / 0.67),
             int(128 * _alpha / 0.67),
         ]
-    else:
-        _feature_sizes = [
-            int(16 * _alpha / 0.67),
-            int(32 * _alpha / 0.67),
-            int(64 * _alpha / 0.67),
-        ]
 
     # define backbone
     backbone = PhiNet(
         input_shape=(3, 320, 320),
         alpha=_alpha,
-        num_layers=6,
+        num_layers=6 + (1 if _deeper_head else 0),
         beta=1,
         t_zero=4,
         include_top=False,
         num_classes=80,
         compatibility=True,
-        downsampling_layers=[5, 7],  # S2
+        downsampling_layers=[5, 7] + ([8] if _deeper_head else []),  # S2
         squeeze_excite=False,
     )
 
