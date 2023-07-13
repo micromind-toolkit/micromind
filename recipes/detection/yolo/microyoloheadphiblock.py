@@ -10,7 +10,7 @@ class Microhead(nn.Module):
     def __init__(
         self,
         nc=80,
-        number_heads=3,        
+        number_heads=3,
         feature_sizes=[16, 32, 64],
         concat_layers=[6, 4, 12, 9],  # following the row in the yolov8 architecture
         head_concat_layers=[15, 18, 21],

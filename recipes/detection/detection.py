@@ -9,19 +9,19 @@ def train_nn():
     _alpha = 0.67
     _deeper_head = False
 
-    if(_deeper_head):
+    if _deeper_head:
         _feature_sizes = [
             int(32 * _alpha / 0.67),
             int(64 * _alpha / 0.67),
-            int(128 * _alpha / 0.67)
+            int(128 * _alpha / 0.67),
         ]
     else:
         _feature_sizes = [
             int(16 * _alpha / 0.67),
             int(32 * _alpha / 0.67),
-            int(64 * _alpha / 0.67),            
+            int(64 * _alpha / 0.67),
         ]
-        
+
     # define backbone
     backbone = PhiNet(
         input_shape=(3, 320, 320),
@@ -35,6 +35,7 @@ def train_nn():
         downsampling_layers=[5, 7],  # S2
         squeeze_excite=False,
     )
+
     # define head
     head = Microhead(
         feature_sizes=_feature_sizes,
