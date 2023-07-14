@@ -51,7 +51,6 @@ class Microhead(nn.Module):
 
         """
 
-        number_heads = len(head_concat_layers)
         scale_deep = 0.5 if deeper_head else 1
 
         # some errors checks

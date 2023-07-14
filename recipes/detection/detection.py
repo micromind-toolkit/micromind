@@ -40,7 +40,8 @@ def train_nn():
     head = Microhead(
         feature_sizes=_feature_sizes,
         concat_layers=[6, 4, 12, 9],
-        head_concat_layers=[15, 18, 21],
+        head_concat_layers=[18],
+        number_heads=2,  # 2 stands as the second head is the detection head
         deeper_head=_deeper_head,
         no_SPPF=False,
     )
