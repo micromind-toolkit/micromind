@@ -50,7 +50,10 @@ class Microhead(nn.Module):
             None
 
         """
-
+        head_concat_layers = [
+            x - 1 if no_SPPF else x + 1 if deeper_head else x
+            for x in head_concat_layers
+        ]
         scale_deep = 0.5 if deeper_head else 1
 
         # some errors checks
@@ -339,13 +342,12 @@ class Microhead(nn.Module):
 
         if task == "detect":
 
-            head = Detect(nc, ch=feature_sizes)
+            layer_index = 19 if number_heads == 2 else 16 if number_heads == 1 else 22
+
+            head = Detect(nc, ch=feature_sizes[number_heads - 1 : number_heads])
             head.i, head.f, head.type, head.n = (
-                22 + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
-                [
-                    x - 1 if no_SPPF else x + 1 if deeper_head else x
-                    for x in head_concat_layers
-                ],
+                layer_index + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
+                head_concat_layers,
                 "ultralytics.nn.modules.conv.Detect",
                 1,
             )
@@ -362,7 +364,7 @@ class Microhead(nn.Module):
 
             head = Segment(nc=nc, nm=32, npr=64, ch=feature_sizes)
             head.i, head.f, head.type, head.n = (
-                22,
+                layer_index + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
                 head_concat_layers,
                 "ultralytics.nn.modules.conv.Segment",
                 1,
