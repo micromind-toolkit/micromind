@@ -3,23 +3,27 @@ from micromind import PhiNet
 from micromind import microYOLO
 from micromind import Microhead
 
+import math
+
 
 def train_nn():
 
     _alpha = 0.67
     _deeper_head = True
 
+    # these should be automatically calculated from the backbone
+
     _feature_sizes = [
-        int(16 * _alpha / 0.67),
-        int(32 * _alpha / 0.67),
-        int(64 * _alpha / 0.67),
+        math.ceil(16 * _alpha / 0.67),
+        math.ceil(32 * _alpha / 0.67),
+        math.ceil(64 * _alpha / 0.67),
     ]
 
     if _deeper_head:
         _feature_sizes = [
-            int(32 * _alpha / 0.67),
-            int(64 * _alpha / 0.67),
-            int(128 * _alpha / 0.67),
+            math.ceil(32 * _alpha / 0.67),
+            math.ceil(64 * _alpha / 0.67),
+            math.ceil(128 * _alpha / 0.67),
         ]
 
     # define backbone
@@ -40,8 +44,8 @@ def train_nn():
     head = Microhead(
         feature_sizes=_feature_sizes,
         concat_layers=[6, 4, 12, 9],
-        head_concat_layers=[18],
-        number_heads=2,  # 2 stands as the second head is the detection head
+        head_concat_layers=[15, 18, 21],
+        number_heads=3,  # 2 stands as the second head is the detection head
         deeper_head=_deeper_head,
         no_SPPF=False,
     )

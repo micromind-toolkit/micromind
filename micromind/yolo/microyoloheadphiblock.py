@@ -50,6 +50,9 @@ class Microhead(nn.Module):
             None
 
         """
+
+        # How many heads do you want?
+
         head_concat_layers = [
             x - 1 if no_SPPF else x + 1 if deeper_head else x
             for x in head_concat_layers
@@ -99,25 +102,6 @@ class Microhead(nn.Module):
             for x in ([layer10.f] if isinstance(layer10.f, int) else layer10.f)
             if x != -1
         )
-
-        """
-        if deeper_head:
-            layer10_d = nn.Upsample(scale_factor=2, mode="nearest")
-            layer10_d.i, layer10_d.f, layer10_d.type, layer10_d.n = (
-                10 + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
-                -1,
-                "torch.nn.modules.upsampling.Upsample",
-                1,
-            )
-            self._layers.append(layer10_d)
-            self._save.extend(
-                x % layer10_d.i
-                for x in (
-                    [layer10_d.f] if isinstance(layer10_d.f, int) else layer10_d.f
-                )
-                if x != -1
-            )
-        """
 
         if number_heads >= 1:
             layer11 = Concat(dimension=1)
@@ -344,7 +328,7 @@ class Microhead(nn.Module):
 
             layer_index = 19 if number_heads == 2 else 16 if number_heads == 1 else 22
 
-            head = Detect(nc, ch=feature_sizes[number_heads - 1 : number_heads])
+            head = Detect(nc, ch=feature_sizes)
             head.i, head.f, head.type, head.n = (
                 layer_index + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
                 head_concat_layers,
