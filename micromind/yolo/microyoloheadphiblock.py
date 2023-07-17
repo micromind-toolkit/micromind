@@ -51,8 +51,6 @@ class Microhead(nn.Module):
 
         """
 
-        # How many heads do you want?
-
         head_concat_layers = [
             x - 1 if no_SPPF else x + 1 if deeper_head else x
             for x in head_concat_layers
@@ -69,13 +67,12 @@ class Microhead(nn.Module):
         if task not in ["detect", "segment"]:
             raise ValueError("The task specified is not supported")
 
-        # if we reached this point we are good to go!
         super().__init__()
         self._layers = torch.nn.ModuleList()
         self._save = []
 
         if not no_SPPF:
-            layer9 = SPPF(feature_sizes[-1], feature_sizes[-1], 5)  # idk for the 5
+            layer9 = SPPF(feature_sizes[-1], feature_sizes[-1], 5)
             layer9.i, layer9.f, layer9.type, layer9.n = (
                 9 + (1 if deeper_head else 0),
                 -1,
@@ -107,7 +104,6 @@ class Microhead(nn.Module):
             layer11 = Concat(dimension=1)
             layer11.i, layer11.f, layer11.type, layer11.n = (
                 11 + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
-                # previous layer concatenated to the first of the list
                 [-1, concat_layers[0] + (2 if deeper_head else 0)],
                 "ultralytics.nn.modules.conv.Concat",
                 1,
@@ -131,7 +127,6 @@ class Microhead(nn.Module):
                 has_se=False,
                 block_id=12,
             )
-            # layer12 = C2f(feature_sizes[1] + feature_sizes[2], feature_sizes[1], 1)
             layer12.i, layer12.f, layer12.type, layer12.n = (
                 12 + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
                 -1,
@@ -162,7 +157,6 @@ class Microhead(nn.Module):
             layer14 = Concat(1)
             layer14.i, layer14.f, layer14.type, layer14.n = (
                 14 + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
-                # previous layer concatenated to the second of the list
                 [-1, concat_layers[1] + (2 if deeper_head else 0)],
                 "ultralytics.nn.modules.conv.Concat",
                 1,
@@ -217,16 +211,12 @@ class Microhead(nn.Module):
                 layer17 = Concat(1)
                 layer17.i, layer17.f, layer17.type, layer17.n = (
                     17 + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
-                    # previous layer concatenated to the second of the list minus the
-                    # skipped layer
                     [
                         -1,
                         concat_layers[2]
                         + (1 if deeper_head else 0)
                         + (-1 if no_SPPF else 0),
-                    ],  # the skipped connection is added because
-                    # there might be some skipped layer and the nn has to take that into
-                    # account
+                    ],
                     "ultralytics.nn.modules.conv.Concat",
                     1,
                 )
@@ -344,8 +334,6 @@ class Microhead(nn.Module):
             self._layers.append(head)
 
         elif task == "segment":
-            # npr is a is the smallest channel number so it seems to be the
-
             head = Segment(nc=nc, nm=32, npr=64, ch=feature_sizes)
             head.i, head.f, head.type, head.n = (
                 layer_index + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
