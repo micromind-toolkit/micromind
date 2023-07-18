@@ -3,14 +3,14 @@ import shutil
 
 from micromind import benchmark
 
-weight = "_new_start_yms_1_head_alpha067"
+weight = "_new_start_3_heads_c2f_067_100_epochs"
 
 # Benchmark on GPU
 benchmark(
     model="./benchmark/weights/" + weight + "/weights/best.pt",
     imgsz=320,
-    half=True,
     device="cpu",
+    int8=True,
 )  # microyolo with phinet
 
 # rename benchmark.log to weight.log
