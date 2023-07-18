@@ -70,7 +70,6 @@ def plot_data(axs, columns, model):
     pred = pd.DataFrame(columns)
     star_size_ratio = pred["Size (MB)"].max()
     pred["Size (MB)"] = pred["Size (MB)"].apply(lambda x: x * 1000 / star_size_ratio)
-    print(pred["Size (MB)"])
 
     # Plot Inference time (ms/im) vs metrics/mAP50-95(B)
     axs.scatter(
@@ -78,7 +77,7 @@ def plot_data(axs, columns, model):
         pred["metrics/mAP50-95(B)"],
         color="orange",
         marker=".",
-        s=[100, 200, 300, 400, 500, 600],
+        s=pred["Size (MB)"],
     )
     # Annotate points with the model name
     for i, model in enumerate(pred["Model"]):

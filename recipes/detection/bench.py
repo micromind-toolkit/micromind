@@ -3,21 +3,33 @@ import shutil
 
 from micromind import benchmark
 
-weight = "_new_start_3_heads_c2f_067_100_epochs"
 
-# Benchmark on GPU
-benchmark(
-    model="./benchmark/weights/" + weight + "/weights/best.pt",
-    imgsz=320,
-    device="cpu",
-    int8=True,
-)  # microyolo with phinet
+def bench(weight=""):
 
-# rename benchmark.log to weight.log
-os.rename("benchmarks.log", weight + ".log")
+    # Benchmark on GPU
+    benchmark(
+        model="./benchmark/weights/_new_start/" + weight + "/weights/best.pt",
+        imgsz=320,
+        device="cpu",
+        half=True,
+        int8=True,
+    )  # microyolo with phinet
 
-# move to benchmark folder
-shutil.move(weight + ".log", "./benchmark/plots/data/optimized/" + weight + ".log")
+    # rename benchmark.log to weight.log
+    os.rename("benchmarks.log", weight + ".log")
 
-# benchmark(model='yolov8n.pt', imgsz=320, half=False, device='cpu') # yolov8 nano
-# benchmark(model="yolov8s.pt", imgsz=320, half=True, device="cpu")  # yolov8 small
+    # move to benchmark folder
+    shutil.move(weight + ".log", "./benchmark/plots/data/half/" + weight + ".log")
+
+    # benchmark(model='yolov8n.pt', imgsz=320, half=False, device='cpu') # yolov8 nano
+    # benchmark(model="yolov8s.pt", imgsz=320, half=True, device="cpu")  # yolov8 small
+
+
+if __name__ == "__main__":
+
+    weights = os.listdir("./benchmark/weights/_new_start/")
+    for i in weights:
+        print("benching: " + i + "...")
+        bench(i)
+
+    # bench("_new_start_3_heads_c2f_067_100_epochs")
