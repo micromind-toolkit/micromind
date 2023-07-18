@@ -5,16 +5,16 @@ It supports training and inference, for now, tested on the COCO dataset.
 
 To reproduce our results, you can follow these steps:
 
-1. install PhiNets with `pip install git+https://github.com/fpaissan/micromind`
+1. install PhiNets with `pip install git+https://github.com/fpaissan/micromind` or `pip install -e .` (in the root folder)
 2. install the additional dependencies for this recipe with `pip install -r extra_requirements.txt`
 3. launch the training script on the dataset you want
 
 ### COCO
 ```
-python train.py
+python detection.py
 ```
 
-For now, everything has to be changed inside the train.py code. We are working on a more user-friendly interface.
+For now, everything has to be changed inside the detection.py code. We are working on a more user-friendly interface.
 
 ### Benchmark
 Comparison between accuracy, number of parameters and mAP. ONNX test on CPU.
@@ -25,7 +25,7 @@ The architecture was made of the backbone with PhiNet. Also the detection head w
 
 | Dataset | Model name                                           | mAP50  | latency (ms) | size (MB) |
 | ------- | ---------------------------------------------------- | ------ | ------------ | --------- |
-| COCO-80    | `PhiNet(alpha=0.67, beta=1, t_zero=4, num_layers=6)` | 0.2561 | 114.75       | 2.7       |
+| COCO-80 | `PhiNet(alpha=0.67, beta=1, t_zero=4, num_layers=6)` | 0.2561 | 114.75       | 2.7       |
 | COCO-80 | `PhiNet(alpha=0.33, beta=1, t_zero=4, num_layers=7, num_heads=3)` | 0.1904 | 30.51 | 2.1 |
 | COCO-80 | `PhiNet(alpha=0.67, beta=1, t_zero=4, num_layers=7 num_heads=3)` | 0.2330  | 43.25 | 3.5  |
 | COCO-80 | `PhiNet(alpha=1, beta=1, t_zero=4, num_layers=7, num_heads=3)` | 0.1904 | 30.51 | 3.5  |
@@ -37,7 +37,7 @@ Here instead the detection head was kept in the original way.
 
 | Dataset | Model name                                           | mAP50  | latency (ms) | size (MB) |
 | ------- | ---------------------------------------------------- | ------ | ------------ | --------- |
-| COCO-80   | `PhiNet(alpha=0.67, beta=1, t_zero=4, num_layers=6)` | 0.2561 | 114.75       | 2.7       |
+| COCO-80 | `PhiNet(alpha=0.67, beta=1, t_zero=4, num_layers=6)` | 0.2561 | 114.75       | 2.7       |
 | COCO-80 | `PhiNet(alpha=0.33, beta=1, t_zero=4, num_layers=7, num_heads=3)` | 0.1904 | 30.51 | 2.1 |
 
 
