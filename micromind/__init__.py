@@ -5,7 +5,7 @@ from .yolo.model import microYOLO
 
 from .yolo.microyoloheadphiblock import Microhead
 
-from .yolo.benchmarks import benchmark
+from .yolo.utils.benchmarks import benchmark
 
 from .yolo.detection.detectionmicromodule import DetectionMicroModel
 from .yolo.detection.detectionmicrotrainer import DetectionMicroTrainer

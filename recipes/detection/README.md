@@ -10,13 +10,19 @@ To reproduce our results, you can follow these steps:
 3. launch the training script on the dataset you want
 
 ### COCO
+
 ```
 python detection.py
 ```
 
 For now, everything has to be changed inside the detection.py code. We are working on a more user-friendly interface.
 
+### Dataset
+
+Note the dataset has to be downloaded, so it is recommended to run it in a docker environment.
+
 ### Benchmark
+
 Comparison between accuracy, number of parameters and mAP. ONNX test on CPU.
 ![YOLO vs microYOLO benchmark](./benchmarks/plots/yolov8.png)
 

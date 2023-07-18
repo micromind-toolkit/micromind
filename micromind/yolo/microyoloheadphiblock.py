@@ -3,7 +3,7 @@ import torch.nn as nn
 
 from micromind.networks.phinet import PhiNetConvBlock
 
-from ultralytics.nn.modules import SPPF, Concat, Conv, Detect, Segment
+from ultralytics.nn.modules import SPPF, Concat, Conv, Detect
 
 
 class Microhead(nn.Module):
@@ -331,19 +331,4 @@ class Microhead(nn.Module):
                 if x != -1
             )
 
-            self._layers.append(head)
-
-        elif task == "segment":
-            head = Segment(nc=nc, nm=32, npr=64, ch=feature_sizes)
-            head.i, head.f, head.type, head.n = (
-                layer_index + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
-                head_concat_layers,
-                "ultralytics.nn.modules.conv.Segment",
-                1,
-            )
-            self._save.extend(
-                x % head.i
-                for x in ([head.f] if isinstance(head.f, int) else head.f)
-                if x != -1
-            )
             self._layers.append(head)
