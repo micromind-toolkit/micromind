@@ -1,4 +1,5 @@
 import os
+import colorsys
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -69,13 +70,17 @@ def prepare_plot():
 def plot_data(axs, columns, model):
     pred = pd.DataFrame(columns)
     star_size_ratio = pred["Size (MB)"].max()
-    pred["Size (MB)"] = pred["Size (MB)"].apply(lambda x: x * 1000 / star_size_ratio)
+    pred["Size (MB)"] = pred["Size (MB)"].apply(lambda x: x * 5000 / star_size_ratio)
 
     # Plot Inference time (ms/im) vs metrics/mAP50-95(B)
     axs.scatter(
         pred["Inference time (ms/im)"],
         pred["metrics/mAP50-95(B)"],
-        color="orange",
+        color=[
+            "#%02x%02x%02x"
+            % tuple(round(i * 255) for i in colorsys.hsv_to_rgb(h / 10.0, 1.0, 1.0))
+            for h in range(pred["Size (MB)"].size)
+        ],
         marker=".",
         s=pred["Size (MB)"],
     )
@@ -107,7 +112,7 @@ def show_graph(name):
 if __name__ == "__main__":
 
     axs = prepare_plot()
-    f = ["optimized"]
+    f = ["quantized"]
 
     for model in f:
         path = "./data/" + model + "/"
