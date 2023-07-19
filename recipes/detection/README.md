@@ -27,24 +27,24 @@ Comparison between accuracy, number of parameters and mAP. ONNX test on CPU.
 ![YOLO vs microYOLO benchmark](./benchmarks/plots/yolov8.png)
 
 In the table is a list of PhiNet's performance on some common image classification benchmarks.
-The architecture was made of the backbone with PhiNet. Also the detection head was modified to substitute the C2f layers with PhiNetConvBlock layers.
+The architecture was made of the backbone with PhiNet. Also, the detection head was modified to substitute the C2f layers with PhiNetConvBlock layers.
 
-| Dataset | Model name                                           | mAP50  | latency (ms) | size (MB) |
-| ------- | ---------------------------------------------------- | ------ | ------------ | --------- |
-| COCO-80 | `PhiNet(alpha=0.67, beta=1, t_zero=4, num_layers=6)` | 0.2561 | 114.75       | 2.7       |
-| COCO-80 | `PhiNet(alpha=0.33, beta=1, t_zero=4, num_layers=7, num_heads=3)` | 0.1904 | 30.51 | 2.1 |
-| COCO-80 | `PhiNet(alpha=0.67, beta=1, t_zero=4, num_layers=7 num_heads=3)` | 0.2330  | 43.25 | 3.5  |
-| COCO-80 | `PhiNet(alpha=1, beta=1, t_zero=4, num_layers=7, num_heads=3)` | 0.1904 | 30.51 | 3.5  |
-| COCO-80 | `PhiNet(alpha=0.67, beta=1, t_zero=4, num_layers=7, num_heads=1)` | 0.1688 |  32.49 | 1.6  |
+| Dataset | Model name                                                        | mAP50  | latency (ms) | size (MB) | layers | parameters | GFLOPS |
+| ------- | ----------------------------------------------------------------- | ------ | ------------ | --------- | ------ | ---------- | ------ |
+| COCO-80 | `PhiNet(alpha=0.67, beta=1, t_zero=4, num_layers=6)`              | 0.2561 | 114.75       | 2.7       | 178    | 573787     | 10.3   |
+| COCO-80 | `PhiNet(alpha=0.33, beta=1, t_zero=4, num_layers=7, num_heads=3)` | 0.1904 | 30.51        | 2.1       | 189    | 528467     | 2.6    |
+| COCO-80 | `PhiNet(alpha=0.67, beta=1, t_zero=4, num_layers=7 num_heads=3)`  | 0.2330 | 43.25        | 3.5       | 189    | 891099     | 4.2    |
+| COCO-80 | `PhiNet(alpha=1, beta=1, t_zero=4, num_layers=7, num_heads=3)`    | 0.1904 | 30.51        | 3.5       |        |            |        |
+| COCO-80 | `PhiNet(alpha=0.67, beta=1, t_zero=4, num_layers=7, num_heads=1)` | 0.1688 | 32.49        | 1.6       | 152    | 403803     | 2.0    |
 
 ![microYOLO different architectures benchmark](./benchmarks/plots/yolov8.png)
 
 Here instead the detection head was kept in the original way.
 
-| Dataset | Model name                                           | mAP50  | latency (ms) | size (MB) |
-| ------- | ---------------------------------------------------- | ------ | ------------ | --------- |
-| COCO-80 | `PhiNet(alpha=0.67, beta=1, t_zero=4, num_layers=6)` | 0.2561 | 114.75       | 2.7       |
-| COCO-80 | `PhiNet(alpha=0.33, beta=1, t_zero=4, num_layers=7, num_heads=3)` | 0.1904 | 30.51 | 2.1 |
+| Dataset | Model name                                                        | mAP50  | latency (ms) | size (MB) |
+| ------- | ----------------------------------------------------------------- | ------ | ------------ | --------- |
+| COCO-80 | `PhiNet(alpha=0.67, beta=1, t_zero=4, num_layers=6)`              | 0.2561 | 114.75       | 2.7       |
+| COCO-80 | `PhiNet(alpha=0.33, beta=1, t_zero=4, num_layers=7, num_heads=3)` | 0.1904 | 30.51        | 2.1       |
 
 
 ### Cite PhiNets
