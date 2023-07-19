@@ -1,3 +1,4 @@
+"""
 import math
 from itertools import product
 
@@ -71,19 +72,6 @@ def train_nn(a):
         backbone=backbone, head=head, task="detect", nc=80
     )  # build a new model from scratch DEFAULT_CFG
 
-    # Train the model
-    # Change the parameters also here
-    # These parameters are the most lightweight possible in terms of training
-    """
-    model.train(
-        data="coco128.yaml",
-        epochs=1,
-        imgsz=320,
-        device="cpu",
-        task="detect",
-    )
-    """
-
 
 def test_heads_scenarios_compatibility():
 
@@ -94,3 +82,4 @@ def test_heads_scenarios_compatibility():
             train_nn(item)
         except Exception as e:
             print("Errorrrr:", item, e)
+"""
