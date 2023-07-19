@@ -9,7 +9,7 @@ from ultralytics.nn.modules import SPPF, Concat, Conv, Detect
 class Microhead(nn.Module):
     def __init__(
         self,
-        nc=80,        
+        nc=80,
         feature_sizes=[16, 32, 64],
         concat_layers=[6, 4, 12, 9],  # following the row in the yolov8 architecture
         head_concat_layers=[15, 18, 21],
@@ -101,7 +101,7 @@ class Microhead(nn.Module):
             if x != -1
         )
 
-        if any(heads_used): # if at least one head is used
+        if any(heads_used):  # if at least one head is used
             layer11 = Concat(dimension=1)
             layer11.i, layer11.f, layer11.type, layer11.n = (
                 11 + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
@@ -317,10 +317,14 @@ class Microhead(nn.Module):
 
         if task == "detect":
 
-            layer_index = 22 if any(heads_used[2:]) else 19 if any(heads_used[1:2]) else 16            
+            layer_index = (
+                22 if any(heads_used[2:]) else 19 if any(heads_used[1:2]) else 16
+            )
 
             new_feature_sizes = [x for x, b in zip(feature_sizes, heads_used) if b]
-            new_head_concat_layers = [x for x, b in zip(head_concat_layers, heads_used) if b]
+            new_head_concat_layers = [
+                x for x, b in zip(head_concat_layers, heads_used) if b
+            ]
 
             head = Detect(nc, ch=new_feature_sizes)
             head.i, head.f, head.type, head.n = (
