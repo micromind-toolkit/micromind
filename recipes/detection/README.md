@@ -26,6 +26,8 @@ Note the dataset has to be downloaded, so it is recommended to run it in a docke
 Comparison between accuracy, number of parameters and mAP. ONNX test on CPU.
 The size of the dot indicates the size of the model in MB.
 
+![YOLO vs microYOLO benchmark](./benchmark/plots/quantized-benchmark-2023-07-19_11-03-33.png)
+
 In the table is a list of PhiNet's performance on some common image classification benchmarks.
 The architecture was made of the backbone with PhiNet. Also, the detection head was modified to substitute the C2f layers with PhiNetConvBlock layers.
 
