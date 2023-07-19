@@ -24,7 +24,7 @@ Note the dataset has to be downloaded, so it is recommended to run it in a docke
 ### Benchmark
 
 Comparison between accuracy, number of parameters and mAP. ONNX test on CPU.
-Th size of the dot indicates the size of the model in MB.
+The size of the dot indicates the size of the model in MB.
 
 ![YOLO vs microYOLO benchmark](./benchmarks/plots/quantized-benchmark-2023-07-18_12-05-33.png)
 
