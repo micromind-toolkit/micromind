@@ -79,7 +79,7 @@ def train_nn(a):
     """
 
 
-if __name__ == "__main__":
+def test_heads_scenarios_compatibility():
 
     items = [0, 1]
 
