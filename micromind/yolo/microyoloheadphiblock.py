@@ -9,11 +9,11 @@ from ultralytics.nn.modules import SPPF, Concat, Conv, Detect
 class Microhead(nn.Module):
     def __init__(
         self,
-        nc=80,
-        number_heads=3,
+        nc=80,        
         feature_sizes=[16, 32, 64],
         concat_layers=[6, 4, 12, 9],  # following the row in the yolov8 architecture
         head_concat_layers=[15, 18, 21],
+        heads_used=[1, 1, 1],
         task="detect",
         deeper_head=False,
         no_SPPF=False,
@@ -32,8 +32,9 @@ class Microhead(nn.Module):
 
         Args:
             nc (int, required): Number of classes to be detected. Defaults to 80.
-            number_heads (int, required): Number of heads to be used. Defaults to 3.
-                (between 1 and 3)
+            heads_used (list, required): Boolean list of the heads index to be used.
+                Defaults to [1, 1, 1]. e.g. [1, 0, 1] means that only the first and
+                the third head will be used.
             feature_sizes (list, required): List of the intermediary feature.
                 Defaults to [64, 128, 256].
                 Note: the number of features will be added to the network from
@@ -58,8 +59,8 @@ class Microhead(nn.Module):
         scale_deep = 0.5 if deeper_head else 1
 
         # some errors checks
-        if number_heads not in [1, 2, 3]:
-            raise ValueError("Number of heads must be between 1 and 3")
+        if not any(heads_used):
+            raise ValueError("At least one head must be used")
         if nc < 1:
             raise ValueError("Number of classes must be greater than 0")
         if any([x < 1 and x > 1024 for x in feature_sizes]):
@@ -100,7 +101,7 @@ class Microhead(nn.Module):
             if x != -1
         )
 
-        if number_heads >= 1:
+        if any(heads_used): # if at least one head is used
             layer11 = Concat(dimension=1)
             layer11.i, layer11.f, layer11.type, layer11.n = (
                 11 + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
@@ -193,7 +194,7 @@ class Microhead(nn.Module):
                 if x != -1
             )
 
-            if number_heads >= 2:
+            if any(heads_used[1:]):
                 layer16 = Conv(feature_sizes[0], feature_sizes[0], 3, 2)
                 layer16.i, layer16.f, layer16.type, layer16.n = (
                     16 + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
@@ -252,7 +253,7 @@ class Microhead(nn.Module):
                     if x != -1
                 )
 
-            if number_heads >= 3:
+            if any(heads_used[2:]):
 
                 layer19 = Conv(feature_sizes[1], feature_sizes[1], 3, 2)
                 layer19.i, layer19.f, layer19.type, layer19.n = (
@@ -316,12 +317,15 @@ class Microhead(nn.Module):
 
         if task == "detect":
 
-            layer_index = 19 if number_heads == 2 else 16 if number_heads == 1 else 22
+            layer_index = 22 if any(heads_used[2:]) else 19 if any(heads_used[1:2]) else 16            
 
-            head = Detect(nc, ch=feature_sizes)
+            new_feature_sizes = [x for x, b in zip(feature_sizes, heads_used) if b]
+            new_head_concat_layers = [x for x, b in zip(head_concat_layers, heads_used) if b]
+
+            head = Detect(nc, ch=new_feature_sizes)
             head.i, head.f, head.type, head.n = (
                 layer_index + (1 if deeper_head else 0) + (-1 if no_SPPF else 0),
-                head_concat_layers,
+                new_head_concat_layers,
                 "ultralytics.nn.modules.conv.Detect",
                 1,
             )
