@@ -27,7 +27,7 @@ def bench(weight=""):
 
 if __name__ == "__main__":
 
-    weights = os.listdir("./benchmark/weights/_new_start/")[0:1]
+    weights = os.listdir("./benchmark/weights/_new_start/")
     for i in weights:
         print("benching: " + i + "...")
         bench(i)
