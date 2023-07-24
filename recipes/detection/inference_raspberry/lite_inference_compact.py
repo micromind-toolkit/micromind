@@ -14,8 +14,12 @@ import colorsys
 import numpy as np
 
 try:
-    from tensorflow.lite import Interpreter
+    # if the code is run on a PC with tensorflow installed then
+    # this part of the code is executed
+    from tensorflow.lite.python.interpreter import Interpreter
 except ImportError:
+    # Else if it is executed on a microcontroller with tflite_runtime
+    # installed then this part of the code is executed
     from tflite_runtime.interpreter import Interpreter
 
 
@@ -28,7 +32,7 @@ COLORS = [
 ]
 
 # Load the TFLite model.
-model_path = "best_int8.tflite"
+model_path = "../runs/detect/train17/weights/best_saved_model/best_int8.tflite"
 interpreter = Interpreter(model_path=model_path, num_threads=8)
 interpreter.allocate_tensors()
 
@@ -67,12 +71,12 @@ def model_inference(input=None):
 
 
 def post_process(img, output, score_threshold=0.1):
-    boxes, confs, classes = non_max_suppression(output, threshold=score_threshold)
+    boxes, confs, classes = non_max_suppression(output, score_threshold=score_threshold)
     img = plot_objects(img, boxes, confs, classes)
     return img
 
 
-def non_max_suppression(prediction, class_threshold=0.3, iou_threshold=0.7):
+def non_max_suppression(prediction, score_threshold=0.3, iou_threshold=0.7):
     """Perform the non maximum suppression algorithm on the bounding boxes.
     For every bounding box, only the higher class is kept and the iou is computed
     with the rest of the boxes. If the iou is higher than the threshold, the box is
@@ -90,7 +94,7 @@ def non_max_suppression(prediction, class_threshold=0.3, iou_threshold=0.7):
     bboxes = prediction[:4][:]
     probs = prediction[4:][:]
 
-    keep_idx = np.max(probs, axis=0) > class_threshold
+    keep_idx = np.max(probs, axis=0) > score_threshold
 
     bboxes = bboxes[:, keep_idx]
     probs = probs[:, keep_idx]
@@ -212,7 +216,7 @@ if __name__ == "__main__":
         frames_counter += 1
 
         # Calculate the actual FPS
-        calculated_fps = calculate_fps
+        calculated_fps = calculate_fps(start_time, frames_counter)
 
         # Display the FPS on the frame
         cv2.putText(

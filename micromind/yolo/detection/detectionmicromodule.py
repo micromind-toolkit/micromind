@@ -8,11 +8,6 @@ import torch.nn as nn
 
 from ultralytics.nn.tasks import DetectionModel
 
-from ultralytics.nn.modules import (
-    Detect,
-    Pose,
-    Segment,
-)
 from ultralytics.yolo.utils import (
     LOGGER,
     yaml_load,
@@ -45,20 +40,17 @@ class DetectionMicroModel(DetectionModel):
 
         # Build strides
         m = self.model[-1]  # Detect()
-        if isinstance(m, (Detect, Segment, Pose)):
-            s = 256  # 2x min stride
-            m.inplace = self.inplace
-            # to be removed if the segmentation and pose is not used
-            forward = (
-                lambda x: self.forward(x)[0]
-                if isinstance(m, (Segment, Pose))
-                else self.forward(x)
-            )
-            m.stride = torch.tensor(
-                [s / x.shape[-2] for x in forward(torch.zeros(1, ch, s, s))]
-            )  # forward
-            self.stride = m.stride
-            m.bias_init()  # only run once
+        s = 256  # 2x min stride
+        m.inplace = self.inplace
+
+        def forward(x):
+            return self.forward(x)
+
+        m.stride = torch.tensor(
+            [s / x.shape[-2] for x in forward(torch.zeros(1, ch, s, s))]
+        )  # forward
+        self.stride = m.stride
+        m.bias_init()  # only run once
 
         # Init weights, biases
         initialize_weights(self)
