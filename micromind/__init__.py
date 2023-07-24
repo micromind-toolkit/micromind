@@ -1,6 +1,19 @@
 from .networks.phinet import PhiNet
 from .utils import configlib
 
+try:
+    from .yolo.model import microYOLO
+    from .yolo.microyoloheadphiblock import Microhead
+    from .yolo.utils.benchmarks import benchmark
+    from .yolo.detection.detectionmicromodule import DetectionMicroModel
+    from .yolo.detection.detectionmicrotrainer import DetectionMicroTrainer
+    from .yolo.nn.modules.head import Detect
+except ImportError:
+    print(
+        "Warning: ultralytics.yolo package not found. microYOLO class not available."
+        "-- pleas run the command 'pip install ultralytics' to install it."
+    )
+
 
 # Package version
 __version__ = "0.0.4"

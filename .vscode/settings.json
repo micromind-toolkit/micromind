@@ -1,0 +1,15 @@
+{
+    "cSpell.words": [
+        "configlib",
+        "Microhead",
+        "micromind",
+        "microyolohead",
+        "segmentationmicromodule",
+        "yolo"
+    ],
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.python"
+    },
+    "python.formatting.provider": "none",
+    "terminal.integrated.bufferSize": 10000,
+}
