@@ -2,8 +2,9 @@ import torch
 import torch.nn as nn
 
 from micromind.networks.phinet import PhiNetConvBlock
+from micromind.yolo.nn.modules import Detect
 
-from ultralytics.nn.modules import SPPF, Concat, Conv, Detect
+from ultralytics.nn.modules import SPPF, Concat, Conv
 
 
 class Microhead(nn.Module):

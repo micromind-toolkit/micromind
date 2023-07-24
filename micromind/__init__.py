@@ -7,6 +7,7 @@ try:
     from .yolo.utils.benchmarks import benchmark
     from .yolo.detection.detectionmicromodule import DetectionMicroModel
     from .yolo.detection.detectionmicrotrainer import DetectionMicroTrainer
+    from .yolo.nn.modules.head import Detect
 except ImportError:
     print(
         "Warning: ultralytics.yolo package not found. microYOLO class not available."
