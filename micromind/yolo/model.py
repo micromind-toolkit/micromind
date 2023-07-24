@@ -23,14 +23,9 @@ from ultralytics.yolo.utils.checks import (
 
 from .detection.detectionmicromodule import DetectionMicroModel
 from .detection.detectionmicrotrainer import DetectionMicroTrainer
-from .segmentation.segmentationmicromodule import SegmentationMicroModel
-from .segmentation.segmentationmicrotrainer import (
-    SegmentationMicroTrainer,
-)
 
 TASK_MAP = {
     "detect": [DetectionMicroModel, DetectionMicroTrainer],
-    "segment": [SegmentationMicroModel, SegmentationMicroTrainer],
 }
 
 

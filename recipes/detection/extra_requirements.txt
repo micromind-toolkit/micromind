@@ -1,1 +1,6 @@
 ultralytics==8.0.120
+
+# for running the inference
+tensorflow==2.13.0
+
+#tflite-runtime

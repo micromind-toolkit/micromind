@@ -25,8 +25,8 @@ class Detect(nn.Module):
     anchors = torch.empty(0)  # init
     strides = torch.empty(0)  # init
 
-    def init(self, nc=80, ch=()):  # detection layer
-        super().init()
+    def __init__(self, nc=80, ch=()):  # detection layer
+        super().__init__()
         self.nc = nc  # number of classes
         self.nl = len(ch)  # number of detection layers
         self.reg_max = (
@@ -74,12 +74,12 @@ class Detect(nn.Module):
             cls = x_cat[:, self.reg_max * 4 :]
         else:
             box, cls = x_cat.split((self.reg_max * 4, self.nc), 1)
+
         dbox = (
             dist2bbox(self.dfl(box), self.anchors.unsqueeze(0), xywh=True, dim=1)
             * self.strides
         )
-
-        if self.export and self.format in ("tflite", "edgetpu"):
+        if self.export and self.format in ("tflite"):  # avoid TF FlexSplitV ops
             print("WARNING: Using hardcoded 100x gain in DETECTION confidence score")
             y = torch.cat((dbox, cls.sigmoid() * 100), 1)
         else:
@@ -89,7 +89,6 @@ class Detect(nn.Module):
     def bias_init(self):
         """Initialize Detect() biases, WARNING: requires stride availability."""
         m = self  # self.model[-1]  # Detect() module
-
         for a, b, s in zip(m.cv2, m.cv3, m.stride):  # from
             a[-1].bias.data[:] = 1.0  # box
             b[-1].bias.data[: m.nc] = math.log(
