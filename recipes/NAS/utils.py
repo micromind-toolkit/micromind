@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import orion.core.io.experiment_builder as experiment_builder
 from orion_to_pandas_patch import orion_patch
 import torch
-
+import logging
 
 def plot_table(exp_name, base_path):
     experiment = experiment_builder.load(name=exp_name)
@@ -16,6 +16,8 @@ def plot_table(exp_name, base_path):
 
 def excel_to_df(exp_name, base_path, column):
     df = pd.read_excel(os.path.join(base_path, exp_name) + ".xlsx")
+    if column=="all":
+        return df
     return df[column].tolist()
 
 
@@ -39,6 +41,63 @@ def plot(exp_name, path, plot_type):
     plt.savefig(path)
     plt.cla()
 
+def plot_pareto(exp_name, path, plot_type, target):
+    # Initialize lists to store the Pareto front and dominated points
+    params = excel_to_df(exp_name, path, "params")
+    scores = excel_to_df(exp_name, path, plot_type)
+    data = excel_to_df(exp_name, path, "all" )
+    pareto_front = []
+    dominated_points = []
+    optimal_points = []
+
+    # Iterate through the data to identify the Pareto front and dominated points
+    for i in range(len(scores)):
+        if params[i] <= target:
+            is_dominated = False
+            for j in range(len(scores)):
+                if i != j and scores[j] >= scores[i] and params[j] < params[i]:
+                    is_dominated = True
+                    break
+            if is_dominated:
+                dominated_points.append((params[i], scores[i]))
+            else:
+                pareto_front.append((params[i], scores[i]))
+                pareto_front.append((params[i], scores[i]))
+                optimal_points.append(data.loc[i])
+
+    # Print the list of optimal points with respective parameters
+    for i, point in enumerate(optimal_points):
+        logging.info(f"Optimal Point {i+1}:")
+        logging.info(point)
+
+    # Convert the pareto_front and dominated_points lists to separate lists of params and scores
+    pareto_params, pareto_scores = zip(*pareto_front)
+    dominated_params, dominated_scores = zip(*dominated_points)
+
+    # Plot the Pareto front and dominated points
+    plt.scatter(dominated_params, dominated_scores, color='red', label='Dominated Points')
+    plt.scatter(pareto_params, pareto_scores, color='blue', label='Pareto Front')
+
+    # Connect the points on the Pareto front with the attainment surface
+    pareto_front_sorted = sorted(pareto_front)
+    for i in range(len(pareto_front_sorted) - 1):
+        plt.plot([pareto_front_sorted[i][0], pareto_front_sorted[i + 1][0]],
+                [pareto_front_sorted[i][1], pareto_front_sorted[i + 1][1]], 'k--')
+
+    # Add the optimal point numbers as a legend
+    for i, point in enumerate(optimal_points):
+        plt.text(point['params'], point['score'], f"{i+1}")
+
+    # Set labels and title
+    plt.xlabel('Params')
+    plt.ylabel(plot_type)
+    plt.title('Pareto Front Plot')
+
+    # Show the plot
+    plt.legend()
+    path = os.path.join(path, "pareto_" + plot_type + ".jpg")
+    plt.savefig(path)
+    plt.cla()
 
 def topk_net(base_path, exp_name, k):
     data = pd.read_excel(os.path.join(base_path, exp_name) + ".xlsx")
@@ -69,6 +128,12 @@ def get_mod_data(loader_train, num_classes, samples_per_class, device):
     x = torch.cat([torch.cat(_, 0) for _ in datas]).to(device)
     y = torch.cat([torch.cat(_) for _ in labels]).view(-1).to(device)
     return x, y
+
+
+def add_noise(inputs,noise_factor=0.1):
+     noisy = inputs+torch.randn_like(inputs) * noise_factor
+     noisy = torch.clip(noisy,0.,1.)
+     return noisy
 
 
 if __name__ == "__main__":
