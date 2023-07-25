@@ -21,6 +21,7 @@ class Detect(nn.Module):
 
     dynamic = False  # force grid reconstruction
     export = False  # export mode
+    int8 = False  # int8 mode
     shape = None
     anchors = torch.empty(0)  # init
     strides = torch.empty(0)  # init
@@ -79,7 +80,9 @@ class Detect(nn.Module):
             dist2bbox(self.dfl(box), self.anchors.unsqueeze(0), xywh=True, dim=1)
             * self.strides
         )
-        if self.export and self.format in ("tflite"):  # avoid TF FlexSplitV ops
+        if (
+            self.export and self.format in ("tflite") and self.int8
+        ):  # avoid TF FlexSplitV ops
             print("WARNING: Using hardcoded 100x gain in DETECTION confidence score")
             y = torch.cat((dbox, cls.sigmoid() * 100), 1)
         else:
