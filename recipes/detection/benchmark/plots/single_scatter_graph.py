@@ -17,7 +17,7 @@ def parse_text_file(file_name):
 
         # Extract the first line (column names) and the line starting with "2"
         column_names = lines[2].strip().split("  ")
-        data_line = lines[5].split()[1:]
+        data_line = lines[3].split()[1:]
         data_line = [float(x) if can_be_float(x) else x for x in data_line]
         data.append(data_line)
 
@@ -112,7 +112,7 @@ def show_graph(name):
 if __name__ == "__main__":
 
     axs = prepare_plot()
-    f = ["quantized"]
+    f = ["half"]
 
     for model in f:
         path = "./data/" + model + "/"

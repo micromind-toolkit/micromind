@@ -4,11 +4,11 @@ import shutil
 from micromind import benchmark
 
 
-def bench(weight=""):
+def bench(model, weight):
 
     # Benchmark on GPU
     benchmark(
-        model="./benchmark/weights/_new_start/" + weight + "/weights/best.pt",
+        model=model,
         imgsz=320,
         device="cpu",
         half=True,
@@ -27,7 +27,16 @@ def bench(weight=""):
 
 if __name__ == "__main__":
 
-    weights = os.listdir("./benchmark/weights/_new_start/")
-    for i in weights:
-        print("benching: " + i + "...")
-        bench(i)
+    single = True
+
+    if single:
+        model = "./yolov8n.pt"
+        bench(model, weight="yolov8n")
+    else:
+        weights = os.listdir("./benchmark/weights/_new_start/")
+
+        for i in weights:
+            print("benching: " + i + "...")
+            weight = str(i)
+            model = ("./benchmark/weights/_new_start/" + weight + "/weights/best.pt",)
+            bench(model=model, weight=weight)
