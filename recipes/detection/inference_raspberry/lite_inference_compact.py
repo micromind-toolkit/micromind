@@ -22,15 +22,16 @@ except ImportError:
     # installed then this part of the code is executed
     from tflite_runtime.interpreter import Interpreter
 
-# FILENAME = "best_int8.tflite"
-# FILENAME = "best_float32.tflite"
-FILENAME = "yolov8n_float32.tflite"
+# FILENAME = "best_integer_quant.tflite"
+FILENAME = "best_integer_quant.tflite"
+# FILENAME = "best_float16.tflite"
+# FILENAME = "yolov8n_float32.tflite"
 
 # first check, a more advanced check can be done checking the
 # tflite model layers
 
-if "int8" in FILENAME:
-    SCORE_THRESHOLD = 200
+if "int" in FILENAME:
+    SCORE_THRESHOLD = 40
 else:
     SCORE_THRESHOLD = 0.5  # 0.1 if fp32 model, 10 if int8 is used
 
@@ -43,7 +44,10 @@ COLORS = [
 
 # Load the TFLite model.
 # model_path = "../runs/detect/train17/weights/best_saved_model/" + FILENAME
-model_path = "../yolov8n_saved_model/" + FILENAME
+model_path = (
+    "../benchmark/weights/refactor/033_refactor/weights/best_saved_model/" + FILENAME
+)
+# model_path = "../yolov8n_saved_model/" + FILENAME
 interpreter = Interpreter(model_path=model_path, num_threads=2)
 interpreter.allocate_tensors()
 
