@@ -22,9 +22,20 @@ except ImportError:
     # installed then this part of the code is executed
     from tflite_runtime.interpreter import Interpreter
 
+# FILENAME = "best_integer_quant.tflite"
+FILENAME = "best_integer_quant.tflite"
+# FILENAME = "best_float16.tflite"
+# FILENAME = "yolov8n_float32.tflite"
 
-SCORE_THRESHOLD = 5  # 0.1 if fp32 model, 10 if int8 is used
-IMG_SZ = (160, 160)
+# first check, a more advanced check can be done checking the
+# tflite model layers
+
+if "int" in FILENAME:
+    SCORE_THRESHOLD = 40
+else:
+    SCORE_THRESHOLD = 0.5  # 0.1 if fp32 model, 10 if int8 is used
+
+IMG_SZ = (320, 320)
 NUM_CLASSES = 80
 COLORS = [
     tuple(round(i * 255) for i in colorsys.hsv_to_rgb(h / 10.0, 1.0, 1.0))
@@ -32,8 +43,12 @@ COLORS = [
 ]
 
 # Load the TFLite model.
-model_path = "../runs/detect/train17/weights/best_saved_model/best_int8.tflite"
-interpreter = Interpreter(model_path=model_path, num_threads=8)
+# model_path = "../runs/detect/train17/weights/best_saved_model/" + FILENAME
+model_path = (
+    "../benchmark/weights/refactor/033_refactor/weights/best_saved_model/" + FILENAME
+)
+# model_path = "../yolov8n_saved_model/" + FILENAME
+interpreter = Interpreter(model_path=model_path, num_threads=2)
 interpreter.allocate_tensors()
 
 # Get input and output tensors.
@@ -70,13 +85,13 @@ def model_inference(input=None):
     return output
 
 
-def post_process(img, output, score_threshold=0.1):
+def post_process(img, output, score_threshold=0.7):
     boxes, confs, classes = non_max_suppression(output, score_threshold=score_threshold)
     img = plot_objects(img, boxes, confs, classes)
     return img
 
 
-def non_max_suppression(prediction, score_threshold=0.3, iou_threshold=0.7):
+def non_max_suppression(prediction, score_threshold=0.3, iou_threshold=0.2):
     """Perform the non maximum suppression algorithm on the bounding boxes.
     For every bounding box, only the higher class is kept and the iou is computed
     with the rest of the boxes. If the iou is higher than the threshold, the box is
@@ -172,7 +187,7 @@ def plot_objects(img, boxes, confs, classes):
         )
         cv2.putText(
             img,
-            f"conf: {confs[i]:.2f} - cls: {classes[i]}",
+            f"{classes[i]} - {confs[i]:.2f}",
             (bbox[0], bbox[1]),
             cv2.FONT_HERSHEY_SIMPLEX,
             1,

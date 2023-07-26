@@ -59,7 +59,7 @@ Here instead the detection head was kept in the original way.
 
 ### Full Example
 
-The following example is a complete example for training, exporting and doing inference using YOLO with custom backbone powered by the PhiNet architecture.
+The following example is a complete example for training, exporting and doing inference using YOLO with a custom backbone powered by the PhiNet architecture.
 
 #### 1 - Training
 
@@ -72,9 +72,9 @@ evaluation values.
 
 #### 2 - Export
 
-The generated weights file is in pytorch format. In order to make it run efficiently on micro-controller such as raspberry or STM32 hardware, it needs to be exported in different formats such as ```ONNX``` and ```tflite```.
+The generated weights file is in pytorch format. In order to make it run efficiently on micro-controller such as Raspberry or STM32 hardware, it needs to be exported in different formats such as ```ONNX``` and ```tflite```.
 
-In the current folder a script ```export.py``` is also available for exporting in many different formats supported by yolo.
+In the current folder a script ```export.py``` is also available for exporting in many different formats supported by Yolo.
 
 Set the correct path location of the ```.pt``` file. And modify the parameters for exporting.
 

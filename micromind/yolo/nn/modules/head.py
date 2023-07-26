@@ -21,6 +21,7 @@ class Detect(nn.Module):
 
     dynamic = False  # force grid reconstruction
     export = False  # export mode
+    int8 = False  # int8 mode
     shape = None
     anchors = torch.empty(0)  # init
     strides = torch.empty(0)  # init
@@ -37,12 +38,14 @@ class Detect(nn.Module):
         c2, c3 = max((16, ch[0] // 4, self.reg_max * 4)), max(
             ch[0], self.nc
         )  # channels
+        # bbox loss
         self.cv2 = nn.ModuleList(
             nn.Sequential(
                 Conv(x, c2, 3), Conv(c2, c2, 3), nn.Conv2d(c2, 4 * self.reg_max, 1)
             )
             for x in ch
         )
+        # cls loss
         self.cv3 = nn.ModuleList(
             nn.Sequential(Conv(x, c3, 3), Conv(c3, c3, 3), nn.Conv2d(c3, self.nc, 1))
             for x in ch
@@ -79,7 +82,9 @@ class Detect(nn.Module):
             dist2bbox(self.dfl(box), self.anchors.unsqueeze(0), xywh=True, dim=1)
             * self.strides
         )
-        if self.export and self.format in ("tflite"):  # avoid TF FlexSplitV ops
+        if (
+            self.export and self.format in ("tflite") and self.int8
+        ):  # avoid TF FlexSplitV ops
             print("WARNING: Using hardcoded 100x gain in DETECTION confidence score")
             y = torch.cat((dbox, cls.sigmoid() * 100), 1)
         else:
