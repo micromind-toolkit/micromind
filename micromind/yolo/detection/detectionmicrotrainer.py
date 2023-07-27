@@ -1,6 +1,6 @@
 # Ultralytics YOLO 🚀, AGPL-3.0 license, adaptation to micromind
 
-from ultralytics.yolo.utils import RANK
+from ultralytics.utils import RANK
 
 from ultralytics.models.yolo.detect import DetectionTrainer
 from ..detection.detectionmicromodule import DetectionMicroModel
