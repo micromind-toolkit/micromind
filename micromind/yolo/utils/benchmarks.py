@@ -35,7 +35,7 @@ import numpy as np
 import torch.cuda
 from tqdm import tqdm
 
-from ..model import microYOLO
+from micromind.yolo.model import microYOLO
 from ultralytics.engine.exporter import export_formats
 from ultralytics.utils import LINUX, LOGGER, MACOS, ROOT, SETTINGS
 from ultralytics.utils.checks import check_requirements, check_yolo

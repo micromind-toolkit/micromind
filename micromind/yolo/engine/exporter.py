@@ -61,7 +61,7 @@ from pathlib import Path
 
 import torch
 
-from ..nn.modules import Detect
+from micromind.yolo.nn.modules import Detect
 
 from ultralytics.nn.autobackend import check_class_names
 from ultralytics.nn.modules import C2f
