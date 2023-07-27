@@ -1,16 +1,19 @@
 # from ultralytics import YOLO
 from micromind import microYOLO
+import torch
 
 # select the file .pt that you want to export
-filename = "../benchmark/weights/refactor/033_refactor/weights/best.pt"
-# filename = "../runs/detect/train17/weights/best.pt"
-
-# select also the task associated to the neural network
-task = "detect"
+filename = "./benchmark/weights/refactor/033_refactor/weights/best.pt"
 
 # load the network once
-model = microYOLO(model=filename, task=task)
+print("Loading network: " + filename)
+model = microYOLO(model=filename, task="detect")
 # model = YOLO("yolov8n.pt")  # load a pretrained model (recommended for training)
+
+# apparently update the network
+print("Saving updated network: " + filename.replace("best.pt", "model-updated.pt"))
+torch.load(filename)
+torch.save(model, filename.replace("best.pt", "model-updated.pt"))
 
 # export the network
 # Args:
@@ -25,4 +28,4 @@ export_filename = model.export(
 )
 
 # the exported network is saved in the same folder of the original network
-print("Exported network: " + export_filename)
+print("Networks exported.")
