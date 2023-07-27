@@ -15,13 +15,15 @@ from ultralytics.nn.modules.conv import Conv
 
 __all__ = "Detect"
 
+# Detect head needed for comparison at line 246 in exporter.py
+
 
 class Detect(nn.Module):
     """YOLOv8 Detect head for detection models."""
 
     dynamic = False  # force grid reconstruction
     export = False  # export mode
-    int8 = False  # int8 mode
+    int8 = False  # int8 mode # this had to be added
     shape = None
     anchors = torch.empty(0)  # init
     strides = torch.empty(0)  # init
