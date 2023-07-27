@@ -2,7 +2,7 @@
 
 from ultralytics.yolo.utils import RANK
 
-from ultralytics.yolo.v8.detect import DetectionTrainer
+from ultralytics.models.yolo.detect import DetectionTrainer
 from ..detection.detectionmicromodule import DetectionMicroModel
 
 

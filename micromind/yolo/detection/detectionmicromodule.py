@@ -12,8 +12,8 @@ from ultralytics.yolo.utils import (
     LOGGER,
     yaml_load,
 )
-from ultralytics.yolo.utils.checks import check_yaml
-from ultralytics.yolo.utils.torch_utils import initialize_weights
+from ultralytics.utils.checks import check_yaml
+from ultralytics.utils.torch_utils import initialize_weights
 
 
 class DetectionMicroModel(DetectionModel):
