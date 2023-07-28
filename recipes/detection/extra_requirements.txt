@@ -1,4 +1,4 @@
-ultralytics==8.0.120
+ultralytics==8.0.143
 
 # for running the inference
 tensorflow==2.13.0
