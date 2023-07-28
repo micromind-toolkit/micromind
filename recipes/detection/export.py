@@ -1,6 +1,7 @@
 # from ultralytics import YOLO
 from micromind import microYOLO
-import torch
+
+# import torch
 
 # select the file .pt that you want to export
 filename = "./benchmark/weights/033_testing_new_refactor/weights/best.pt"
