@@ -8,12 +8,12 @@ import torch.nn as nn
 
 from ultralytics.nn.tasks import DetectionModel
 
-from ultralytics.yolo.utils import (
+from ultralytics.utils import (
     LOGGER,
     yaml_load,
 )
-from ultralytics.yolo.utils.checks import check_yaml
-from ultralytics.yolo.utils.torch_utils import initialize_weights
+from ultralytics.utils.checks import check_yaml
+from ultralytics.utils.torch_utils import initialize_weights
 
 
 class DetectionMicroModel(DetectionModel):
@@ -132,7 +132,7 @@ def get_output_dim_layers(data_config, layers):
         else:
             out_dim.append(layer(out_dim[-1]))
         names.append(layer.__class__)
-        print("Descr:", i, names[-1], out_dim[-1].shape)
+        # print("Descr:", i, names[-1], out_dim[-1].shape)
     return [list(o.shape)[1:] for o in out_dim], names
 
 

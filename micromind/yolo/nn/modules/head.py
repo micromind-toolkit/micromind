@@ -8,7 +8,7 @@ import math
 import torch
 import torch.nn as nn
 
-from ultralytics.yolo.utils.tal import dist2bbox, make_anchors
+from ultralytics.utils.tal import dist2bbox, make_anchors
 
 from ultralytics.nn.modules.block import DFL
 from ultralytics.nn.modules.conv import Conv
