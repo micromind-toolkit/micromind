@@ -6,8 +6,8 @@ from .engine.exporter import Exporter
 
 from ultralytics import YOLO
 from ultralytics.nn.tasks import attempt_load_one_weight, guess_model_task
-from ultralytics.yolo.cfg import get_cfg
-from ultralytics.yolo.utils import (
+from ultralytics.cfg import get_cfg
+from ultralytics.utils import (
     DEFAULT_CFG,
     DEFAULT_CFG_DICT,
     DEFAULT_CFG_KEYS,
@@ -16,7 +16,7 @@ from ultralytics.yolo.utils import (
     callbacks,
     yaml_load,
 )
-from ultralytics.yolo.utils.checks import (
+from ultralytics.utils.checks import (
     check_file,
     check_pip_update_available,
     check_yaml,

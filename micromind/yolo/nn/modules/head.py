@@ -8,12 +8,14 @@ import math
 import torch
 import torch.nn as nn
 
-from ultralytics.yolo.utils.tal import dist2bbox, make_anchors
+from ultralytics.utils.tal import dist2bbox, make_anchors
 
 from ultralytics.nn.modules.block import DFL
 from ultralytics.nn.modules.conv import Conv
 
 __all__ = "Detect"
+
+# Detect head needed for comparison at line 246 in exporter.py
 
 
 class Detect(nn.Module):
@@ -21,7 +23,7 @@ class Detect(nn.Module):
 
     dynamic = False  # force grid reconstruction
     export = False  # export mode
-    int8 = False  # int8 mode
+    int8 = False  # int8 mode # this had to be added
     shape = None
     anchors = torch.empty(0)  # init
     strides = torch.empty(0)  # init

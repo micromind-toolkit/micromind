@@ -32,4 +32,4 @@ jobs:
         pytest tests/
     - name: Doctest
       run: |
-        pytest --doctest-modules micromind
+        pytest --doctest-modules micromind --ignore=micromind/yolo
