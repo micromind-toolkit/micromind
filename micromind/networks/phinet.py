@@ -23,13 +23,14 @@ import torch.ao.nn.quantized as nnq
 
 import micromind
 
-def _make_divisible(v, divisor = 8, min_value=None):
+
+def _make_divisible(v, divisor=8, min_value=None):
     """
     This function is taken from the original tf repo. It can be seen here:
     https://github.com/tensorflow/models/blob/master/research/slim/nets/mobilenet/mobilenet.py
 
     It ensures that all layers have a channel number that is divisible by divisor.
-    
+
     Args:
         v ([int]): [Input number of channels]
         divisor (int, optional): [Divisor]. Defaults to 8.
@@ -143,10 +144,10 @@ class SEBlock(torch.nn.Module):
             self.activation = nn.Hardswish(inplace=True)
         else:
             self.activation = ReLUMax(6)
-        
-        # It serves for the quantization. The behavior remains equivalent for the unquantized models.
-        self.mult = nnq.FloatFunctional()      
 
+        # It serves for the quantization.
+        # The behavior remains equivalent for the unquantized models.
+        self.mult = nnq.FloatFunctional()
 
     def forward(self, x):
         """Executes SE Block
@@ -165,9 +166,8 @@ class SEBlock(torch.nn.Module):
         x = self.se_conv2(x)
         x = torch.sigmoid(x)
 
+        return self.mult.mul(inp, x)  # Equivalent to ``torch.mul(a, b)``
 
-        return self.mult.mul(inp, x) # Equivalent to ``torch.mul(a, b)``
-    
 
 class DepthwiseConv2d(torch.nn.Conv2d):
     """Depthwise 2D conv
@@ -329,7 +329,7 @@ class PhiNetConvBlock(nn.Module):
 
         self._layers = torch.nn.ModuleList()
         in_channels = in_shape[0]
-        
+
         # Define activation function
         if h_swish:
             activation = nn.Hardswish(inplace=True)
@@ -358,16 +358,15 @@ class PhiNetConvBlock(nn.Module):
 
         if stride == 2:
             padding = correct_pad([res, res], 3)
-            pad = nn.ZeroPad2d(
-                padding=padding,
-            )
-
-            #self._layers.append(pad)
 
         self._layers.append(nn.Dropout2d(dp_rate))
 
         d_mul = 1
-        in_channels_dw = _make_divisible(int(expansion * in_channels),divisor=divisor) if block_id else in_channels
+        in_channels_dw = (
+            _make_divisible(int(expansion * in_channels), divisor=divisor)
+            if block_id
+            else in_channels
+        )
         out_channels_dw = in_channels_dw * d_mul
         dw1 = DepthwiseConv2d(
             in_channels=in_channels_dw,
@@ -375,7 +374,7 @@ class PhiNetConvBlock(nn.Module):
             kernel_size=k_size,
             stride=stride,
             bias=False,
-            padding=k_size // 2 if stride == 1 else (padding[1],padding[3]),
+            padding=k_size // 2 if stride == 1 else (padding[1], padding[3]),
         )
 
         bn_dw1 = nn.BatchNorm2d(
@@ -384,7 +383,8 @@ class PhiNetConvBlock(nn.Module):
             momentum=0.999,
         )
 
-        # It is necessary to reinitialize the activation for functions using Module.children() to work properly.
+        # It is necessary to reinitialize the activation
+        # for functions using Module.children() to work properly.
         # Module.children() does not return repeated layers.
         if h_swish:
             activation = nn.Hardswish(inplace=True)
@@ -396,14 +396,14 @@ class PhiNetConvBlock(nn.Module):
         self._layers.append(activation)
 
         if has_se:
-            num_reduced_filters = _make_divisible(max(1, int(out_channels_dw / 6)), divisor=divisor)
-            se_block = SEBlock(
-                out_channels_dw, num_reduced_filters, h_swish=h_swish
+            num_reduced_filters = _make_divisible(
+                max(1, int(out_channels_dw / 6)), divisor=divisor
             )
+            se_block = SEBlock(out_channels_dw, num_reduced_filters, h_swish=h_swish)
             self._layers.append(se_block)
 
         conv2 = nn.Conv2d(
-            in_channels= out_channels_dw,
+            in_channels=out_channels_dw,
             out_channels=filters,
             kernel_size=1,
             padding=0,
@@ -421,7 +421,8 @@ class PhiNetConvBlock(nn.Module):
 
         if res and in_channels == filters and stride == 1:
             self.skip_conn = True
-            # It serves for the quantization. The behavior remains equivalent for the unquantized models.
+            # It serves for the quantization.
+            # The behavior remains equivalent for the unquantized models.
             self.op = nnq.FloatFunctional()
 
     def forward(self, x):
@@ -434,7 +435,7 @@ class PhiNetConvBlock(nn.Module):
         Returns:
             Ouput of the convolutional block : torch.Tensor
         """
-        
+
         if self.skip_conn:
             inp = x
 
@@ -442,7 +443,7 @@ class PhiNetConvBlock(nn.Module):
             x = layer(x)
 
         if self.skip_conn:
-            return self.op.add(x, inp) # Equivalent to ``torch.add(a, b)``
+            return self.op.add(x, inp)  # Equivalent to ``torch.add(a, b)``
 
         return x
 
@@ -812,8 +813,12 @@ class PhiNet(nn.Module):
             self._layers.append(bn_c1)
 
         block2 = PhiNetConvBlock(
-            (_make_divisible(int(b1_filters * alpha), divisor=divisor), res / first_conv_stride, res / first_conv_stride),
-            filters=_make_divisible(int(b1_filters * alpha),divisor=divisor),
+            (
+                _make_divisible(int(b1_filters * alpha), divisor=divisor),
+                res / first_conv_stride,
+                res / first_conv_stride,
+            ),
+            filters=_make_divisible(int(b1_filters * alpha), divisor=divisor),
             stride=2 if (not pool) else 1,
             expansion=get_xpansion_factor(t_zero, beta, 1, num_layers),
             block_id=1,
@@ -825,11 +830,11 @@ class PhiNet(nn.Module):
 
         block3 = PhiNetConvBlock(
             (
-                _make_divisible(int(b1_filters * alpha),divisor=divisor),
+                _make_divisible(int(b1_filters * alpha), divisor=divisor),
                 res / first_conv_stride / 2,
                 res / first_conv_stride / 2,
             ),
-            filters=_make_divisible(int(b1_filters * alpha),divisor=divisor),
+            filters=_make_divisible(int(b1_filters * alpha), divisor=divisor),
             stride=1,
             expansion=get_xpansion_factor(t_zero, beta, 2, num_layers),
             block_id=2,
@@ -841,11 +846,11 @@ class PhiNet(nn.Module):
 
         block4 = PhiNetConvBlock(
             (
-                _make_divisible(int(b1_filters * alpha),divisor=divisor),
+                _make_divisible(int(b1_filters * alpha), divisor=divisor),
                 res / first_conv_stride / 2,
                 res / first_conv_stride / 2,
             ),
-            filters=_make_divisible(int(b2_filters * alpha),divisor=divisor),
+            filters=_make_divisible(int(b2_filters * alpha), divisor=divisor),
             stride=2 if (not pool) else 1,
             expansion=get_xpansion_factor(t_zero, beta, 3, num_layers),
             block_id=3,
@@ -866,7 +871,7 @@ class PhiNet(nn.Module):
         block_id = 4
         block_filters = b2_filters
         spatial_res = res / first_conv_stride / 4
-        in_channels_next = _make_divisible(int(b2_filters * alpha),divisor=divisor)
+        in_channels_next = _make_divisible(int(b2_filters * alpha), divisor=divisor)
         while num_layers >= block_id:
             if block_id in downsampling_layers:
                 block_filters *= 2
@@ -875,7 +880,7 @@ class PhiNet(nn.Module):
 
             pn_block = PhiNetConvBlock(
                 (in_channels_next, spatial_res, spatial_res),
-                filters=_make_divisible(int(block_filters * alpha),divisor=divisor),
+                filters=_make_divisible(int(block_filters * alpha), divisor=divisor),
                 stride=(2 if (block_id in downsampling_layers) and (not pool) else 1),
                 expansion=get_xpansion_factor(t_zero, beta, block_id, num_layers),
                 block_id=block_id,
@@ -887,7 +892,9 @@ class PhiNet(nn.Module):
             )
 
             self._layers.append(pn_block)
-            in_channels_next = _make_divisible(int(block_filters * alpha),divisor=divisor)
+            in_channels_next = _make_divisible(
+                int(block_filters * alpha), divisor=divisor
+            )
             spatial_res = (
                 spatial_res / 2 if block_id in downsampling_layers else spatial_res
             )
@@ -898,7 +905,11 @@ class PhiNet(nn.Module):
             self.classifier = nn.Sequential(
                 nn.AdaptiveAvgPool2d((1, 1)),
                 nn.Flatten(),
-                nn.Linear(_make_divisible(int(block_filters * alpha),divisor=divisor), num_classes, bias=True),
+                nn.Linear(
+                    _make_divisible(int(block_filters * alpha), divisor=divisor),
+                    num_classes,
+                    bias=True,
+                ),
             )
 
     def forward(self, x):
