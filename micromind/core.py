@@ -18,7 +18,7 @@ class Stage:
 class MicroMind(ABC):
     def __init__(self):
         # here we should handle devices etc.
-        self.modules = torch.nn.ModuleList([]) # init empty modules list
+        self.modules = torch.nn.ModuleDict({}) # init empty modules dict
 
         self.device = "cpu"
         self.accelerator = Accelerator()

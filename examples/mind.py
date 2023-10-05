@@ -33,18 +33,16 @@ class ImageClassification(MicroMind):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.modules.append(
-            PhiNet(
+        self.modules["classifier"] = PhiNet(
                 (3, 32, 32),
                 include_top=True,
                 num_classes=10
             )
-        )
 
         self.modules.to(self.device)
 
     def forward(self, batch):
-        return self.modules[0](batch[0])
+        return self.modules["classifier"](batch[0])
 
     def compute_loss(self, pred, batch):
         return nn.CrossEntropyLoss()(pred, batch[1])
