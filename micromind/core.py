@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Dict, Union
 
 from accelerate import Accelerator
+from loguru import logger
 from tqdm import tqdm
 import os
 
@@ -10,6 +11,7 @@ from torch.cuda import device
 import torch.nn as nn
 import torch
 
+from .utils.helpers import select_and_load_checkpoint
 from .utils.checkpointer import Checkpointer
 
 @dataclass
@@ -55,7 +57,13 @@ class MicroMind(ABC):
                 self.experiment_folder, "save"
             )
         if os.path.exists(save_dir):
-            print("Loading existing checkpoint from ", save_dir)
+            # select which checkpoint and load it.
+            checkpoint, path = select_and_load_checkpoint(save_dir)
+
+            logger.info(f"Loading existing checkpoint from {path}.")
+        else:
+            checkpoint = None
+
 
         os.makedirs(self.experiment_folder, exist_ok=True)
 

@@ -32,6 +32,13 @@ class Checkpointer():   # should look if something is inside this folder, in cas
         self.fstream.write(
             f"Epoch {epoch}: " + " - ".join([f"{k}: {v:.4f}" for k,v in metrics.items()]) + ".\n"
         )
+        base_save = {
+            "key": self.key,
+            "mode": self.mode,
+            "epoch": epoch,
+            "optimizer": mind.opt,
+            "lr_scheduler": mind.lr_sched,
+        }
         if self.mode == "min":
             if metrics[self.key] <= min(self.bests):
                 id_best = self.bests.index(min(self.bests))
@@ -39,15 +46,12 @@ class Checkpointer():   # should look if something is inside this folder, in cas
 
                 self.check_paths[id_best] = os.path.join(
                     self.save_dir,
-                    f"micromind_dump_epoch_{epoch}_{self.key}_{metrics[self.key]}.ckpt"
+                    f"epoch_{epoch}_{self.key}_{metrics[self.key]}.ckpt"
                 )
 
+                base_save.update({k: v.state_dict() for k, v in mind.modules.items()}),
                 torch.save(
-                    {
-                        "epoch": epoch,
-                        "optimizer": mind.opt,
-                        "lr_scheduler": mind.lr_sched,
-                    }.update({k: v.state_dict() for k, v in mind.modules.items()}),
+                    base_save,
                     self.check_paths[id_best]
                 )
         elif self.mode == "max":
@@ -57,11 +61,13 @@ class Checkpointer():   # should look if something is inside this folder, in cas
 
                 self.check_paths[id_best] = os.path.join(
                     self.save_dir,
-                    f"micromind_dump_epoch_{epoch}_{key}_{metrics[key]}.ckpt"
+                    f"epoch_{epoch}_{key}_{metrics[key]}.ckpt"
                 )
 
+                base_save.update({k: v.state_dict() for k, v in mind.modules.items()}),
                 torch.save(
-                    mind, self.check_paths[id_best]
+                    base_save,
+                    self.check_paths[id_best]
                 )
 
         if self.mode == "max":
