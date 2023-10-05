@@ -39,8 +39,6 @@ class ImageClassification(MicroMind):
                 num_classes=10
             )
 
-        self.modules.to(self.device)
-
     def forward(self, batch):
         return self.modules["classifier"](batch[0])
 
@@ -52,7 +50,7 @@ if __name__ == "__main__":
     m = ImageClassification()
 
     m.train(
-        epochs=1,
+        epochs=10,
         datasets={"train": trainloader, "val": testloader, "test": testloader},
         debug=True
     )

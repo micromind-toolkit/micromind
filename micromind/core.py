@@ -109,7 +109,7 @@ class MicroMind(ABC):
 
             pbar.close()
 
-            if e >= 1 and self.debug: break     # not sure this is getting called
+            if e >= 1 and self.debug: break
 
             if "val" in datasets: self.validate()
 

@@ -30,7 +30,7 @@ class Checkpointer():   # should look if something is inside this folder, in cas
 
     def __call__(self, mind, epoch: int, metrics: Dict) -> Union[Path, str]:
         self.fstream.write(
-            f"Epoch {epoch}: " + " - ".join([f"{k}: {v:.4f}" for k,v in metrics.items()]) + "."
+            f"Epoch {epoch}: " + " - ".join([f"{k}: {v:.4f}" for k,v in metrics.items()]) + ".\n"
         )
         if self.mode == "min":
             if metrics[self.key] <= min(self.bests):
