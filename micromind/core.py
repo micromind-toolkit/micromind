@@ -1,11 +1,19 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from typing import Dict, Union
+
+from accelerate import Accelerator
 from tqdm import tqdm
 
-from typing import Dict, Union
 from torch.cuda import device
-
 import torch.nn as nn
 import torch
+
+@dataclass
+class Stage:
+    train: int = 0
+    val: int = 1
+    test: int = 2
 
 class MicroMind(ABC):
     def __init__(self):
@@ -13,6 +21,7 @@ class MicroMind(ABC):
         self.modules = torch.nn.ModuleList([]) # init empty modules list
 
         self.device = "cpu"
+        self.accelerator = Accelerator()
 
     @abstractmethod
     def forward(self, x):
@@ -30,49 +39,43 @@ class MicroMind(ABC):
     def __call__(self, *x, **xv):
         return self.forward(*x, **xv)
 
-class MicroTrainer():
-    def __init__(
-        self,
-        mind: MicroMind,
-        epochs: int = 1,
-        datasets: Dict = {},
-        device: Union[str, device] = "cpu",
-        debug: bool = False
-    ) -> None:
-        # Sanity checks
-        assert datasets != {}, "You must specify at least one DataLoader."
+    def on_train_start(self):
+        self.opt, self.lr_sched = self.configure_optimizers()
+
+        self.accelerator = Accelerator()
+        self.device = self.accelerator.device
+
+        convert = [self.modules, self.opt, self.lr_sched] + list(self.datasets.values())
+        accelerated = self.accelerator.prepare(convert)
+        self.modules, self.opt, self.lr_sched = accelerated[:3]
+        for i, key in enumerate(self.datasets):
+            self.datasets[key] = accelerated[-(i + 1)]
+
+    def train(
+            self,
+            epochs: int = 1,
+            datasets: Dict = {},
+            debug: bool = False
+        ) -> None:
+        self.datasets = datasets
+        assert "train" in self.datasets, "Training dataloader was not specified."
         assert epochs > 0, "You must specify at least one epoch."
 
-        # Put everything on the right device.
-        mind.modules.to(device)
-        self.device = device
-
-        # Get optimizer
-        self.opt, self.lr_sched = mind.configure_optimizers()
-        mind.device = device
-
-        # Store useful things
-        self.epochs = epochs
-        self.datasets = datasets
         self.debug = debug
-        self.mind = mind
+        self.modules.train()
 
-    def train(self) -> None:
-        assert "train" in self.datasets, "Training dataloader was not specified."
-        self.mind.modules.train()
+        self.on_train_start()
 
-        for e in range(self.epochs):
-            pbar = tqdm(self.datasets["train"], unit="batches", ascii=True, dynamic_ncols=True) #, disable=not accelerator.is_local_main_process)
+        for e in range(epochs):
+            pbar = tqdm(self.datasets["train"], unit="batches", ascii=True, dynamic_ncols=True, disable=not self.accelerator.is_local_main_process)
             loss_epoch = 0
-            pbar.set_description(f"Running epoch {e + 1}/{self.epochs}")
+            pbar.set_description(f"Running epoch {e + 1}/{epochs}")
             for idx, batch in enumerate(pbar):
                 self.opt.zero_grad()
     
-                loss = self.mind.compute_loss(self.mind(batch), batch)
+                loss = self.compute_loss(self(batch), batch)
 
-                loss.backward()
-
-                # accelerator.backward(loss)
+                self.accelerator.backward(loss)
                 self.opt.step()
     
                 loss_epoch += loss.item()
@@ -84,22 +87,22 @@ class MicroTrainer():
 
             if e >= 1 and self.debug: break     # not sure this is getting called
 
-            self.validate()
+            if "val" in datasets: self.validate()
 
         return None
 
     @torch.no_grad()
     def validate(self) -> None:
         assert "val" in self.datasets, "Validation dataloader was not specified."
-        self.mind.modules.eval()
+        self.modules.eval()
 
-        pbar = tqdm(self.datasets["val"], unit="batches", ascii=True, dynamic_ncols=True) #, disable=not accelerator.is_local_main_process)
+        pbar = tqdm(self.datasets["val"], unit="batches", ascii=True, dynamic_ncols=True, disable=not self.accelerator.is_local_main_process)
         loss_epoch = 0
         pbar.set_description(f"Validation...")
         for idx, batch in enumerate(pbar):
             self.opt.zero_grad()
 
-            loss = self.mind.compute_loss(self.mind(batch), batch)
+            loss = self.compute_loss(self(batch), batch)
 
             loss_epoch += loss.item()
             pbar.set_postfix(loss=loss_epoch/(idx + 1))
@@ -110,4 +113,23 @@ class MicroTrainer():
 
         return None
 
+    @torch.no_grad()
+    def test(self, datasets: Dict = {}) -> None:
+        assert "test" in self.datasets, "Test dataloader was not specified."
+        self.modules.eval()
+
+        pbar = tqdm(self.datasets["test"], unit="batches", ascii=True, dynamic_ncols=True, disable=not self.accelerator.is_local_main_process)
+        loss_epoch = 0
+        pbar.set_description(f"Testing...")
+        for idx, batch in enumerate(pbar):
+            self.opt.zero_grad()
+
+            loss = self.compute_loss(self(batch), batch)
+
+            loss_epoch += loss.item()
+            pbar.set_postfix(loss=loss_epoch/(idx + 1))
+
+        pbar.close()
+
+        return None
 

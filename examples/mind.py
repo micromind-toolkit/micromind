@@ -1,4 +1,4 @@
-from micromind import MicroMind, MicroTrainer
+from micromind import MicroMind
 from micromind import PhiNet
 
 import torch
@@ -19,12 +19,12 @@ transform = transforms.Compose(
 batch_size = 4
 
 trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
-                                        download=True, transform=transform)
+                                        download=False, transform=transform)
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
                                           shuffle=True, num_workers=1)
 
 testset = torchvision.datasets.CIFAR10(root='./data', train=False,
-                                       download=True, transform=transform)
+                                       download=False, transform=transform)
 testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
                                          shuffle=False, num_workers=1)
 
@@ -44,28 +44,22 @@ class ImageClassification(MicroMind):
         self.modules.to(self.device)
 
     def forward(self, batch):
-        x, _ = batch
-        x = x.to(self.device)
-        return self.modules[0](x)
+        return self.modules[0](batch[0])
 
     def compute_loss(self, pred, batch):
-        pred = pred.to(self.device)
-        labels = batch[1].to(self.device)
-        return nn.CrossEntropyLoss()(pred, labels)
+        return nn.CrossEntropyLoss()(pred, batch[1])
 
 
 if __name__ == "__main__":
     m = ImageClassification()
-    optimizer = m.configure_optimizers()
 
-    trainer = MicroTrainer(
-        m,
-        epochs=10,
-        datasets={"train": trainloader, "val": testloader},
-        device="mps",
+    m.train(
+        epochs=1,
+        datasets={"train": trainloader, "val": testloader, "test": testloader},
         debug=True
     )
 
-    trainer.train()
-
+    m.test(
+        datasets={"test": testloader},
+    )
 
