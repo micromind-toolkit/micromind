@@ -61,8 +61,9 @@ if __name__ == "__main__":
     trainer = MicroTrainer(
         m,
         epochs=10,
-        datasets={"train": trainloader},
-        device="mps"
+        datasets={"train": trainloader, "val": testloader},
+        device="mps",
+        debug=True
     )
 
     trainer.train()

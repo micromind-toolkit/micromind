@@ -59,6 +59,7 @@ class MicroTrainer():
 
     def train(self) -> None:
         assert "train" in self.datasets, "Training dataloader was not specified."
+        self.mind.modules.train()
 
         for e in range(self.epochs):
             pbar = tqdm(self.datasets["train"], unit="batches", ascii=True, dynamic_ncols=True) #, disable=not accelerator.is_local_main_process)
@@ -83,7 +84,30 @@ class MicroTrainer():
 
             if e >= 1 and self.debug: break     # not sure this is getting called
 
+            self.validate()
+
         return None
 
+    @torch.no_grad()
+    def validate(self) -> None:
+        assert "val" in self.datasets, "Validation dataloader was not specified."
+        self.mind.modules.eval()
+
+        pbar = tqdm(self.datasets["val"], unit="batches", ascii=True, dynamic_ncols=True) #, disable=not accelerator.is_local_main_process)
+        loss_epoch = 0
+        pbar.set_description(f"Validation...")
+        for idx, batch in enumerate(pbar):
+            self.opt.zero_grad()
+
+            loss = self.mind.compute_loss(self.mind(batch), batch)
+
+            loss_epoch += loss.item()
+            pbar.set_postfix(loss=loss_epoch/(idx + 1))
+
+            if self.debug and idx > 10: break
+
+        pbar.close()
+
+        return None
 
 
