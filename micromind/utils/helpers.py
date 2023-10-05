@@ -30,7 +30,5 @@ def select_and_load_checkpoint(path: Union[Path, str]) -> Tuple[Dict, str]:
     best_key = min(values) if selected_mode == "min" else max(values)
     best_checkpoint = checkpoints[values.index(best_key)]
 
-    logger.debug(f"Best key is: {best_key}")
-
     return torch.load(best_checkpoint), best_checkpoint
 

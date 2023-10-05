@@ -59,17 +59,25 @@ class MicroMind(ABC):
         if os.path.exists(save_dir):
             # select which checkpoint and load it.
             checkpoint, path = select_and_load_checkpoint(save_dir)
+            self.opt = checkpoint["optimizer"]
+            self.lr_sched = checkpoint["lr_scheduler"]
+            self.start_epoch = checkpoint["epoch"]
 
-            logger.info(f"Loading existing checkpoint from {path}.")
+            self.checkpointer = Checkpointer(
+                checkpoint["key"],
+                mode=checkpoint["mode"],
+                checkpoint_path=self.experiment_folder
+            )
+
+            logger.info(f"Loaded existing checkpoint from {path}.")
         else:
-            checkpoint = None
+            os.makedirs(self.experiment_folder, exist_ok=True)
 
+            self.opt, self.lr_sched = self.configure_optimizers()
+            self.start_epoch = 0
 
-        os.makedirs(self.experiment_folder, exist_ok=True)
+            self.checkpointer = Checkpointer("loss", checkpoint_path=self.experiment_folder)
 
-        self.checkpointer = Checkpointer("loss", checkpoint_path=self.experiment_folder)
-
-        self.opt, self.lr_sched = self.configure_optimizers()
 
         self.accelerator = Accelerator()
         self.device = self.accelerator.device
@@ -98,7 +106,8 @@ class MicroMind(ABC):
 
         self.on_train_start()
 
-        for e in range(epochs):
+        logger.info(f"Starting from epoch {self.start_epoch}. Training is scheduled for {epochs} epochs.")
+        for e in range(self.start_epoch, epochs):
             pbar = tqdm(self.datasets["train"], unit="batches", ascii=True, dynamic_ncols=True, disable=not self.accelerator.is_local_main_process)
             loss_epoch = 0
             pbar.set_description(f"Running epoch {e + 1}/{epochs}")
@@ -117,11 +126,11 @@ class MicroMind(ABC):
 
             pbar.close()
 
+            if "val" in datasets: self.validate()
+            self.checkpointer(self, e, self.val_metrics)
+
             if e >= 1 and self.debug: break
 
-            if "val" in datasets: self.validate()
-
-            self.checkpointer(self, e, self.val_metrics)
 
         self.on_train_end()
         return None

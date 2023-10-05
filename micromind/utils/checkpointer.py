@@ -1,4 +1,5 @@
 from typing import Union, Dict
+from loguru import logger
 from pathlib import Path
 import os
 
@@ -32,6 +33,7 @@ class Checkpointer():   # should look if something is inside this folder, in cas
         self.fstream.write(
             f"Epoch {epoch}: " + " - ".join([f"{k}: {v:.4f}" for k,v in metrics.items()]) + ".\n"
         )
+        logger.info(f"Epoch {epoch}: " + " - ".join([f"{k}: {v:.4f}" for k,v in metrics.items()]) + ".\n")
         base_save = {
             "key": self.key,
             "mode": self.mode,
@@ -46,7 +48,7 @@ class Checkpointer():   # should look if something is inside this folder, in cas
 
                 self.check_paths[id_best] = os.path.join(
                     self.save_dir,
-                    f"epoch_{epoch}_{self.key}_{metrics[self.key]}.ckpt"
+                    f"epoch_{epoch}_{self.key}_{metrics[self.key]:.4f}.ckpt"
                 )
 
                 base_save.update({k: v.state_dict() for k, v in mind.modules.items()}),
@@ -61,7 +63,7 @@ class Checkpointer():   # should look if something is inside this folder, in cas
 
                 self.check_paths[id_best] = os.path.join(
                     self.save_dir,
-                    f"epoch_{epoch}_{key}_{metrics[key]}.ckpt"
+                    f"epoch_{epoch}_{key}_{metrics[key]:.4f}.ckpt"
                 )
 
                 base_save.update({k: v.state_dict() for k, v in mind.modules.items()}),
