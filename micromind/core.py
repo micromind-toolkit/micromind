@@ -4,10 +4,13 @@ from typing import Dict, Union
 
 from accelerate import Accelerator
 from tqdm import tqdm
+import os
 
 from torch.cuda import device
 import torch.nn as nn
 import torch
+
+from .utils.checkpointer import Checkpointer
 
 @dataclass
 class Stage:
@@ -40,6 +43,24 @@ class MicroMind(ABC):
         return self.forward(*x, **xv)
 
     def on_train_start(self):
+        # this should be loaded from argparse
+        self.output_folder = "results"
+        self.experiment_name = "test01"
+        self.experiment_folder = os.path.join(
+            self.output_folder,
+            self.experiment_name
+        )
+
+        save_dir = os.path.join(
+                self.experiment_folder, "save"
+            )
+        if os.path.exists(save_dir):
+            print("Loading existing checkpoint from ", save_dir)
+
+        os.makedirs(self.experiment_folder, exist_ok=True)
+
+        self.checkpointer = Checkpointer("loss", checkpoint_path=self.experiment_folder)
+
         self.opt, self.lr_sched = self.configure_optimizers()
 
         self.accelerator = Accelerator()
@@ -50,6 +71,9 @@ class MicroMind(ABC):
         self.modules, self.opt, self.lr_sched = accelerated[:3]
         for i, key in enumerate(self.datasets):
             self.datasets[key] = accelerated[-(i + 1)]
+
+    def on_train_end(self):
+        self.checkpointer.close()
 
     def train(
             self,
@@ -89,6 +113,9 @@ class MicroMind(ABC):
 
             if "val" in datasets: self.validate()
 
+            self.checkpointer(self, e, self.val_metrics)
+
+        self.on_train_end()
         return None
 
     @torch.no_grad()
@@ -108,6 +135,8 @@ class MicroMind(ABC):
             pbar.set_postfix(loss=loss_epoch/(idx + 1))
 
             if self.debug and idx > 10: break
+
+        self.val_metrics = {"loss": loss_epoch / (idx + 1)}
 
         pbar.close()
 
