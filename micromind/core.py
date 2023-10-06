@@ -69,7 +69,8 @@ class MicroMind(ABC):
                 checkpoint_path=self.experiment_folder
             )
 
-            logger.info(f"Loaded existing checkpoint from {path}.")
+            if self.accelerator.is_local_main_process:
+                logger.info(f"Loaded existing checkpoint from {path}.")
         else:
             os.makedirs(self.experiment_folder, exist_ok=True)
 
@@ -106,7 +107,8 @@ class MicroMind(ABC):
 
         self.on_train_start()
 
-        logger.info(f"Starting from epoch {self.start_epoch}. Training is scheduled for {epochs} epochs.")
+        if self.accelerator.is_local_main_process:
+            logger.info(f"Starting from epoch {self.start_epoch}. Training is scheduled for {epochs} epochs.")
         for e in range(self.start_epoch, epochs):
             pbar = tqdm(self.datasets["train"], unit="batches", ascii=True, dynamic_ncols=True, disable=not self.accelerator.is_local_main_process)
             loss_epoch = 0
