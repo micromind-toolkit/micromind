@@ -33,8 +33,6 @@ class Checkpointer():   # should look if something is inside this folder, in cas
         self.fstream.write(
             f"Epoch {epoch}: " + " - ".join([f"{k}: {v:.4f}" for k,v in metrics.items()]) + ".\n"
         )
-        if self.accelerator.is_local_main_process:
-            logger.info(f"Epoch {epoch}: " + " - ".join([f"{k}: {v:.4f}" for k,v in metrics.items()]) + ".\n")
         base_save = {
             "key": self.key,
             "mode": self.mode,

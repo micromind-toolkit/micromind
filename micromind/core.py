@@ -47,7 +47,7 @@ class MicroMind(ABC):
     def on_train_start(self):
         # this should be loaded from argparse
         self.output_folder = "results"
-        self.experiment_name = "test01"
+        self.experiment_name = "yolo"
         self.experiment_folder = os.path.join(
             self.output_folder,
             self.experiment_name
