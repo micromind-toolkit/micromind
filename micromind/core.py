@@ -81,13 +81,14 @@ class MicroMind(ABC):
 
 
         self.accelerator = Accelerator()
-        self.device = self.accelerator.device
+        self.device = "cuda"
+        self.modules.to(self.device)
 
-        convert = [self.modules, self.opt, self.lr_sched] + list(self.datasets.values())
-        accelerated = self.accelerator.prepare(convert)
-        self.modules, self.opt, self.lr_sched = accelerated[:3]
-        for i, key in enumerate(self.datasets):
-            self.datasets[key] = accelerated[-(i + 1)]
+        # convert = [self.modules, self.opt, self.lr_sched] + list(self.datasets.values())
+        # accelerated = self.accelerator.prepare(convert)
+        # self.modules, self.opt, self.lr_sched = accelerated[:3]
+        # for i, key in enumerate(self.datasets):
+            # self.datasets[key] = accelerated[-(i + 1)]
 
     def on_train_end(self):
         self.checkpointer.close()
@@ -117,8 +118,10 @@ class MicroMind(ABC):
                 self.opt.zero_grad()
     
                 loss = self.compute_loss(self(batch), batch)
+                print(loss)
 
-                self.accelerator.backward(loss)
+                # self.accelerator.backward(loss)
+                loss.backward()
                 self.opt.step()
     
                 loss_epoch += loss.item()

@@ -12,10 +12,7 @@ import sys; sys.path.append("/home/franz/dev/micromind/yolo_teo")
 from modules import YOLOv8
 
 class Loss(v8DetectionLoss):
-    def __init__(self, h, m):    # model must be de-paralleled
-
-        device = next(m.parameters()).device  # get model device
-
+    def __init__(self, h, m, device):    # model must be de-paralleled
         self.bce = nn.BCEWithLogitsLoss(reduction='none')
         self.hyp = h
         self.stride = m.stride  # model strides
@@ -42,15 +39,25 @@ class YOLO(MicroMind):
             torch.load("/home/franz/dev/micromind/yolo_teo/yolov8l.pt"
         ))
 
-        self.criterion = Loss(m_cfg, self.modules["yolo"].head)
+        self.m_cfg = m_cfg
+
+    def preprocess_batch(self, batch):
+        """Preprocesses a batch of images by scaling and converting to float."""
+        batch['img'] = batch['img'].to(self.device, non_blocking=True).float() / 255
+        for k in batch:
+            if not k in ["im_file", "ori_shape", "resized_shape"]:
+                batch[k] = batch[k].to(self.device)
+        return batch
 
     def forward(self, batch):
-        batch["img"] = batch["img"].float() / 255
+        batch = self.preprocess_batch(batch)
 
-        return self.modules["yolo"](batch["img"])
+        return self.modules["yolo"](batch["img"].to(self.device))
 
     def compute_loss(self, pred, batch):
-        batch["img"] = batch["img"].float() / 255
+        self.criterion = Loss(self.m_cfg, self.modules["yolo"].head, self.device)
+        batch = self.preprocess_batch(batch)
+
         lossi_sum, lossi =  self.criterion(
             pred[1],    # pass elements at the beginning of the backward graph
             batch
@@ -59,7 +66,7 @@ class YOLO(MicroMind):
         return lossi_sum
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.modules.parameters(), lr=0.000001), None
+        return torch.optim.Adam(self.modules.parameters(), lr=0.), None
 
 
 if __name__ == "__main__":
