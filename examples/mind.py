@@ -52,7 +52,7 @@ if __name__ == "__main__":
     m.train(
         epochs=10,
         datasets={"train": trainloader, "val": testloader, "test": testloader},
-        debug=False
+        debug=True
     )
 
     m.test(

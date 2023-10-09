@@ -57,20 +57,26 @@ class MicroMind(ABC):
                 self.experiment_folder, "save"
             )
         if os.path.exists(save_dir):
-            # select which checkpoint and load it.
-            checkpoint, path = select_and_load_checkpoint(save_dir)
-            self.opt = checkpoint["optimizer"]
-            self.lr_sched = checkpoint["lr_scheduler"]
-            self.start_epoch = checkpoint["epoch"]
+            if len(os.listdir(save_dir)) != 0:
+                # select which checkpoint and load it.
+                checkpoint, path = select_and_load_checkpoint(save_dir)
+                self.opt = checkpoint["optimizer"]
+                self.lr_sched = checkpoint["lr_scheduler"]
+                self.start_epoch = checkpoint["epoch"]
 
-            self.checkpointer = Checkpointer(
-                checkpoint["key"],
-                mode=checkpoint["mode"],
-                checkpoint_path=self.experiment_folder
-            )
+                if self.accelerator.is_local_main_process:
+                    self.checkpointer = Checkpointer(
+                        checkpoint["key"],
+                        mode=checkpoint["mode"],
+                        checkpoint_path=self.experiment_folder
+                    )
 
-            if self.accelerator.is_local_main_process:
-                logger.info(f"Loaded existing checkpoint from {path}.")
+                    logger.info(f"Loaded existing checkpoint from {path}.")
+            else:
+                self.opt, self.lr_sched = self.configure_optimizers()
+                self.start_epoch = 0
+    
+                self.checkpointer = Checkpointer("loss", checkpoint_path=self.experiment_folder)
         else:
             os.makedirs(self.experiment_folder, exist_ok=True)
 
