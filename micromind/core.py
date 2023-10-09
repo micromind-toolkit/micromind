@@ -88,6 +88,8 @@ class MicroMind(ABC):
 
         self.accelerator = Accelerator()
         self.device = self.accelerator.device
+        self.modules.to(self.device)
+        print("Set device to ", self.device)
 
         convert = [self.modules, self.opt, self.lr_sched] + list(self.datasets.values())
         accelerated = self.accelerator.prepare(convert)

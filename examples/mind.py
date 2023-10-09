@@ -40,10 +40,12 @@ class ImageClassification(MicroMind):
             )
 
     def forward(self, batch):
-        return self.modules["classifier"](batch[0])
+        images = batch[0].to(self.device)
+        return self.modules["classifier"](images)
 
     def compute_loss(self, pred, batch):
-        return nn.CrossEntropyLoss()(pred, batch[1])
+        labels = batch[1].to(self.device)
+        return nn.CrossEntropyLoss()(pred, labels)
 
 
 if __name__ == "__main__":
@@ -52,7 +54,7 @@ if __name__ == "__main__":
     m.train(
         epochs=10,
         datasets={"train": trainloader, "val": testloader, "test": testloader},
-        debug=True
+        debug=False
     )
 
     m.test(
