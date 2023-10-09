@@ -40,6 +40,7 @@ class Checkpointer():   # should look if something is inside this folder, in cas
             "optimizer": mind.opt,
             "lr_scheduler": mind.lr_sched,
         }
+        to_remove = None
         if self.mode == "min":
             if metrics[self.key] <= min(self.bests):
                 id_best = self.bests.index(min(self.bests))
@@ -70,6 +71,8 @@ class Checkpointer():   # should look if something is inside this folder, in cas
                     base_save,
                     self.check_paths[id_best]
                 )
+
+        if to_remove is not None: os.remove(to_remove)
 
         if self.mode == "max":
             return self.check_paths[self.bests.index(max(self.bests))]
