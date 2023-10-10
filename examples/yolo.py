@@ -66,7 +66,7 @@ class YOLO(MicroMind):
         return lossi_sum
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.modules.parameters(), lr=0.), None
+        return torch.optim.Adam(self.modules.parameters(), lr=0.001), None
 
 
 if __name__ == "__main__":
@@ -91,7 +91,7 @@ if __name__ == "__main__":
     )
 
     m.train(
-        epochs=2,
+        epochs=3,
         datasets={"train": loader, "val": loader},
     )
 
