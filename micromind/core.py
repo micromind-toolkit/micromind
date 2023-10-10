@@ -22,9 +22,10 @@ class Stage:
     test: int = 2
 
 class MicroMind(ABC):
-    def __init__(self):
+    def __init__(self, hparams):
         # here we should handle devices etc.
         self.modules = torch.nn.ModuleDict({}) # init empty modules dict
+        self.hparams = hparams
         self.input_shape = None
 
         self.device = "cpu"
@@ -78,20 +79,19 @@ class MicroMind(ABC):
             convert.convert_to_tflite(self, save_dir)
 
     def configure_optimizers(self):
-        opt_conf = {"lr": 0.001}
-        opt = torch.optim.Adam(self.modules.parameters(), **opt_conf)
+        if self.hparams.opt == "adam":
+            opt = torch.optim.Adam(self.modules.parameters(), self.hparams.lr)
+        elif self.hparams.opt == "sgd":
+            opt = torch.optim.SGD(self.modules.parameters(), self.hparams.lr)
         return opt, None    # None is for learning rate sched
 
     def __call__(self, *x, **xv):
         return self.forward(*x, **xv)
 
     def on_train_start(self):
-        # this should be loaded from argparse
-        self.output_folder = "results"
-        self.experiment_name = "test01"
         self.experiment_folder = os.path.join(
-            self.output_folder,
-            self.experiment_name
+            self.hparams.output_folder,
+            self.hparams.experiment_name
         )
 
         save_dir = os.path.join(

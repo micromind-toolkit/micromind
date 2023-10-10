@@ -1,5 +1,6 @@
 from micromind import MicroMind
 from micromind import PhiNet
+from micromind.utils.parse import parse_arguments
 
 import torch
 import torch.nn as nn
@@ -49,7 +50,8 @@ class ImageClassification(MicroMind):
 
 
 if __name__ == "__main__":
-    m = ImageClassification()
+    hparams = parse_arguments()
+    m = ImageClassification(hparams)
 
     # m.export(
         # "output_export", "onnx", (3, 224, 224)
