@@ -16,7 +16,7 @@ transform = transforms.Compose(
     [transforms.ToTensor(),
      transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
 
-batch_size = 4
+batch_size = 128
 
 trainset = torchvision.datasets.CIFAR10(root='/mnt/data/cifar-10', train=True,
                                         download=False, transform=transform)
@@ -40,10 +40,12 @@ class ImageClassification(MicroMind):
             )
 
     def forward(self, batch):
-        return self.modules["classifier"](batch[0].to(self.device))
+        images = batch[0].to(self.device)
+        return self.modules["classifier"](images)
 
     def compute_loss(self, pred, batch):
-        return nn.CrossEntropyLoss()(pred, batch[1].to(self.device))
+        labels = batch[1].to(self.device)
+        return nn.CrossEntropyLoss()(pred, labels)
 
 
 if __name__ == "__main__":
@@ -52,7 +54,8 @@ if __name__ == "__main__":
     m.train(
         epochs=10,
         datasets={"train": trainloader, "val": testloader, "test": testloader},
-        debug=True
+        # datasets={"train": trainloader, "val": trainloader, "test": testloader},
+        debug=False
     )
 
     m.test(

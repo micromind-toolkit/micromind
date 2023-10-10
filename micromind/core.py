@@ -37,8 +37,8 @@ class MicroMind(ABC):
         pass
 
     def configure_optimizers(self):
-        opt_conf = {"lr": 0.001, "momentum": 0.9}
-        opt = torch.optim.SGD(self.modules.parameters(), **opt_conf)
+        opt_conf = {"lr": 0.001}
+        opt = torch.optim.Adam(self.modules.parameters(), **opt_conf)
         return opt, None    # None is for learning rate sched
 
     def __call__(self, *x, **xv):
@@ -47,7 +47,7 @@ class MicroMind(ABC):
     def on_train_start(self):
         # this should be loaded from argparse
         self.output_folder = "results"
-        self.experiment_name = "yolo"
+        self.experiment_name = "test01"
         self.experiment_folder = os.path.join(
             self.output_folder,
             self.experiment_name
@@ -57,20 +57,26 @@ class MicroMind(ABC):
                 self.experiment_folder, "save"
             )
         if os.path.exists(save_dir):
-            # select which checkpoint and load it.
-            checkpoint, path = select_and_load_checkpoint(save_dir)
-            self.opt = checkpoint["optimizer"]
-            self.lr_sched = checkpoint["lr_scheduler"]
-            self.start_epoch = checkpoint["epoch"]
+            if len(os.listdir(save_dir)) != 0:
+                # select which checkpoint and load it.
+                checkpoint, path = select_and_load_checkpoint(save_dir)
+                self.opt = checkpoint["optimizer"]
+                self.lr_sched = checkpoint["lr_scheduler"]
+                self.start_epoch = checkpoint["epoch"]
 
-            self.checkpointer = Checkpointer(
-                checkpoint["key"],
-                mode=checkpoint["mode"],
-                checkpoint_path=self.experiment_folder
-            )
+                if self.accelerator.is_local_main_process:
+                    self.checkpointer = Checkpointer(
+                        checkpoint["key"],
+                        mode=checkpoint["mode"],
+                        checkpoint_path=self.experiment_folder
+                    )
 
-            if self.accelerator.is_local_main_process:
-                logger.info(f"Loaded existing checkpoint from {path}.")
+                    logger.info(f"Loaded existing checkpoint from {path}.")
+            else:
+                self.opt, self.lr_sched = self.configure_optimizers()
+                self.start_epoch = 0
+    
+                self.checkpointer = Checkpointer("loss", checkpoint_path=self.experiment_folder)
         else:
             os.makedirs(self.experiment_folder, exist_ok=True)
 
@@ -81,17 +87,19 @@ class MicroMind(ABC):
 
 
         self.accelerator = Accelerator()
-        self.device = "cuda"
+        self.device = self.accelerator.device
         self.modules.to(self.device)
+        print("Set device to ", self.device)
 
-        # convert = [self.modules, self.opt, self.lr_sched] + list(self.datasets.values())
-        # accelerated = self.accelerator.prepare(convert)
-        # self.modules, self.opt, self.lr_sched = accelerated[:3]
-        # for i, key in enumerate(self.datasets):
-            # self.datasets[key] = accelerated[-(i + 1)]
+        convert = [self.modules, self.opt, self.lr_sched] + list(self.datasets.values())
+        accelerated = self.accelerator.prepare(convert)
+        self.modules, self.opt, self.lr_sched = accelerated[:3]
+        for i, key in enumerate(self.datasets):
+            self.datasets[key] = accelerated[-(i + 1)]
 
     def on_train_end(self):
-        self.checkpointer.close()
+        if self.accelerator.is_local_main_process:
+            self.checkpointer.close()
 
     def train(
             self,
@@ -104,37 +112,37 @@ class MicroMind(ABC):
         assert epochs > 0, "You must specify at least one epoch."
 
         self.debug = debug
-        self.modules.train()
 
         self.on_train_start()
 
         if self.accelerator.is_local_main_process:
             logger.info(f"Starting from epoch {self.start_epoch}. Training is scheduled for {epochs} epochs.")
-        for e in range(self.start_epoch, epochs):
-            pbar = tqdm(self.datasets["train"], unit="batches", ascii=True, dynamic_ncols=True, disable=not self.accelerator.is_local_main_process)
-            loss_epoch = 0
-            pbar.set_description(f"Running epoch {e + 1}/{epochs}")
-            for idx, batch in enumerate(pbar):
-                self.opt.zero_grad()
+        with self.accelerator.autocast():
+            for e in range(self.start_epoch, epochs):
+                pbar = tqdm(self.datasets["train"], unit="batches", ascii=True, dynamic_ncols=True, disable=not self.accelerator.is_local_main_process)
+                loss_epoch = 0
+                pbar.set_description(f"Running epoch {e + 1}/{epochs}")
+                self.modules.train()
+                for idx, batch in enumerate(pbar):
+                    self.opt.zero_grad()
+        
+                    loss = self.compute_loss(self(batch), batch)
     
-                loss = self.compute_loss(self(batch), batch)
-                print(loss)
-
-                # self.accelerator.backward(loss)
-                loss.backward()
-                self.opt.step()
+                    self.accelerator.backward(loss)
+                    self.opt.step()
+        
+                    loss_epoch += loss.item()
+                    pbar.set_postfix(loss=loss_epoch/(idx + 1))
+        
+                    if self.debug and idx > 10: break
     
-                loss_epoch += loss.item()
-                pbar.set_postfix(loss=loss_epoch/(idx + 1))
+                pbar.close()
     
-                if self.debug and idx > 10: break
-
-            pbar.close()
-
-            if "val" in datasets: self.validate()
-            self.checkpointer(self, e, self.val_metrics)
-
-            if e >= 1 and self.debug: break
+                if "val" in datasets: self.validate()
+                if self.accelerator.is_local_main_process:
+                    self.checkpointer(self, e, self.val_metrics)
+    
+                if e >= 1 and self.debug: break
 
 
         self.on_train_end()
@@ -148,16 +156,17 @@ class MicroMind(ABC):
         pbar = tqdm(self.datasets["val"], unit="batches", ascii=True, dynamic_ncols=True, disable=not self.accelerator.is_local_main_process)
         loss_epoch = 0
         pbar.set_description(f"Validation...")
-        for idx, batch in enumerate(pbar):
-            self.opt.zero_grad()
-
-            loss = self.compute_loss(self(batch), batch)
-
-            loss_epoch += loss.item()
-            pbar.set_postfix(loss=loss_epoch/(idx + 1))
-
-            if self.debug and idx > 10: break
-
+        with self.accelerator.autocast():
+            for idx, batch in enumerate(pbar):
+                self.opt.zero_grad()
+    
+                loss = self.compute_loss(self(batch), batch)
+    
+                loss_epoch += loss.item()
+                pbar.set_postfix(loss=loss_epoch/(idx + 1))
+    
+                if self.debug and idx > 10: break
+    
         self.val_metrics = {"loss": loss_epoch / (idx + 1)}
 
         pbar.close()
@@ -172,13 +181,14 @@ class MicroMind(ABC):
         pbar = tqdm(self.datasets["test"], unit="batches", ascii=True, dynamic_ncols=True, disable=not self.accelerator.is_local_main_process)
         loss_epoch = 0
         pbar.set_description(f"Testing...")
-        for idx, batch in enumerate(pbar):
-            self.opt.zero_grad()
-
-            loss = self.compute_loss(self(batch), batch)
-
-            loss_epoch += loss.item()
-            pbar.set_postfix(loss=loss_epoch/(idx + 1))
+        with self.accelerator.autocast():
+            for idx, batch in enumerate(pbar):
+                self.opt.zero_grad()
+    
+                loss = self.compute_loss(self(batch), batch)
+    
+                loss_epoch += loss.item()
+                pbar.set_postfix(loss=loss_epoch/(idx + 1))
 
         pbar.close()
 
