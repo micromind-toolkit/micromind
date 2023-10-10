@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Dict, Union
+from pathlib import Path
 
 from accelerate import Accelerator
 from loguru import logger
@@ -44,6 +45,21 @@ class MicroMind(ABC):
     def __call__(self, *x, **xv):
         return self.forward(*x, **xv)
 
+    def load_modules(self, checkpoint_path: Union[Path, str]):
+        """ Loads models for path. """
+        dat = torch.load(checkpoint_path)
+
+        modules_keys = list(self.modules.keys())
+        for k in self.modules:
+            self.modules[k].load_state_dict(dat[k])
+
+            modules_keys.remove(k)
+
+        if len(modules_keys) != 0:
+            print(modules_keys)
+            breakpoint()
+            logger.info(f"Couldn't find a state_dict for modules {modules_keys}.")
+
     def on_train_start(self):
         # this should be loaded from argparse
         self.output_folder = "results"
@@ -63,6 +79,8 @@ class MicroMind(ABC):
                 self.opt = checkpoint["optimizer"]
                 self.lr_sched = checkpoint["lr_scheduler"]
                 self.start_epoch = checkpoint["epoch"]
+
+                self.load_modules(path)
 
                 if self.accelerator.is_local_main_process:
                     self.checkpointer = Checkpointer(
@@ -140,7 +158,7 @@ class MicroMind(ABC):
     
                 if "val" in datasets: self.validate()
                 if self.accelerator.is_local_main_process:
-                    self.checkpointer(self, e, self.val_metrics)
+                    self.checkpointer(self, e, self.val_metrics, lambda x: self.accelerator.unwrap_model(x))
     
                 if e >= 1 and self.debug: break
 

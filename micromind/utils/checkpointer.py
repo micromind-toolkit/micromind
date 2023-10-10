@@ -1,4 +1,4 @@
-from typing import Union, Dict
+from typing import Union, Dict, Callable
 from loguru import logger
 from pathlib import Path
 import os
@@ -29,7 +29,7 @@ class Checkpointer():   # should look if something is inside this folder, in cas
             os.path.join(self.root_dir, "train_log.txt"), "a"
         )
 
-    def __call__(self, mind, epoch: int, metrics: Dict) -> Union[Path, str]:
+    def __call__(self, mind, epoch: int, metrics: Dict, unwrap: Callable = lambda x: x) -> Union[Path, str]:
         self.fstream.write(
             f"Epoch {epoch}: " + " - ".join([f"{k}: {v:.4f}" for k,v in metrics.items()]) + ".\n"
         )
@@ -52,7 +52,7 @@ class Checkpointer():   # should look if something is inside this folder, in cas
                     f"epoch_{epoch}_{self.key}_{metrics[self.key]:.4f}.ckpt"
                 )
 
-                base_save.update({k: v.state_dict() for k, v in mind.modules.items()}),
+                base_save.update({k: unwrap(v).state_dict() for k, v in mind.modules.items()}),
                 torch.save(
                     base_save,
                     self.check_paths[id_best]
@@ -67,7 +67,7 @@ class Checkpointer():   # should look if something is inside this folder, in cas
                     f"epoch_{epoch}_{key}_{metrics[key]:.4f}.ckpt"
                 )
 
-                base_save.update({k: v.state_dict() for k, v in mind.modules.items()}),
+                base_save.update({k: unwrap(v).state_dict() for k, v in mind.modules.items()}),
                 torch.save(
                     base_save,
                     self.check_paths[id_best]
