@@ -8,6 +8,7 @@ Authors:
 """
 try:
     import os
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
     import shutil
     import sys
     from pathlib import Path
@@ -22,6 +23,7 @@ try:
     import torch.nn as nn
     from onnx_tf.backend import prepare
     from openvino.tools.mo import main as mo_main
+
 except Exception as e:
     print(str(e))
     print("Did you install micromind with conversion capabilities?")
@@ -89,9 +91,11 @@ def convert_to_openvino(net: nn.Module, save_path: Path) -> str:
         str(save_path),
         "--data_type",
         "FP32",
+        "--silent",
+        "True"
     ]
 
-    os.system(" ".join(cmd))
+    os.popen(" ".join(cmd)).read()
 
     logger.info(f"Saved converted OpenVINO model to {save_path}.")
 
@@ -129,9 +133,10 @@ def convert_to_tflite(
         str(save_path),
         "--output_saved_model",
         "--output_no_quant_float32_tflite",
+        "--non_verbose"
     ]
 
-    os.system(" ".join(cmd))
+    os.popen(" ".join(cmd)).read()
 
     shutil.rmtree(vino_sub)
 

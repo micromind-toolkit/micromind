@@ -51,14 +51,14 @@ class ImageClassification(MicroMind):
 if __name__ == "__main__":
     m = ImageClassification()
 
-    m.export(
-        "output_export", "onnx", (3, 224, 224)
-    )
+    # m.export(
+        # "output_export", "onnx", (3, 224, 224)
+    # )
 
-    m.export(
-        "output_export/vino", "openvino", (3, 224, 224)
-    )
-
+    # m.export(
+        # "output_export/vino", "openvino", (3, 224, 224)
+    # )
+# 
     m.export(
         "output_export/tflite", "tflite", (3, 224, 224)
     )
