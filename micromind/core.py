@@ -37,8 +37,8 @@ class MicroMind(ABC):
         pass
 
     def configure_optimizers(self):
-        opt_conf = {"lr": 0.001, "momentum": 0.9}
-        opt = torch.optim.SGD(self.modules.parameters(), **opt_conf)
+        opt_conf = {"lr": 0.001}
+        opt = torch.optim.Adam(self.modules.parameters(), **opt_conf)
         return opt, None    # None is for learning rate sched
 
     def __call__(self, *x, **xv):
@@ -98,7 +98,8 @@ class MicroMind(ABC):
             self.datasets[key] = accelerated[-(i + 1)]
 
     def on_train_end(self):
-        self.checkpointer.close()
+        if self.accelerator.is_local_main_process:
+            self.checkpointer.close()
 
     def train(
             self,
@@ -111,7 +112,6 @@ class MicroMind(ABC):
         assert epochs > 0, "You must specify at least one epoch."
 
         self.debug = debug
-        self.modules.train()
 
         self.on_train_start()
 
@@ -121,6 +121,7 @@ class MicroMind(ABC):
             pbar = tqdm(self.datasets["train"], unit="batches", ascii=True, dynamic_ncols=True, disable=not self.accelerator.is_local_main_process)
             loss_epoch = 0
             pbar.set_description(f"Running epoch {e + 1}/{epochs}")
+            self.modules.train()
             for idx, batch in enumerate(pbar):
                 self.opt.zero_grad()
     
@@ -137,7 +138,8 @@ class MicroMind(ABC):
             pbar.close()
 
             if "val" in datasets: self.validate()
-            self.checkpointer(self, e, self.val_metrics)
+            if self.accelerator.is_local_main_process:
+                self.checkpointer(self, e, self.val_metrics)
 
             if e >= 1 and self.debug: break
 
