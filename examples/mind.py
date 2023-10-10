@@ -65,9 +65,7 @@ if __name__ == "__main__":
     def compute_accuracy(pred, batch):
         return (pred.argmax(1) == batch[1]).float()
 
-    acc = Metric(
-        "accuracy", compute_accuracy
-    )
+    acc = {"name": "accuracy", "fn": compute_accuracy}
     # m.export(
         # "output_export/tflite", "tflite", (3, 224, 224)
     # )

@@ -144,14 +144,14 @@ class MicroMind(ABC):
                 self.opt, self.lr_sched = self.configure_optimizers()
                 self.start_epoch = 0
     
-                self.checkpointer = Checkpointer("loss", checkpoint_path=self.experiment_folder)
+                self.checkpointer = Checkpointer("val_loss", checkpoint_path=self.experiment_folder)
         else:
             os.makedirs(self.experiment_folder, exist_ok=True)
 
             self.opt, self.lr_sched = self.configure_optimizers()
             self.start_epoch = 0
 
-            self.checkpointer = Checkpointer("loss", checkpoint_path=self.experiment_folder)
+            self.checkpointer = Checkpointer("val_loss", checkpoint_path=self.experiment_folder)
 
 
         self.accelerator = Accelerator()
@@ -177,8 +177,8 @@ class MicroMind(ABC):
             debug: bool = False
         ) -> None:
         self.datasets = datasets
-        self.train_metrics = deepcopy(metrics)
-        self.val_metrics = deepcopy(metrics)
+        self.train_metrics = [Metric(**m) for m in metrics]
+        self.val_metrics = [Metric(**m) for m in metrics]
         assert "train" in self.datasets, "Training dataloader was not specified."
         assert epochs > 0, "You must specify at least one epoch."
 
@@ -224,16 +224,16 @@ class MicroMind(ABC):
                 pbar.close()
     
                 train_metrics = {
-                    m.name: m.reduce(True) for m in self.train_metrics
+                    "train_" + m.name: m.reduce(True) for m in self.train_metrics
                 }
+                train_metrics.update({"train_loss": loss_epoch/(idx+1)})
 
                 if "val" in datasets:
-                    self.validate()
+                    val_metrics = self.validate()
+                    if self.accelerator.is_local_main_process:
+                        self.checkpointer(self, e, train_metrics, val_metrics, lambda x: self.accelerator.unwrap_model(x))
                 else:
-                    self.val_metrics = train_metrics.update({"loss": loss_epoch / (idx + 1)})
-
-                if self.accelerator.is_local_main_process:
-                    self.checkpointer(self, e, train_metrics, self.val_metrics, lambda x: self.accelerator.unwrap_model(x))
+                    val_metrics = train_metrics.update({"loss": loss_epoch / (idx + 1)})
     
                 if e >= 1 and self.debug: break
 
@@ -242,7 +242,7 @@ class MicroMind(ABC):
         return None
 
     @torch.no_grad()
-    def validate(self) -> None:
+    def validate(self) -> Dict:
         assert "val" in self.datasets, "Validation dataloader was not specified."
         self.modules.eval()
 
@@ -251,20 +251,29 @@ class MicroMind(ABC):
         pbar.set_description(f"Validation...")
         with self.accelerator.autocast():
             for idx, batch in enumerate(pbar):
+                if isinstance(batch, list): 
+                    batch = [b.to(self.device) for b in batch]
+
                 self.opt.zero_grad()
     
-                loss = self.compute_loss(self(batch), batch)
+                model_out = self(batch)
+                loss = self.compute_loss(model_out, batch)
+                for m in self.val_metrics:
+                    m(model_out, batch, self.device)
     
                 loss_epoch += loss.item()
                 pbar.set_postfix(loss=loss_epoch/(idx + 1))
     
                 if self.debug and idx > 10: break
     
-        self.val_metrics = {"loss": loss_epoch / (idx + 1)}
+        val_metrics = {
+            "val_" + m.name: m.reduce(True) for m in self.val_metrics
+        }
+        val_metrics.update({"val_loss": loss_epoch/(idx+1)})
 
         pbar.close()
 
-        return None
+        return val_metrics
 
     @torch.no_grad()
     def test(self, datasets: Dict = {}) -> None:
@@ -276,6 +285,8 @@ class MicroMind(ABC):
         pbar.set_description(f"Testing...")
         with self.accelerator.autocast():
             for idx, batch in enumerate(pbar):
+                if isinstance(batch, list): 
+                    batch = [b.to(self.device) for b in batch]
                 self.opt.zero_grad()
     
                 loss = self.compute_loss(self(batch), batch)

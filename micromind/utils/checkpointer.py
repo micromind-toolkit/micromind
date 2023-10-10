@@ -30,10 +30,12 @@ class Checkpointer():   # should look if something is inside this folder, in cas
         )
 
     def __call__(self, mind, epoch: int, train_metrics: Dict, metrics: Dict, unwrap: Callable = lambda x: x) -> Union[Path, str]:
+        s_out = f"Epoch {epoch}: " + " Training - ".join([f"{k}: {v:.4f}" for k,v in train_metrics.items()]) # 
+        s_out += "; Validation - ".join([f"{k2}: {v2:.4f}" for k2,v2 in metrics.items()]) + ".\n"
         self.fstream.write(
-            f"Epoch {epoch}: " + " - ".join([f"{k}: {v:.4f}" for k,v in metrics.items()]) + ".\n"
+            s_out
         )
-        logger.info(f"Epoch {epoch}: " + " Training - ".join([f"{k}: {v:.4f}" for k,v in metrics.items()]) + " Validation - ".join([f"{k}: {v:.4f}" for k,v in metrics.items()]) + ".\n")
+        logger.info(s_out)
         base_save = {
             "key": self.key,
             "mode": self.mode,
