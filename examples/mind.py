@@ -1,4 +1,4 @@
-from micromind import MicroMind
+from micromind import MicroMind, Metric
 from micromind import PhiNet
 from micromind.utils.parse import parse_arguments
 
@@ -61,15 +61,22 @@ if __name__ == "__main__":
         # "output_export/vino", "openvino", (3, 224, 224)
     # )
 # 
-    m.export(
-        "output_export/tflite", "tflite", (3, 224, 224)
+    
+    def compute_accuracy(pred, batch):
+        return (pred.argmax(1) == batch[1]).float()
+
+    acc = Metric(
+        "accuracy", compute_accuracy
     )
+    # m.export(
+        # "output_export/tflite", "tflite", (3, 224, 224)
+    # )
 
     m.train(
         epochs=10,
         datasets={"train": trainloader, "val": testloader, "test": testloader},
-        # datasets={"train": trainloader, "val": trainloader, "test": testloader},
-        debug=False
+        metrics=[acc],
+        debug=hparams.debug
     )
 
     m.test(

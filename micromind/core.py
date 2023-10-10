@@ -1,6 +1,7 @@
-from typing import Dict, Union, Tuple
+from typing import Dict, Union, Tuple, Callable, List
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from copy import deepcopy
 from pathlib import Path
 
 from accelerate import Accelerator
@@ -20,6 +21,28 @@ class Stage:
     train: int = 0
     val: int = 1
     test: int = 2
+
+class Metric():
+    def __init__(self, name: str, fn: Callable, reduction="mean"):
+        self.name = name
+        self.fn = fn
+        self.reduction = reduction
+        self.history = torch.empty(1,)
+
+    def __call__(self, pred, batch, device="cpu"):
+        if self.history.device != device: self.history = self.history.to(device)
+        self.history = torch.cat(
+            (self.history, self.fn(pred, batch))
+        )
+
+    def reduce(self, clear=False):
+        if self.reduction == "mean":
+            tmp = self.history.mean()
+        elif self.reduction == "sum":
+            tmp = self.history.sum()
+
+        if clear: self.history = torch.empty(1,)
+        return tmp.item()
 
 class MicroMind(ABC):
     def __init__(self, hparams):
@@ -64,9 +87,10 @@ class MicroMind(ABC):
             # if out_format == "onnx":
                 # convert.convert_to_onnx(self)
 
-    def export(self, save_dir: Union[Path, str], out_format: str = "onnx", input_shape=None):
+    def export(self, save_dir: Union[Path, str], out_format: str = "onnx", input_shape=None) -> None:
         from micromind import convert
         if not isinstance(save_dir, Path): save_dir = Path(save_dir)
+        save_dir = save_dir.joinpath(self.hparams.experiment_name)
 
         self.set_input_shape(input_shape)
         assert self.input_shape is not None, "You should pass the input_shape of the model."
@@ -79,6 +103,7 @@ class MicroMind(ABC):
             convert.convert_to_tflite(self, save_dir)
 
     def configure_optimizers(self):
+        assert self.hparams.opt in ["adam", "sgd"], f"Optimizer {self.hparams.opt} not supported."
         if self.hparams.opt == "adam":
             opt = torch.optim.Adam(self.modules.parameters(), self.hparams.lr)
         elif self.hparams.opt == "sgd":
@@ -148,9 +173,12 @@ class MicroMind(ABC):
             self,
             epochs: int = 1,
             datasets: Dict = {},
+            metrics: List[Metric] = [],
             debug: bool = False
         ) -> None:
         self.datasets = datasets
+        self.train_metrics = deepcopy(metrics)
+        self.val_metrics = deepcopy(metrics)
         assert "train" in self.datasets, "Training dataloader was not specified."
         assert epochs > 0, "You must specify at least one epoch."
 
@@ -167,23 +195,45 @@ class MicroMind(ABC):
                 pbar.set_description(f"Running epoch {e + 1}/{epochs}")
                 self.modules.train()
                 for idx, batch in enumerate(pbar):
+                    if isinstance(batch, list): 
+                        batch = [b.to(self.device) for b in batch]
+
                     self.opt.zero_grad()
         
-                    loss = self.compute_loss(self(batch), batch)
-    
+                    model_out = self(batch)
+                    loss = self.compute_loss(model_out, batch)
+
                     self.accelerator.backward(loss)
                     self.opt.step()
+
+                    for m in self.train_metrics:
+                        m(model_out, batch, self.device)
+
+                    
+                    running_train = {
+                        "train_" + m.name: m.reduce() for m in self.train_metrics
+                    }
+
+                    running_train.update({"train_loss": loss_epoch/(idx+1)})
         
                     loss_epoch += loss.item()
-                    pbar.set_postfix(loss=loss_epoch/(idx + 1))
+                    pbar.set_postfix(**running_train)
         
                     if self.debug and idx > 10: break
     
                 pbar.close()
     
-                if "val" in datasets: self.validate()
+                train_metrics = {
+                    m.name: m.reduce(True) for m in self.train_metrics
+                }
+
+                if "val" in datasets:
+                    self.validate()
+                else:
+                    self.val_metrics = train_metrics.update({"loss": loss_epoch / (idx + 1)})
+
                 if self.accelerator.is_local_main_process:
-                    self.checkpointer(self, e, self.val_metrics, lambda x: self.accelerator.unwrap_model(x))
+                    self.checkpointer(self, e, train_metrics, self.val_metrics, lambda x: self.accelerator.unwrap_model(x))
     
                 if e >= 1 and self.debug: break
 

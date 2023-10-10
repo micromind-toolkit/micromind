@@ -29,11 +29,11 @@ class Checkpointer():   # should look if something is inside this folder, in cas
             os.path.join(self.root_dir, "train_log.txt"), "a"
         )
 
-    def __call__(self, mind, epoch: int, metrics: Dict, unwrap: Callable = lambda x: x) -> Union[Path, str]:
+    def __call__(self, mind, epoch: int, train_metrics: Dict, metrics: Dict, unwrap: Callable = lambda x: x) -> Union[Path, str]:
         self.fstream.write(
             f"Epoch {epoch}: " + " - ".join([f"{k}: {v:.4f}" for k,v in metrics.items()]) + ".\n"
         )
-        logger.info(f"Epoch {epoch}: " + " - ".join([f"{k}: {v:.4f}" for k,v in metrics.items()]) + ".\n")
+        logger.info(f"Epoch {epoch}: " + " Training - ".join([f"{k}: {v:.4f}" for k,v in metrics.items()]) + " Validation - ".join([f"{k}: {v:.4f}" for k,v in metrics.items()]) + ".\n")
         base_save = {
             "key": self.key,
             "mode": self.mode,
