@@ -1,6 +1,6 @@
+from typing import Dict, Union, Tuple
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Dict, Union
 from pathlib import Path
 
 from accelerate import Accelerator
@@ -25,6 +25,7 @@ class MicroMind(ABC):
     def __init__(self):
         # here we should handle devices etc.
         self.modules = torch.nn.ModuleDict({}) # init empty modules dict
+        self.input_shape = None
 
         self.device = "cpu"
         self.accelerator = Accelerator()
@@ -37,13 +38,8 @@ class MicroMind(ABC):
     def compute_loss(self, pred, batch):
         pass
 
-    def configure_optimizers(self):
-        opt_conf = {"lr": 0.001}
-        opt = torch.optim.Adam(self.modules.parameters(), **opt_conf)
-        return opt, None    # None is for learning rate sched
-
-    def __call__(self, *x, **xv):
-        return self.forward(*x, **xv)
+    def set_input_shape(self, input_shape: Tuple = (3, 224, 224)):
+        self.input_shape = input_shape
 
     def load_modules(self, checkpoint_path: Union[Path, str]):
         """ Loads models for path. """
@@ -59,6 +55,35 @@ class MicroMind(ABC):
             print(modules_keys)
             breakpoint()
             logger.info(f"Couldn't find a state_dict for modules {modules_keys}.")
+
+        def export(self, out_format: str = "onnx"):
+            pass
+            # from micromind import convert
+# 
+            # if out_format == "onnx":
+                # convert.convert_to_onnx(self)
+
+    def export(self, save_dir: Union[Path, str], out_format: str = "onnx", input_shape=None):
+        from micromind import convert
+        if not isinstance(save_dir, Path): save_dir = Path(save_dir)
+
+        self.set_input_shape(input_shape)
+        assert self.input_shape is not None, "You should pass the input_shape of the model."
+
+        if out_format == "onnx":
+            convert.convert_to_onnx(self, save_dir.joinpath("model.onnx"))
+        elif out_format == "openvino":
+            convert.convert_to_openvino(self, save_dir)
+        elif out_format == "tflite":
+            convert.convert_to_tflite(self, save_dir)
+
+    def configure_optimizers(self):
+        opt_conf = {"lr": 0.001}
+        opt = torch.optim.Adam(self.modules.parameters(), **opt_conf)
+        return opt, None    # None is for learning rate sched
+
+    def __call__(self, *x, **xv):
+        return self.forward(*x, **xv)
 
     def on_train_start(self):
         # this should be loaded from argparse
@@ -78,7 +103,7 @@ class MicroMind(ABC):
                 checkpoint, path = select_and_load_checkpoint(save_dir)
                 self.opt = checkpoint["optimizer"]
                 self.lr_sched = checkpoint["lr_scheduler"]
-                self.start_epoch = checkpoint["epoch"]
+                self.start_epoch = checkpoint["epoch"] + 1
 
                 self.load_modules(path)
 

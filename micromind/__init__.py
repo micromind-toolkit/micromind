@@ -2,6 +2,13 @@ from .networks.phinet import PhiNet
 from .utils import configlib
 from .core import MicroMind
 
+try:
+    import micromind.convert
+    import warnings
+    warnings.filterwarnings('ignore')
+except:
+    pass
+
 
 # Package version
 __version__ = "0.0.5"

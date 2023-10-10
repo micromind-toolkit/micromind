@@ -11,6 +11,8 @@ try:
     import shutil
     import sys
     from pathlib import Path
+    from loguru import logger
+    from typing import Union
 
     import numpy as np
     import onnx
@@ -24,21 +26,27 @@ except Exception as e:
     print(str(e))
     print("Did you install micromind with conversion capabilities?")
     print("Please try again after pip install micromind[conversion].")
-    quit()
+    exit(0)
 
 
 @torch.no_grad()
-def convert_to_onnx(net: nn.Module, save_path: Path, simplify: bool = True):
+def convert_to_onnx(net: nn.Module, save_path: Union[Path, str] = "model.onnx", simplify: bool = True):
     """Converts nn.Module to onnx and saves it to save_path.
     Optionally simplifies it."""
-    x = torch.zeros([1] + list(net.input_shape))
+    x = [torch.zeros([1] + list(net.input_shape)), None]
+    save_path = Path(save_path)
+    os.makedirs(save_path.parent, exist_ok=True)
+
+    # add forward to ModuleDict
+    bound_method = net.forward.__get__(net.modules, net.modules.__class__)
+    setattr(net.modules, "forward", bound_method)
 
     torch.onnx.export(
-        net.cpu(),
+        net.modules.cpu(),
         x,
         save_path,
         verbose=False,
-        input_names=["input"],
+        input_names=["input", "labels"],
         output_names=["output"],
         opset_version=11,
     )
@@ -48,17 +56,19 @@ def convert_to_onnx(net: nn.Module, save_path: Path, simplify: bool = True):
         onnx_model, check = onnxsim.simplify(onnx_model)
         onnx.save(onnx_model, save_path)
 
+    logger.info(f"Saved converted ONNX model to {save_path}.")
+
     return onnx.load(save_path)
 
 
 @torch.no_grad()
-def convert_to_openvino(net: nn.Module, save_dir: Path) -> str:
+def convert_to_openvino(net: nn.Module, save_path: Path) -> str:
     """Converts nn.Module to OpenVINO."""
-    os.makedirs(save_dir, exist_ok=True)
-    if not isinstance(save_dir, Path):
-        save_dir = Path(save_dir)
+    os.makedirs(save_path, exist_ok=True)
+    if not isinstance(save_path, Path):
+        save_path = Path(save_path)
 
-    onnx_path = save_dir.joinpath("model.onnx")
+    onnx_path = save_path.joinpath("model.onnx")
     onnx_model = convert_to_onnx(net, onnx_path, simplify=True)
 
     tf_rep = prepare(onnx_model)
@@ -76,14 +86,16 @@ def convert_to_openvino(net: nn.Module, save_dir: Path) -> str:
         "--input_shape",
         input_shape_str,
         "--output_dir",
-        str(save_dir),
+        str(save_path),
         "--data_type",
         "FP32",
     ]
 
     os.system(" ".join(cmd))
 
-    return str(save_dir.joinpath("model.xml"))
+    logger.info(f"Saved converted OpenVINO model to {save_path}.")
+
+    return str(save_path.joinpath("model.xml"))
 
 
 @torch.no_grad()
@@ -140,3 +152,5 @@ def convert_to_tflite(
 
         with open(save_path.joinpath("model.int8.tflite"), "wb") as f:
             f.write(tflite_quant_model)
+
+    logger.info(f"Saved converted TFLite model to {save_path}.")
