@@ -117,31 +117,32 @@ class MicroMind(ABC):
 
         if self.accelerator.is_local_main_process:
             logger.info(f"Starting from epoch {self.start_epoch}. Training is scheduled for {epochs} epochs.")
-        for e in range(self.start_epoch, epochs):
-            pbar = tqdm(self.datasets["train"], unit="batches", ascii=True, dynamic_ncols=True, disable=not self.accelerator.is_local_main_process)
-            loss_epoch = 0
-            pbar.set_description(f"Running epoch {e + 1}/{epochs}")
-            self.modules.train()
-            for idx, batch in enumerate(pbar):
-                self.opt.zero_grad()
+        with self.accelerator.autocast():
+            for e in range(self.start_epoch, epochs):
+                pbar = tqdm(self.datasets["train"], unit="batches", ascii=True, dynamic_ncols=True, disable=not self.accelerator.is_local_main_process)
+                loss_epoch = 0
+                pbar.set_description(f"Running epoch {e + 1}/{epochs}")
+                self.modules.train()
+                for idx, batch in enumerate(pbar):
+                    self.opt.zero_grad()
+        
+                    loss = self.compute_loss(self(batch), batch)
     
-                loss = self.compute_loss(self(batch), batch)
-
-                self.accelerator.backward(loss)
-                self.opt.step()
+                    self.accelerator.backward(loss)
+                    self.opt.step()
+        
+                    loss_epoch += loss.item()
+                    pbar.set_postfix(loss=loss_epoch/(idx + 1))
+        
+                    if self.debug and idx > 10: break
     
-                loss_epoch += loss.item()
-                pbar.set_postfix(loss=loss_epoch/(idx + 1))
+                pbar.close()
     
-                if self.debug and idx > 10: break
-
-            pbar.close()
-
-            if "val" in datasets: self.validate()
-            if self.accelerator.is_local_main_process:
-                self.checkpointer(self, e, self.val_metrics)
-
-            if e >= 1 and self.debug: break
+                if "val" in datasets: self.validate()
+                if self.accelerator.is_local_main_process:
+                    self.checkpointer(self, e, self.val_metrics)
+    
+                if e >= 1 and self.debug: break
 
 
         self.on_train_end()
@@ -155,16 +156,17 @@ class MicroMind(ABC):
         pbar = tqdm(self.datasets["val"], unit="batches", ascii=True, dynamic_ncols=True, disable=not self.accelerator.is_local_main_process)
         loss_epoch = 0
         pbar.set_description(f"Validation...")
-        for idx, batch in enumerate(pbar):
-            self.opt.zero_grad()
-
-            loss = self.compute_loss(self(batch), batch)
-
-            loss_epoch += loss.item()
-            pbar.set_postfix(loss=loss_epoch/(idx + 1))
-
-            if self.debug and idx > 10: break
-
+        with self.accelerator.autocast():
+            for idx, batch in enumerate(pbar):
+                self.opt.zero_grad()
+    
+                loss = self.compute_loss(self(batch), batch)
+    
+                loss_epoch += loss.item()
+                pbar.set_postfix(loss=loss_epoch/(idx + 1))
+    
+                if self.debug and idx > 10: break
+    
         self.val_metrics = {"loss": loss_epoch / (idx + 1)}
 
         pbar.close()
@@ -179,13 +181,14 @@ class MicroMind(ABC):
         pbar = tqdm(self.datasets["test"], unit="batches", ascii=True, dynamic_ncols=True, disable=not self.accelerator.is_local_main_process)
         loss_epoch = 0
         pbar.set_description(f"Testing...")
-        for idx, batch in enumerate(pbar):
-            self.opt.zero_grad()
-
-            loss = self.compute_loss(self(batch), batch)
-
-            loss_epoch += loss.item()
-            pbar.set_postfix(loss=loss_epoch/(idx + 1))
+        with self.accelerator.autocast():
+            for idx, batch in enumerate(pbar):
+                self.opt.zero_grad()
+    
+                loss = self.compute_loss(self(batch), batch)
+    
+                loss_epoch += loss.item()
+                pbar.set_postfix(loss=loss_epoch/(idx + 1))
 
         pbar.close()
 
