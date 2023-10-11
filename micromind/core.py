@@ -213,7 +213,7 @@ class MicroMind(ABC):
         if self.accelerator.is_local_main_process:
             logger.info(
                 f"Starting from epoch {self.start_epoch}."
-                + " Training is scheduled for {epochs} epochs."
+                + f" Training is scheduled for {epochs} epochs."
             )
         with self.accelerator.autocast():
             for e in range(self.start_epoch, epochs):

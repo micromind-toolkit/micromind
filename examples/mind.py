@@ -1,4 +1,5 @@
-from micromind import MicroMind, Metric, PhiNet
+from micromind import MicroMind, Metric
+from micromind.networks import PhiNet
 from micromind.utils.parse import parse_arguments
 
 import torch
@@ -37,14 +38,14 @@ if __name__ == "__main__":
     )
 
     trainset = torchvision.datasets.CIFAR10(
-        root="/mnt/data/cifar-10", train=True, download=False, transform=transform
+        root="data/cifar-10", train=True, download=True, transform=transform
     )
     trainloader = torch.utils.data.DataLoader(
         trainset, batch_size=batch_size, shuffle=True, num_workers=1
     )
 
     testset = torchvision.datasets.CIFAR10(
-        root="/mnt/data/cifar-10", train=False, download=False, transform=transform
+        root="data/cifar-10", train=False, download=True, transform=transform
     )
     testloader = torch.utils.data.DataLoader(
         testset, batch_size=batch_size, shuffle=False, num_workers=1

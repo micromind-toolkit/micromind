@@ -1,14 +1,5 @@
 from .core import MicroMind, Metric
 
-try:
-    import micromind.convert
-    import warnings
-
-    warnings.filterwarnings("ignore")
-except ImportError:
-    pass
-
-
 # Package version
 __version__ = "0.0.5"
 
