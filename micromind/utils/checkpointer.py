@@ -5,13 +5,14 @@ import os
 
 import torch
 
-class Checkpointer():   # should look if something is inside this folder, in case start the exp from there.
+
+class Checkpointer:
     def __init__(
         self,
         key: str,
         mode: str = "min",
         top_k: int = 5,
-        checkpoint_path: Union[str, Path] = "."
+        checkpoint_path: Union[str, Path] = ".",
     ) -> None:
         assert mode in ["max", "min"], "Checkpointer mode can be only max or min."
         self.key = key
@@ -21,20 +22,25 @@ class Checkpointer():   # should look if something is inside this folder, in cas
         self.bests = [torch.inf] * self.top_k
         self.check_paths = [""] * self.top_k
         self.root_dir = checkpoint_path
-        self.save_dir = os.path.join(
-            self.root_dir, "save"
-        )
+        self.save_dir = os.path.join(self.root_dir, "save")
         os.makedirs(self.save_dir, exist_ok=True)
-        self.fstream = open(
-            os.path.join(self.root_dir, "train_log.txt"), "a"
-        )
+        self.fstream = open(os.path.join(self.root_dir, "train_log.txt"), "a")
 
-    def __call__(self, mind, epoch: int, train_metrics: Dict, metrics: Dict, unwrap: Callable = lambda x: x) -> Union[Path, str]:
-        s_out = f"Epoch {epoch}: " + " - ".join([f"{k}: {v:.2f}" for k,v in train_metrics.items()]) + "; "
-        s_out += " - ".join([f"{k2}: {v2:.4f}" for k2,v2 in metrics.items()]) + ".\n"
-        self.fstream.write(
-            s_out
+    def __call__(
+        self,
+        mind,
+        epoch: int,
+        train_metrics: Dict,
+        metrics: Dict,
+        unwrap: Callable = lambda x: x,
+    ) -> Union[Path, str]:
+        s_out = (
+            f"Epoch {epoch}: "
+            + " - ".join([f"{k}: {v:.2f}" for k, v in train_metrics.items()])
+            + "; "
         )
+        s_out += " - ".join([f"{k2}: {v2:.4f}" for k2, v2 in metrics.items()]) + ".\n"
+        self.fstream.write(s_out)
         logger.info(s_out)
         base_save = {
             "key": self.key,
@@ -51,14 +57,13 @@ class Checkpointer():   # should look if something is inside this folder, in cas
 
                 self.check_paths[id_best] = os.path.join(
                     self.save_dir,
-                    f"epoch_{epoch}_{self.key}_{metrics[self.key]:.4f}.ckpt"
+                    f"epoch_{epoch}_{self.key}_{metrics[self.key]:.4f}.ckpt",
                 )
 
-                base_save.update({k: unwrap(v).state_dict() for k, v in mind.modules.items()}),
-                torch.save(
-                    base_save,
-                    self.check_paths[id_best]
-                )
+                base_save.update(
+                    {k: unwrap(v).state_dict() for k, v in mind.modules.items()}
+                ),
+                torch.save(base_save, self.check_paths[id_best])
         elif self.mode == "max":
             if metrics[self.key] >= max(self.bests):
                 id_best = self.bests.index(min(self.bests))
@@ -66,20 +71,17 @@ class Checkpointer():   # should look if something is inside this folder, in cas
 
                 self.check_paths[id_best] = os.path.join(
                     self.save_dir,
-                    f"epoch_{epoch}_{key}_{metrics[key]:.4f}.ckpt"
+                    f"epoch_{epoch}_{self.key}_{metrics[self.key]:.4f}.ckpt",
                 )
 
-                base_save.update({k: unwrap(v).state_dict() for k, v in mind.modules.items()}),
-                torch.save(
-                    base_save,
-                    self.check_paths[id_best]
-                )
+                base_save.update(
+                    {k: unwrap(v).state_dict() for k, v in mind.modules.items()}
+                ),
+                torch.save(base_save, self.check_paths[id_best])
 
         if to_remove is not None and to_remove != "":
             logger.info(f"Generated better checkpoint. Deleting {to_remove}.")
-            os.remove(
-                to_remove
-            )
+            os.remove(to_remove)
 
         if self.mode == "max":
             return self.check_paths[self.bests.index(max(self.bests))]
@@ -88,4 +90,3 @@ class Checkpointer():   # should look if something is inside this folder, in cas
 
     def close(self):
         self.fstream.close()
-

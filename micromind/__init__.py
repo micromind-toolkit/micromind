@@ -5,8 +5,9 @@ from .core import MicroMind, Metric
 try:
     import micromind.convert
     import warnings
-    warnings.filterwarnings('ignore')
-except:
+
+    warnings.filterwarnings("ignore")
+except ImportError:
     pass
 
 

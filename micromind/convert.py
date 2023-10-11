@@ -8,7 +8,8 @@ Authors:
 """
 try:
     import os
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+
+    os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
     import shutil
     import sys
     from pathlib import Path
@@ -32,7 +33,9 @@ except Exception as e:
 
 
 @torch.no_grad()
-def convert_to_onnx(net: nn.Module, save_path: Union[Path, str] = "model.onnx", simplify: bool = True):
+def convert_to_onnx(
+    net: nn.Module, save_path: Union[Path, str] = "model.onnx", simplify: bool = True
+):
     """Converts nn.Module to onnx and saves it to save_path.
     Optionally simplifies it."""
     x = [torch.zeros([1] + list(net.input_shape)), None]
@@ -92,7 +95,7 @@ def convert_to_openvino(net: nn.Module, save_path: Path) -> str:
         "--data_type",
         "FP32",
         "--silent",
-        "True"
+        "True",
     ]
 
     os.popen(" ".join(cmd)).read()
@@ -133,7 +136,7 @@ def convert_to_tflite(
         str(save_path),
         "--output_saved_model",
         "--output_no_quant_float32_tflite",
-        "--non_verbose"
+        "--non_verbose",
     ]
 
     os.popen(" ".join(cmd)).read()
