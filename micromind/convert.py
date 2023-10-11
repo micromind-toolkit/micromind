@@ -6,37 +6,19 @@ Authors:
     - Francesco Paissan, 2023
     - Alberto Ancilotto, 2023
 """
-try:
-    import os
-
-    os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-    import shutil
-    import sys
-    from pathlib import Path
-    from loguru import logger
-    from typing import Union
-
-    import numpy as np
-    import onnx
-    import onnxsim
-    import tensorflow as tf
-    import torch
-    import torch.nn as nn
-    from onnx_tf.backend import prepare
-    from openvino.tools.mo import main as mo_main
-
-except Exception as e:
-    print(str(e))
-    print("Did you install micromind with conversion capabilities?")
-    print("Please try again after pip install micromind[conversion].")
-    exit(0)
+from pathlib import Path
+from loguru import logger
+from typing import Union
+import torch.nn as nn
+import torch
+import os
 
 
 @torch.no_grad()
 def convert_to_onnx(
     net: nn.Module,
     save_path: Union[Path, str] = "model.onnx",
-    simplify: bool = True,
+    simplify: bool = False,
     replace_forward: bool = False,
 ):
     """Converts nn.Module to onnx and saves it to save_path.
@@ -45,7 +27,6 @@ def convert_to_onnx(
     os.makedirs(save_path.parent, exist_ok=True)
     x = torch.zeros([1] + list(net.input_shape))
 
-    print(replace_forward)
     if replace_forward:
         # add forward to ModuleDict
         bound_method = net.forward.__get__(net.modules, net.modules.__class__)
@@ -66,13 +47,16 @@ def convert_to_onnx(
     )
 
     if simplify:
+        import onnx
+        import onnxsim
+
         onnx_model = onnx.load(save_path)
         onnx_model, check = onnxsim.simplify(onnx_model)
         onnx.save(onnx_model, save_path)
 
     logger.info(f"Saved converted ONNX model to {save_path}.")
 
-    return onnx.load(save_path)
+    return save_path
 
 
 @torch.no_grad()
@@ -80,13 +64,30 @@ def convert_to_openvino(
     net: nn.Module, save_path: Path, replace_forward: bool = False
 ) -> str:
     """Converts nn.Module to OpenVINO."""
+    try:
+        import os
+
+        os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+        import sys
+        from pathlib import Path
+        from loguru import logger
+
+        import onnx
+        from onnx_tf.backend import prepare
+        from openvino.tools.mo import main as mo_main
+
+    except Exception as e:
+        print(str(e))
+        print("Did you install micromind with conversion capabilities?")
+        print("Please try again after pip install micromind[conversion].")
+        exit(0)
     os.makedirs(save_path, exist_ok=True)
     if not isinstance(save_path, Path):
         save_path = Path(save_path)
 
     onnx_path = save_path.joinpath("model.onnx")
-    onnx_model = convert_to_onnx(
-        net, onnx_path, simplify=True, replace_forward=replace_forward
+    onnx_model = onnx.load(
+        convert_to_onnx(net, onnx_path, simplify=True, replace_forward=replace_forward)
     )
 
     tf_rep = prepare(onnx_model)
@@ -126,6 +127,23 @@ def convert_to_tflite(
     replace_forward: bool = False,
 ) -> None:
     """Converts nn.Module to tf_lite, optionally quantizes it."""
+    try:
+        import os
+
+        os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+        import shutil
+        import sys
+        from pathlib import Path
+        from loguru import logger
+
+        import numpy as np
+        import tensorflow as tf
+
+    except Exception as e:
+        print(str(e))
+        print("Did you install micromind with conversion capabilities?")
+        print("Please try again after pip install micromind[conversion].")
+        exit(0)
     if not isinstance(save_path, Path):
         save_path = Path(save_path)
 
