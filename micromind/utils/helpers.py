@@ -1,3 +1,9 @@
+"""
+micromind helper functions.
+
+Authors:
+    - Francesco Paissan, 2023
+"""
 from typing import Union, Dict, Tuple
 from pathlib import Path
 

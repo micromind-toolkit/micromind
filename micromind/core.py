@@ -1,3 +1,10 @@
+"""
+Core class for micromind. Supports helper function for exports. Out-of-the-box
+multi-gpu and FP16 training with HF Accelerate and much more.
+
+Authors:
+    - Francesco Paissan, 2023
+"""
 from typing import Dict, Union, Tuple, Callable, List
 from abc import ABC, abstractmethod
 from dataclasses import dataclass

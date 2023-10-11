@@ -1,3 +1,10 @@
+"""
+micromind checkpointer. Unwraps models and saves the to disk with optimizer's
+state etc.
+
+Authors:
+    - Francesco Paissan, 2023
+"""
 from typing import Union, Dict, Callable
 from loguru import logger
 from pathlib import Path
