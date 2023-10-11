@@ -7,21 +7,13 @@ Authors:
     - Matteo Beltrami, 2023
     - Matteo Tremonti, 2023
 """
-import logging
-from pathlib import Path
-from types import SimpleNamespace
 from typing import List
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from huggingface_hub import hf_hub_download
-from huggingface_hub.utils import EntryNotFoundError
 from torchinfo import summary
-import os
 import torch.ao.nn.quantized as nnq
-
-import micromind
 
 
 def _make_divisible(v, divisor=8, min_value=None):
@@ -449,186 +441,6 @@ class PhiNetConvBlock(nn.Module):
 
 
 class PhiNet(nn.Module):
-    @classmethod
-    def from_pretrained(
-        cls,
-        dataset,
-        alpha,
-        beta,
-        t_zero,
-        num_layers,
-        resolution,
-        path=None,
-        num_classes=None,
-        classifier=True,
-        device=None,
-    ):
-        """Loads parameters from checkpoint through Hugging Face Hub or through local
-        file system.
-        This function constructs two strings, `repo_dir` to find the model on Hugging
-        Face Hub and `file_to_choose` to select the correct file inside the repo, and
-        use them to download the pretrained model and initialize the PhiNet.
-
-        Arguments
-        ---------
-        dataset : string
-            The dataset on which the model has been trained with.
-        alpha : float
-            The alpha hyperparameter.
-        beta : float
-            The beta hyperparameter.
-        t_zero : float
-            The t_zero hyperparameter.
-        num_layers : int
-            The number of layers.
-        resolution : int
-            The resolution of the images used during training.
-        path : string
-            The directory path or file path pointing to the checkpoint.
-            If None, the checkpoint is searched on HuggingFace.
-        num_classes : int
-            The number of classes that the model has been trained for.
-            If None, it gets the specific value determined by the dataset used.
-        classifier : bool
-            If True, the model returend includes the classifier.
-        device : string
-            The device that loads all the tensors.
-            If None, it's set to "cuda" if it's available, it's set to "cpu" otherwise.
-
-        Returns
-        -------
-            PhiNet: nn.Module
-
-        Example
-        -------
-        .. doctest::
-
-            >>> from micromind import PhiNet
-            >>> model = PhiNet.from_pretrained("CIFAR-10", 3.0, 0.75, 6.0, 7, 160)
-            Checkpoint taken from HuggingHace hub.
-            Checkpoint loaded successfully.
-        """
-        if num_classes is None:
-            num_classes = micromind.datasets_info[dataset]["Nclasses"]
-
-        repo_dir = f"micromind/{dataset}"
-        file_to_choose = f"\
-                phinet_a{float(alpha)}_b{float(beta)}_tzero{float(t_zero)}_Nlayers{num_layers}\
-                _res{resolution}{micromind.datasets_info[dataset]['ext']}\
-            ".replace(
-            " ", ""
-        )
-
-        assert (
-            num_classes == micromind.datasets_info[dataset]["Nclasses"]
-        ), "Can't load model because num_classes does not match with dataset."
-
-        if device is None:
-            if torch.cuda.is_available():
-                device = "cuda"
-            else:
-                device = "cpu"
-
-        if path is not None:
-            path_to_search = os.path.join(path, file_to_choose)
-            if os.path.isfile(path):
-                path_to_search = path
-            if os.path.isfile(path_to_search):
-                state_dict = torch.load(str(path_to_search), map_location=device)
-                model_found = True
-                print("Checkpoint taken from local file system.")
-            else:
-                model_found = False
-                print(
-                    "Checkpoint not taken from local file system."
-                    + f"{path_to_search} is not a valid checkpoint."
-                )
-        if (path is None) or not model_found:
-            try:
-                downloaded_file_path = hf_hub_download(
-                    repo_id=repo_dir, filename=file_to_choose
-                )
-                state_dict = torch.load(str(downloaded_file_path), map_location=device)
-                print("Checkpoint taken from HuggingHace hub.")
-                model_found = True
-
-            except EntryNotFoundError:
-                state_dict = {
-                    "args": SimpleNamespace(
-                        alpha=alpha,
-                        beta=beta,
-                        t_zero=t_zero,
-                        num_layers=num_layers,
-                        num_classes=num_classes,
-                    )
-                }
-                model_found = False
-                logging.warning("Model initialized without loading checkpoint.")
-
-        # model initialized
-        model = cls(
-            (micromind.datasets_info[dataset]["NChannels"], resolution, resolution),
-            alpha=state_dict["args"].alpha,
-            beta=state_dict["args"].beta,
-            t_zero=state_dict["args"].t_zero,
-            num_layers=state_dict["args"].num_layers,
-            num_classes=state_dict["args"].num_classes,
-            include_top=classifier,
-            compatibility=False,
-        )
-
-        # model initialized with downloaded parameters
-        if model_found:
-            model.load_state_dict(state_dict["state_dict"], strict=False)
-            print("Checkpoint loaded successfully.")
-
-        return model
-
-    def save_params(self, save_path: Path):
-        """Saves state_dict of model into a given path.
-
-        Arguments
-        ---------
-        save_path : string or Path
-            Path where you want to store the state dict.
-
-        Returns
-        -------
-            None
-
-        Example
-        -------
-        .. doctest::
-
-            >>> from micromind import PhiNet
-            >>> model = PhiNet((3, 224, 224))
-            >>> model.save_params("checkpoint.pt")
-        """
-        torch.save(self.state_dict(), save_path)
-
-    def from_checkpoint(self, load_path: Path):
-        """Loads state_dict of model into current instance of the PhiNet class.
-
-        Arguments
-        ---------
-        load_path : string or Path
-            Path where you want to store the state dict.
-
-        Returns
-        -------
-            None
-
-        Example
-        -------
-        .. doctest::
-
-            >>> from micromind import PhiNet
-            >>> model = PhiNet((3, 224, 224))
-            >>> model.save_params("checkpoint.pt")
-            >>> model.from_checkpoint("checkpoint.pt")
-        """
-        self.load_state_dict(torch.load(load_path))
-
     def get_complexity(self):
         """Returns MAC and number of parameters of initialized architecture.
 
@@ -640,7 +452,7 @@ class PhiNet(nn.Module):
         -------
         .. doctest::
 
-            >>> from micromind import PhiNet
+            >>> from micromind.networks import PhiNet
             >>> model = PhiNet((3, 224, 224))
             >>> model.get_complexity()
             {'MAC': 9817670, 'params': 30917}
@@ -662,7 +474,7 @@ class PhiNet(nn.Module):
         -------
         .. doctest::
 
-            >>> from micromind import PhiNet
+            >>> from micromind.networks import PhiNet
             >>> model = PhiNet((3, 224, 224))
             >>> model.get_MAC()
             9817670
@@ -680,7 +492,7 @@ class PhiNet(nn.Module):
         -------
         .. doctest::
 
-            >>> from micromind import PhiNet
+            >>> from micromind.networks import PhiNet
             >>> model = PhiNet((3, 224, 224))
             >>> model.get_params()
             30917

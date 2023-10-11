@@ -1,5 +1,3 @@
-from .networks.phinet import PhiNet
-from .utils import configlib
 from .core import MicroMind, Metric
 
 try:
