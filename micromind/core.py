@@ -116,11 +116,13 @@ class MicroMind(ABC):
         ), "You should pass the input_shape of the model."
 
         if out_format == "onnx":
-            convert.convert_to_onnx(self, save_dir.joinpath("model.onnx"))
+            convert.convert_to_onnx(
+                self, save_dir.joinpath("model.onnx"), replace_forward=True
+            )
         elif out_format == "openvino":
-            convert.convert_to_openvino(self, save_dir)
+            convert.convert_to_openvino(self, save_dir, replace_forward=True)
         elif out_format == "tflite":
-            convert.convert_to_tflite(self, save_dir)
+            convert.convert_to_tflite(self, save_dir, replace_forward=True)
 
     def configure_optimizers(self):
         assert self.hparams.opt in [

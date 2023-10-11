@@ -34,20 +34,29 @@ except Exception as e:
 
 @torch.no_grad()
 def convert_to_onnx(
-    net: nn.Module, save_path: Union[Path, str] = "model.onnx", simplify: bool = True
+    net: nn.Module,
+    save_path: Union[Path, str] = "model.onnx",
+    simplify: bool = True,
+    replace_forward: bool = False,
 ):
     """Converts nn.Module to onnx and saves it to save_path.
     Optionally simplifies it."""
-    x = [torch.zeros([1] + list(net.input_shape)), None]
     save_path = Path(save_path)
     os.makedirs(save_path.parent, exist_ok=True)
+    x = torch.zeros([1] + list(net.input_shape))
 
-    # add forward to ModuleDict
-    bound_method = net.forward.__get__(net.modules, net.modules.__class__)
-    setattr(net.modules, "forward", bound_method)
+    print(replace_forward)
+    if replace_forward:
+        # add forward to ModuleDict
+        bound_method = net.forward.__get__(net.modules, net.modules.__class__)
+        setattr(net.modules, "forward", bound_method)
+
+        net.modules.input_shape = net.input_shape
+        net = net.modules
+        x = [torch.zeros([1] + list(net.input_shape)), None]
 
     torch.onnx.export(
-        net.modules.cpu(),
+        net.cpu(),
         x,
         save_path,
         verbose=False,
@@ -67,14 +76,18 @@ def convert_to_onnx(
 
 
 @torch.no_grad()
-def convert_to_openvino(net: nn.Module, save_path: Path) -> str:
+def convert_to_openvino(
+    net: nn.Module, save_path: Path, replace_forward: bool = False
+) -> str:
     """Converts nn.Module to OpenVINO."""
     os.makedirs(save_path, exist_ok=True)
     if not isinstance(save_path, Path):
         save_path = Path(save_path)
 
     onnx_path = save_path.joinpath("model.onnx")
-    onnx_model = convert_to_onnx(net, onnx_path, simplify=True)
+    onnx_model = convert_to_onnx(
+        net, onnx_path, simplify=True, replace_forward=replace_forward
+    )
 
     tf_rep = prepare(onnx_model)
 
@@ -107,7 +120,10 @@ def convert_to_openvino(net: nn.Module, save_path: Path) -> str:
 
 @torch.no_grad()
 def convert_to_tflite(
-    net: nn.Module, save_path: Path, batch_quant: torch.Tensor = None
+    net: nn.Module,
+    save_path: Path,
+    batch_quant: torch.Tensor = None,
+    replace_forward: bool = False,
 ) -> None:
     """Converts nn.Module to tf_lite, optionally quantizes it."""
     if not isinstance(save_path, Path):
@@ -118,7 +134,7 @@ def convert_to_tflite(
 
     vino_sub = save_path.joinpath("vino")
     os.makedirs(vino_sub, exist_ok=True)
-    vino_path = convert_to_openvino(net, vino_sub)
+    vino_path = convert_to_openvino(net, vino_sub, replace_forward=replace_forward)
     if os.name == "nt":
         openvino2tensorflow_exe_cmd = [
             sys.executable,
