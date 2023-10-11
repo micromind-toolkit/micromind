@@ -63,7 +63,8 @@ if __name__ == "__main__":
 # 
     
     def compute_accuracy(pred, batch):
-        return (pred.argmax(1) == batch[1]).float()
+        tmp = (pred.argmax(1) == batch[1]).float()
+        return tmp
 
     acc = Metric(name="accuracy", fn=compute_accuracy)
     # m.export(

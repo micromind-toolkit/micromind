@@ -28,25 +28,31 @@ class Metric():
         self.fn = fn
         self.reduction = reduction
         self.history = {
-            s: torch.empty(1,) for s in [Stage.train, Stage.val, Stage.test]
+            s: [] for s in [Stage.train, Stage.val, Stage.test]
         }
 
     def __call__(self, pred, batch, stage, device="cpu"):
-        if self.history[stage].device != device: self.history[stage] = self.history[stage].to(device)
+        if pred.device != device: pred = pred.to(device)
+        dat = self.fn(pred, batch)
+        if dat.ndim == 0:
+            dat = dat.unsqueeze(0)
 
-        self.history[stage] = torch.cat(
-            (self.history[stage], self.fn(pred, batch))
-        )
+        self.history[stage].append(self.fn(pred, batch))
 
     def reduce(self, stage, clear=False):
         if self.reduction == "mean":
-            tmp = self.history[stage].mean()
+            if clear or (self.history[stage][-1].shape[0] != self.history[stage][0].shape[0]):
+                tmp = torch.stack(self.history[stage][:-1]).mean()
+            else:
+                tmp = torch.stack(self.history[stage]).sum()
         elif self.reduction == "sum":
-            tmp = self.history[stage].sum()
+            if clear or self.history[stage][-1].shape[0] != self.history[stage][0].shape[0]:
+                tmp = torch.stack(self.history[stage][:-1]).mean()
+            else:
+                tmp = torch.stack(self.history[stage]).sum()
 
         if clear:
-            del self.history[stage]
-            self.history[stage] = torch.empty(1,)
+            self.history[stage] = []
         return tmp.item()
 
 class MicroMind(ABC):
@@ -286,12 +292,23 @@ class MicroMind(ABC):
                     batch = [b.to(self.device) for b in batch]
                 self.opt.zero_grad()
     
-                loss = self.compute_loss(self(batch), batch)
+                model_out = self(batch)
+                loss = self.compute_loss(model_out, batch)
+                for m in self.metrics:
+                    m(model_out, batch, Stage.test, self.device)
     
                 loss_epoch += loss.item()
                 pbar.set_postfix(loss=loss_epoch/(idx + 1))
 
         pbar.close()
+
+        test_metrics = {
+            "test_" + m.name: m.reduce(Stage.test, True) for m in self.metrics
+        }
+        test_metrics.update({"test_loss": loss_epoch/(idx+1)})
+        s_out = f"Testing " + " - ".join([f"{k}: {v:.2f}" for k,v in test_metrics.items()]) + "; "
+
+        logger.info(s_out)
 
         return None
 
