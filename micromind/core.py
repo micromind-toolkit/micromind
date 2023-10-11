@@ -27,21 +27,26 @@ class Metric():
         self.name = name
         self.fn = fn
         self.reduction = reduction
-        self.history = torch.empty(1,)
+        self.history = {
+            s: torch.empty(1,) for s in [Stage.train, Stage.val, Stage.test]
+        }
 
-    def __call__(self, pred, batch, device="cpu"):
-        if self.history.device != device: self.history = self.history.to(device)
-        self.history = torch.cat(
-            (self.history, self.fn(pred, batch))
+    def __call__(self, pred, batch, stage, device="cpu"):
+        if self.history[stage].device != device: self.history[stage] = self.history[stage].to(device)
+
+        self.history[stage] = torch.cat(
+            (self.history[stage], self.fn(pred, batch))
         )
 
-    def reduce(self, clear=False):
+    def reduce(self, stage, clear=False):
         if self.reduction == "mean":
-            tmp = self.history.mean()
+            tmp = self.history[stage].mean()
         elif self.reduction == "sum":
-            tmp = self.history.sum()
+            tmp = self.history[stage].sum()
 
-        if clear: self.history = torch.empty(1,)
+        if clear:
+            del self.history[stage]
+            self.history[stage] = torch.empty(1,)
         return tmp.item()
 
 class MicroMind(ABC):
@@ -78,14 +83,7 @@ class MicroMind(ABC):
         if len(modules_keys) != 0:
             print(modules_keys)
             breakpoint()
-            logger.info(f"Couldn't find a state_dict for modules {modules_keys}.")
-
-        def export(self, out_format: str = "onnx"):
-            pass
-            # from micromind import convert
-# 
-            # if out_format == "onnx":
-                # convert.convert_to_onnx(self)
+            logger.info(f"Couldn')t find a state_dict for modules {modules_keys}.")
 
     def export(self, save_dir: Union[Path, str], out_format: str = "onnx", input_shape=None) -> None:
         from micromind import convert
@@ -177,8 +175,7 @@ class MicroMind(ABC):
             debug: bool = False
         ) -> None:
         self.datasets = datasets
-        self.train_metrics = [Metric(**m) for m in metrics]
-        self.val_metrics = [Metric(**m) for m in metrics]
+        self.metrics = metrics
         assert "train" in self.datasets, "Training dataloader was not specified."
         assert epochs > 0, "You must specify at least one epoch."
 
@@ -206,12 +203,12 @@ class MicroMind(ABC):
                     self.accelerator.backward(loss)
                     self.opt.step()
 
-                    for m in self.train_metrics:
-                        m(model_out, batch, self.device)
+                    for m in self.metrics:
+                        m(model_out, batch, Stage.train, self.device)
 
                     
                     running_train = {
-                        "train_" + m.name: m.reduce() for m in self.train_metrics
+                        "train_" + m.name: m.reduce(Stage.train) for m in self.metrics
                     }
 
                     running_train.update({"train_loss": loss_epoch/(idx+1)})
@@ -224,7 +221,7 @@ class MicroMind(ABC):
                 pbar.close()
     
                 train_metrics = {
-                    "train_" + m.name: m.reduce(True) for m in self.train_metrics
+                    "train_" + m.name: m.reduce(Stage.train, True) for m in self.metrics
                 }
                 train_metrics.update({"train_loss": loss_epoch/(idx+1)})
 
@@ -233,7 +230,7 @@ class MicroMind(ABC):
                     if self.accelerator.is_local_main_process:
                         self.checkpointer(self, e, train_metrics, val_metrics, lambda x: self.accelerator.unwrap_model(x))
                 else:
-                    val_metrics = train_metrics.update({"loss": loss_epoch / (idx + 1)})
+                    val_metrics = train_metrics.update({"val_loss": loss_epoch / (idx + 1)})
     
                 if e >= 1 and self.debug: break
 
@@ -251,15 +248,15 @@ class MicroMind(ABC):
         pbar.set_description(f"Validation...")
         with self.accelerator.autocast():
             for idx, batch in enumerate(pbar):
-                if isinstance(batch, list): 
+                if isinstance(batch, list):
                     batch = [b.to(self.device) for b in batch]
 
                 self.opt.zero_grad()
     
                 model_out = self(batch)
                 loss = self.compute_loss(model_out, batch)
-                for m in self.val_metrics:
-                    m(model_out, batch, self.device)
+                for m in self.metrics:
+                    m(model_out, batch, Stage.val, self.device)
     
                 loss_epoch += loss.item()
                 pbar.set_postfix(loss=loss_epoch/(idx + 1))
@@ -267,7 +264,7 @@ class MicroMind(ABC):
                 if self.debug and idx > 10: break
     
         val_metrics = {
-            "val_" + m.name: m.reduce(True) for m in self.val_metrics
+            "val_" + m.name: m.reduce(Stage.val, True) for m in self.metrics
         }
         val_metrics.update({"val_loss": loss_epoch/(idx+1)})
 
