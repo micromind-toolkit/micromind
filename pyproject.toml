@@ -57,6 +57,7 @@ py-modules = []
 
 [tool.bumpver]
 current_version = "0.1.1"
+
 version_pattern = "MAJOR.MINOR.PATCH"
 commit_message = "bump version {old_version} -> {new_version}"
 commit = true
