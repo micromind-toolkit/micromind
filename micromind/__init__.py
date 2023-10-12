@@ -1,4 +1,4 @@
-from .core import MicroMind, Metric
+from .core import MicroMind, Metric, Stage
 
 # Package version
 __version__ = "0.0.5"

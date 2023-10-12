@@ -33,12 +33,55 @@ default_cfg = {
 
 @dataclass
 class Stage:
+    """enum to track training stage"""
+
     train: int = 0
     val: int = 1
     test: int = 2
 
 
 class Metric:
+    """
+    Class for tracking evaluation metrics during training.
+
+    This class allows you to create custom evaluation metrics by providing a
+    function to compute the metric and specifying a reduction method.
+
+    Arguments
+    -------
+        name : str
+            The name of the metric.
+        fn : Callable
+            A function that computes the metric given predictions and batch data.
+        reduction : Optional[str]
+            The reduction method for the metric ('sum' or 'mean'). Default is 'mean'.
+
+    Returns
+    -------
+        Reduced metric. Optionally, you can access the metric history
+        before call reduce(clear=True) : torch.Tensor
+
+    Example
+    -------
+    .. doctest::
+
+        >>> from micromind import Metric, Stage
+        >>> import torch
+
+        >>> def custom_metric(pred, batch):
+        ...     # Replace this with your custom metric calculation
+        ...     return pred - batch
+
+        >>> metric = Metric("Custom Metric", custom_metric, reduction="mean")
+        >>> pred = torch.tensor([1.0, 2.0, 3.0])
+        >>> batch = torch.tensor([0.5, 1.5, 2.5])
+        >>> metric(pred, batch, stage=Stage.train)
+        >>> metric.history
+        {0: [tensor([0.5000, 0.5000, 0.5000])], 1: [], 2: []}
+        >>> metric.reduce(Stage.train)
+        0.5
+    """
+
     def __init__(self, name: str, fn: Callable, reduction="mean"):
         self.name = name
         self.fn = fn
@@ -55,19 +98,34 @@ class Metric:
         self.history[stage].append(self.fn(pred, batch))
 
     def reduce(self, stage, clear=False):
+        """
+        Compute and return the metric for a given prediction and batch data.
+
+        Arguments
+        -------
+            pred : torch.Tensor
+                The model's prediction.
+            batch : torch.Tensor
+                The ground truth or target values.
+            stage : Stage
+                The current stage (e.g., Stage.train).
+            device Optional[str]
+                The device on which to perform the computation. Default is 'cpu'.
+        """
+
         if self.reduction == "mean":
             if clear or (
                 self.history[stage][-1].shape[0] != self.history[stage][0].shape[0]
             ):
                 tmp = torch.stack(self.history[stage][:-1]).mean()
             else:
-                tmp = torch.stack(self.history[stage]).sum()
+                tmp = torch.stack(self.history[stage]).mean()
         elif self.reduction == "sum":
             if (
                 clear
                 or self.history[stage][-1].shape[0] != self.history[stage][0].shape[0]
             ):
-                tmp = torch.stack(self.history[stage][:-1]).mean()
+                tmp = torch.stack(self.history[stage][:-1]).sum()
             else:
                 tmp = torch.stack(self.history[stage]).sum()
 
