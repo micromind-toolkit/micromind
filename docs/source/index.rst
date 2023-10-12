@@ -6,13 +6,14 @@
 Welcome to micromind's documentation!
 =====================================
 
-.. image:: https://img.shields.io/badge/python-3.9%20|%203.10-blue
+.. image:: https://img.shields.io/badge/python-3.8%20|3.9%20|%203.10-blue
     :target: https://www.python.org/downloads/
 
 .. image:: https://img.shields.io/badge/License-Apache_2.0-blue.svg
     :target: https://github.com/fpaissan/micromind/blob/main/LICENSE
 
 .. image:: https://img.shields.io/pypi/v/micromind
+    :target: https://pypi.org/project/micromind/
 
 This is the official repository of `micromind`, a toolkit that aims to bridge two communities: artificial intelligence and embedded systems. `micromind` is based on `PyTorch <https://pytorch.org>`_ and provides exportability for the supported models in ONNX, Intel OpenVINO, and TFLite.
 
