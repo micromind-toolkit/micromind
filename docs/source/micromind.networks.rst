@@ -11,4 +11,3 @@ micromind.networks.phinet module
    :members:
    :undoc-members:
    :show-inheritance:
-

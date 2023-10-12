@@ -27,4 +27,3 @@ micromind.utils.parse module
    :members:
    :undoc-members:
    :show-inheritance:
-

@@ -34,8 +34,7 @@ def _make_divisible(v, divisor=8, min_value=None):
 
 
 def correct_pad(input_shape, kernel_size):
-    """Returns a tuple for zero-padding for 2D convolution with downsampling
-    """
+    """Returns a tuple for zero-padding for 2D convolution with downsampling"""
     if isinstance(kernel_size, int):
         kernel_size = (kernel_size, kernel_size)
 
@@ -55,15 +54,13 @@ def correct_pad(input_shape, kernel_size):
 
 
 def preprocess_input(x, **kwargs):
-    """Normalise channels between [-1, 1]
-    """
+    """Normalise channels between [-1, 1]"""
 
     return (x / 128.0) - 1
 
 
 def get_xpansion_factor(t_zero, beta, block_id, num_blocks):
-    """Compute expansion factor based on the formula from the paper
-    """
+    """Compute expansion factor based on the formula from the paper"""
     return (t_zero * beta) * block_id / num_blocks + t_zero * (
         num_blocks - block_id
     ) / num_blocks
