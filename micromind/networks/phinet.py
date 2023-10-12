@@ -23,13 +23,6 @@ def _make_divisible(v, divisor=8, min_value=None):
 
     It ensures that all layers have a channel number that is divisible by divisor.
 
-    Args:
-        v ([int]): [Input number of channels]
-        divisor (int, optional): [Divisor]. Defaults to 8.
-        min_value ([int], optional): [Minimum value]. Defaults to None.
-
-    Returns:
-        [int]: [Output number of channels divisible by divisor]
     """
     if min_value is None:
         min_value = divisor
@@ -42,13 +35,6 @@ def _make_divisible(v, divisor=8, min_value=None):
 
 def correct_pad(input_shape, kernel_size):
     """Returns a tuple for zero-padding for 2D convolution with downsampling
-
-    Args:
-        input_shape ([tuple/int]): [Input size]
-        kernel_size ([tuple/int]): [Kernel size]
-
-    Returns:
-        [tuple]: [Padding coeffs]
     """
     if isinstance(kernel_size, int):
         kernel_size = (kernel_size, kernel_size)
@@ -70,12 +56,6 @@ def correct_pad(input_shape, kernel_size):
 
 def preprocess_input(x, **kwargs):
     """Normalise channels between [-1, 1]
-
-    Args:
-        x ([Tensor]): [Contains the image, number of channels is arbitrary]
-
-    Returns:
-        [Tensor]: [Channel-wise normalised tensor]
     """
 
     return (x / 128.0) - 1
@@ -83,15 +63,6 @@ def preprocess_input(x, **kwargs):
 
 def get_xpansion_factor(t_zero, beta, block_id, num_blocks):
     """Compute expansion factor based on the formula from the paper
-
-    Args:
-        t_zero ([int]): [initial expansion factor]
-        beta ([int]): [shape factor]
-        block_id ([int]): [id of the block]
-        num_blocks ([int]): [number of blocks in the network]
-
-    Returns:
-        [float]: [computed expansion factor]
     """
     return (t_zero * beta) * block_id / num_blocks + t_zero * (
         num_blocks - block_id
@@ -162,12 +133,6 @@ class SEBlock(torch.nn.Module):
 
 
 class DepthwiseConv2d(torch.nn.Conv2d):
-    """Depthwise 2D conv
-
-    Args:
-        torch ([Tensor]): [Input tensor for convolution]
-    """
-
     def __init__(
         self,
         in_channels,

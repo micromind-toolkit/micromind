@@ -1,20 +1,27 @@
 micromind package
 =================
 
+micromind.core module
+---------------------
+
+.. automodule:: micromind.core
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+micromind.convert module
+------------------------
+
+.. automodule:: micromind.convert
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Subpackages
 -----------
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 2
 
-   micromind.conversion
    micromind.networks
    micromind.utils
-
-Module contents
----------------
-
-.. automodule:: micromind
-   :members:
-   :undoc-members:
-   :show-inheritance:
