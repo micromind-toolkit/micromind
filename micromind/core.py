@@ -48,7 +48,7 @@ class Metric:
     function to compute the metric and specifying a reduction method.
 
     Arguments
-    -------
+    ---------
         name : str
             The name of the metric.
         fn : Callable
@@ -135,6 +135,20 @@ class Metric:
 
 
 class MicroMind(ABC):
+    """
+    MicroMind is an abstract base class for creating and training deep learning
+    models. Handles training on multi-gpu via accelerate (using DDP and other
+    distributed training strategies). It automatically handles the device
+    management for the training and the micromind's export capabilities to onnx,
+    OpenVino and TFLite.
+
+    Arguments
+    ---------
+        hparams : Optional[Namespace]
+            Hyperparameters for the model. Default is None.
+
+    """
+
     def __init__(self, hparams=None):
         if hparams is None:
             hparams = Namespace(**default_cfg)
@@ -144,22 +158,68 @@ class MicroMind(ABC):
         self.hparams = hparams
         self.input_shape = None
 
-        self.device = "cpu"
+        self.device = "cpu"  # used just to init the models
         self.accelerator = Accelerator()
 
     @abstractmethod
-    def forward(self, x):
+    def forward(self, batch):
+        """
+        Forward step of the class. It gets called during inference and optimization.
+        This method should be overwritten for specific applications.
+
+        Arguments
+        ---------
+            batch : torch.Tensor
+                Batch as output from the defined DataLoader.
+
+        Returns
+        -------
+            pred : Union[torch.Tensor, Tuple]
+                Predictions - this depends on the task.
+        """
         pass
 
     @abstractmethod
     def compute_loss(self, pred, batch):
+        """
+        Computes the cost function for the optimization process.  It return a
+        tensor on which backward() is called. This method should be overwritten
+        for the specific application.
+
+        Arguments
+        ---------
+            pred : Union[torch.Tensor, Tuple]
+                Output of the forward() function
+            batch : torch.Tensor
+                Batch as defined from the DataLoader.
+
+        Returns
+        -------
+            loss : torch.Tensor
+                Compute cost function.
+        """
         pass
 
     def set_input_shape(self, input_shape: Tuple = (3, 224, 224)):
+        """Setter function for input_shape.
+
+        Arguments
+        ---------
+            input_shape : Tuple
+                Input shape of the forward step.
+
+        """
         self.input_shape = input_shape
 
     def load_modules(self, checkpoint_path: Union[Path, str]):
-        """Loads models for path."""
+        """Loads models for path.
+
+        Arguments
+        ---------
+            checkpoint_path : Union[Path, str]
+                Path to the checkpoint where the modules are stored.
+
+        """
         dat = torch.load(checkpoint_path)
 
         modules_keys = list(self.modules.keys())
@@ -176,6 +236,22 @@ class MicroMind(ABC):
     def export(
         self, save_dir: Union[Path, str], out_format: str = "onnx", input_shape=None
     ) -> None:
+        """
+        Export the model to a specified format for deployment.
+        TFLite and OpenVINO need a Linux machine to be exported.
+
+
+        Arguments
+        ---------
+        save_dir : Union[Path, str]
+            The directory where the exported model will be saved.
+        out_format : Optional[str]
+            The format for exporting the model. Default is 'onnx'.
+        input_shape : Optional[Tuple]
+            The input shape of the model. If not provided, the input shape
+            specified during model creation is used.
+
+        """
         from micromind import convert
 
         if not isinstance(save_dir, Path):
@@ -197,6 +273,16 @@ class MicroMind(ABC):
             convert.convert_to_tflite(self, save_dir, replace_forward=True)
 
     def configure_optimizers(self):
+        """Configures and defines the optimizer for the task. Defaults to adam
+        with lr=0.001; It can be overwritten by either passing arguments from the
+        command line, or by overwriting this entire method.
+
+        Returns
+        ---------
+           Optimizer and learning rate scheduler
+           (not implemented yet). : Tuple[torch.optim.Adam, None]
+
+        """
         assert self.hparams.opt in [
             "adam",
             "sgd",
@@ -208,9 +294,15 @@ class MicroMind(ABC):
         return opt, None  # None is for learning rate sched
 
     def __call__(self, *x, **xv):
+        """Just forwards everything to the forward method."""
         return self.forward(*x, **xv)
 
     def on_train_start(self):
+        """Initializes the optimizer, modules and puts the networks on the right
+        devices. Optionally loads checkpoint if already present.
+
+        This function gets executed at the beginning of every training.
+        """
         self.experiment_folder = os.path.join(
             self.hparams.output_folder, self.hparams.experiment_name
         )
@@ -266,6 +358,7 @@ class MicroMind(ABC):
             self.datasets[key] = accelerated[-(i + 1)]
 
     def on_train_end(self):
+        """Runs at the end of each training. Cleans up before exiting."""
         if self.hparams.debug:
             logger.info(f"Removed temporary folder {self.experiment_folder}.")
             shutil.rmtree(self.experiment_folder)
@@ -280,6 +373,27 @@ class MicroMind(ABC):
         metrics: List[Metric] = [],
         debug: bool = False,
     ) -> None:
+        """
+        This method trains the model on the provided training dataset for the
+        specified number of epochs. It tracks training metrics and can
+        optionally perform validation during training, if the validation set is
+        provided.
+
+        Arguments
+        ---------
+        epochs : int
+            The number of training epochs.
+        datasets : Dict
+            A dictionary of dataset loaders. Dataloader should be mapped to keys
+            "train", "val", and "test".
+        metrics : Optional[List[Metric]]
+            A list of metrics to track during training. Default is an empty list.
+        debug : bool
+            Whether to run in debug mode. Default is False. If in debug mode,
+            only runs for few epochs
+            and with few batches.
+
+        """
         self.datasets = datasets
         self.metrics = metrics
         assert "train" in self.datasets, "Training dataloader was not specified."
@@ -363,6 +477,7 @@ class MicroMind(ABC):
 
     @torch.no_grad()
     def validate(self) -> Dict:
+        """Runs the validation step."""
         assert "val" in self.datasets, "Validation dataloader was not specified."
         self.modules.eval()
 
@@ -402,6 +517,7 @@ class MicroMind(ABC):
 
     @torch.no_grad()
     def test(self, datasets: Dict = {}) -> None:
+        """Runs the test steps."""
         assert "test" in self.datasets, "Test dataloader was not specified."
         self.modules.eval()
 
