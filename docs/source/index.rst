@@ -46,7 +46,7 @@ for the basic install. To install `micromind` with the full exportability featur
 Basic how-to
 ------------
 
-If you want to launch a simple training on an image classification model, you just need to define a class that extends `MicroMind`, defining the modules you want to use, such as a `PhiNet`, the forward method of the model and the way in which to calculate your loss function.
+If you want to launch a simple training on an image classification model, you just need to define a class that extends `MicroMind <https://micromind.readthedocs.org/en/latest/micromind.html#micromind.core.MicroMind>`_, defining the modules you want to use, such as a `PhiNet`, the forward method of the model and the way in which to calculate your loss function. micromind takes care of the rest for you.
 
 .. code-block:: python
 
@@ -64,15 +64,15 @@ If you want to launch a simple training on an image classification model, you ju
       def compute_loss(self, pred, batch):
          return nn.CrossEntropyLoss()(pred, batch[1])
 
-If you want to export the model in the format you like best between **ONNX**, **TFLite** and **OpenVINO**, just run this simple code.
+Afterwards, you can export the model in the format you like best between **ONNX**, **TFLite** and **OpenVINO**, just run this simple code:
 
 .. code-block:: python
 
-   m = ImageClassification(hparams)
+   m = ImageClassification()
    m.export("output_onnx", "onnx", (3, 32, 32))
 
 
-Here is the link to the Python `file <https://github.com/micromind-toolkit/micromind/blob/mm_refactor/examples/mind.py>`_ inside our repository.
+Here is the link to the Python `file <https://github.com/micromind-toolkit/micromind/blob/mm_refactor/examples/mind.py>`_ inside our repository that illustrates how to use the MicroMind class.
 
 .. toctree::
    :maxdepth: 2

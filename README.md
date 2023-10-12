@@ -47,9 +47,7 @@ pip install -e .[conversion]
 
 ### Training networks with recipes
 
-After the installation, explore the available recipes under `recipes/` to train your own
-neural network. Please note that micromind is under heavy development and new recipes will
-be added in a really short period.
+After the installation, get started looking at the examples and the docs!
 
 ### Export your model and run it on your MCU
 Check out [this](https://docs.google.com/document/d/1zt5urvNtI9VSJcoJdIeo10YrdH-tZNcS4JHbT1z5udI/edit?usp=sharing)
