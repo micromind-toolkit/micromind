@@ -45,6 +45,14 @@ for the basic install. To install `micromind` with the full exportability featur
 pip install -e .[conversion]
 ```
 
+### Training networks with recipes
+
+After the installation, get started looking at the examples and the docs!
+
+### Export your model and run it on your MCU
+Check out [this](https://docs.google.com/document/d/1zt5urvNtI9VSJcoJdIeo10YrdH-tZNcS4JHbT1z5udI/edit?usp=sharing)
+tutorial and have fun deploying your network on MCU!
+
 ---------------------------------------------------------------------------------------------------------
 
 ## 📧 Contact

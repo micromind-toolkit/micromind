@@ -5,33 +5,36 @@ Authors:
     - Francesco Paissan, 2023
     - Alberto Ancilotto, 2023
     - Matteo Beltrami, 2023
+    - Matteo Tremonti, 2023
 """
-import logging
-from pathlib import Path
-from types import SimpleNamespace
 from typing import List
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from huggingface_hub import hf_hub_download
-from huggingface_hub.utils import EntryNotFoundError
 from torchinfo import summary
-import os
+import torch.ao.nn.quantized as nnq
 
-import micromind
+
+def _make_divisible(v, divisor=8, min_value=None):
+    """
+    This function is taken from the original tf repo. It can be seen here:
+    https://github.com/tensorflow/models/blob/master/research/slim/nets/mobilenet/mobilenet.py
+
+    It ensures that all layers have a channel number that is divisible by divisor.
+
+    """
+    if min_value is None:
+        min_value = divisor
+    new_v = max(min_value, int(v + divisor / 2) // divisor * divisor)
+    # Make sure that round down does not go down by more than 10%.
+    if new_v < 0.9 * v:
+        new_v += divisor
+    return new_v
 
 
 def correct_pad(input_shape, kernel_size):
-    """Returns a tuple for zero-padding for 2D convolution with downsampling
-
-    Args:
-        input_shape ([tuple/int]): [Input size]
-        kernel_size ([tuple/int]): [Kernel size]
-
-    Returns:
-        [tuple]: [Padding coeffs]
-    """
+    """Returns a tuple for zero-padding for 2D convolution with downsampling"""
     if isinstance(kernel_size, int):
         kernel_size = (kernel_size, kernel_size)
 
@@ -51,30 +54,13 @@ def correct_pad(input_shape, kernel_size):
 
 
 def preprocess_input(x, **kwargs):
-    """Normalise channels between [-1, 1]
-
-    Args:
-        x ([Tensor]): [Contains the image, number of channels is arbitrary]
-
-    Returns:
-        [Tensor]: [Channel-wise normalised tensor]
-    """
+    """Normalise channels between [-1, 1]"""
 
     return (x / 128.0) - 1
 
 
 def get_xpansion_factor(t_zero, beta, block_id, num_blocks):
-    """Compute expansion factor based on the formula from the paper
-
-    Args:
-        t_zero ([int]): [initial expansion factor]
-        beta ([int]): [shape factor]
-        block_id ([int]): [id of the block]
-        num_blocks ([int]): [number of blocks in the network]
-
-    Returns:
-        [float]: [computed expansion factor]
-    """
+    """Compute expansion factor based on the formula from the paper"""
     return (t_zero * beta) * block_id / num_blocks + t_zero * (
         num_blocks - block_id
     ) / num_blocks
@@ -89,14 +75,6 @@ class ReLUMax(torch.nn.Module):
         return torch.clamp(x, min=0, max=self.max)
 
 
-class HSwish(torch.nn.Module):
-    def __init__(self):
-        super(HSwish, self).__init__()
-
-    def forward(self, x):
-        return x * nn.ReLU6(inplace=True)(x + 3) / 6
-
-
 class SEBlock(torch.nn.Module):
     """Implements squeeze-and-excitation block"""
 
@@ -109,6 +87,7 @@ class SEBlock(torch.nn.Module):
             h_swish (bool, optional): [Whether to use the h_swish]. Defaults to True.
         """
         super(SEBlock, self).__init__()
+
         self.se_conv = nn.Conv2d(
             in_channels,
             out_channels,
@@ -122,9 +101,13 @@ class SEBlock(torch.nn.Module):
         )
 
         if h_swish:
-            self.activation = HSwish()
+            self.activation = nn.Hardswish(inplace=True)
         else:
             self.activation = ReLUMax(6)
+
+        # It serves for the quantization.
+        # The behavior remains equivalent for the unquantized models.
+        self.mult = nnq.FloatFunctional()
 
     def forward(self, x):
         """Executes SE Block
@@ -135,6 +118,7 @@ class SEBlock(torch.nn.Module):
         Returns:
             [Tensor]: [output of squeeze-and-excitation block]
         """
+
         inp = x
         x = F.adaptive_avg_pool2d(x, (1, 1))
         x = self.se_conv(x)
@@ -142,16 +126,10 @@ class SEBlock(torch.nn.Module):
         x = self.se_conv2(x)
         x = torch.sigmoid(x)
 
-        return x * inp
+        return self.mult.mul(inp, x)  # Equivalent to ``torch.mul(a, b)``
 
 
 class DepthwiseConv2d(torch.nn.Conv2d):
-    """Depthwise 2D conv
-
-    Args:
-        torch ([Tensor]): [Input tensor for convolution]
-    """
-
     def __init__(
         self,
         in_channels,
@@ -271,6 +249,7 @@ class PhiNetConvBlock(nn.Module):
         h_swish=True,
         k_size=3,
         dp_rate=0.05,
+        divisor=1,
     ):
         """Defines the structure of a PhiNet convolutional block.
 
@@ -304,9 +283,10 @@ class PhiNetConvBlock(nn.Module):
 
         self._layers = torch.nn.ModuleList()
         in_channels = in_shape[0]
+
         # Define activation function
         if h_swish:
-            activation = HSwish()
+            activation = nn.Hardswish(inplace=True)
         else:
             activation = ReLUMax(6)
 
@@ -314,14 +294,14 @@ class PhiNetConvBlock(nn.Module):
             # Expand
             conv1 = nn.Conv2d(
                 in_channels,
-                int(expansion * in_channels),
+                _make_divisible(int(expansion * in_channels), divisor=divisor),
                 kernel_size=1,
                 padding=0,
                 bias=False,
             )
 
             bn1 = nn.BatchNorm2d(
-                int(expansion * in_channels),
+                _make_divisible(int(expansion * in_channels), divisor=divisor),
                 eps=1e-3,
                 momentum=0.999,
             )
@@ -331,16 +311,16 @@ class PhiNetConvBlock(nn.Module):
             self._layers.append(activation)
 
         if stride == 2:
-            pad = nn.ZeroPad2d(
-                padding=correct_pad([res, res], 3),
-            )
-
-            self._layers.append(pad)
+            padding = correct_pad([res, res], 3)
 
         self._layers.append(nn.Dropout2d(dp_rate))
 
         d_mul = 1
-        in_channels_dw = int(expansion * in_channels) if block_id else in_channels
+        in_channels_dw = (
+            _make_divisible(int(expansion * in_channels), divisor=divisor)
+            if block_id
+            else in_channels
+        )
         out_channels_dw = in_channels_dw * d_mul
         dw1 = DepthwiseConv2d(
             in_channels=in_channels_dw,
@@ -348,7 +328,7 @@ class PhiNetConvBlock(nn.Module):
             kernel_size=k_size,
             stride=stride,
             bias=False,
-            padding=k_size // 2 if stride == 1 else 0,
+            padding=k_size // 2 if stride == 1 else (padding[1], padding[3]),
         )
 
         bn_dw1 = nn.BatchNorm2d(
@@ -357,19 +337,27 @@ class PhiNetConvBlock(nn.Module):
             momentum=0.999,
         )
 
+        # It is necessary to reinitialize the activation
+        # for functions using Module.children() to work properly.
+        # Module.children() does not return repeated layers.
+        if h_swish:
+            activation = nn.Hardswish(inplace=True)
+        else:
+            activation = ReLUMax(6)
+
         self._layers.append(dw1)
         self._layers.append(bn_dw1)
         self._layers.append(activation)
 
         if has_se:
-            num_reduced_filters = max(1, int(expansion * in_channels / 6))
-            se_block = SEBlock(
-                int(expansion * in_channels), num_reduced_filters, h_swish=h_swish
+            num_reduced_filters = _make_divisible(
+                max(1, int(out_channels_dw / 6)), divisor=divisor
             )
+            se_block = SEBlock(out_channels_dw, num_reduced_filters, h_swish=h_swish)
             self._layers.append(se_block)
 
         conv2 = nn.Conv2d(
-            in_channels=int(expansion * in_channels),
+            in_channels=out_channels_dw,
             out_channels=filters,
             kernel_size=1,
             padding=0,
@@ -387,6 +375,9 @@ class PhiNetConvBlock(nn.Module):
 
         if res and in_channels == filters and stride == 1:
             self.skip_conn = True
+            # It serves for the quantization.
+            # The behavior remains equivalent for the unquantized models.
+            self.op = nnq.FloatFunctional()
 
     def forward(self, x):
         """Executes PhiNet convolutional block
@@ -398,6 +389,7 @@ class PhiNetConvBlock(nn.Module):
         Returns:
             Ouput of the convolutional block : torch.Tensor
         """
+
         if self.skip_conn:
             inp = x
 
@@ -405,192 +397,12 @@ class PhiNetConvBlock(nn.Module):
             x = layer(x)
 
         if self.skip_conn:
-            return x + inp
+            return self.op.add(x, inp)  # Equivalent to ``torch.add(a, b)``
 
         return x
 
 
 class PhiNet(nn.Module):
-    @classmethod
-    def from_pretrained(
-        cls,
-        dataset,
-        alpha,
-        beta,
-        t_zero,
-        num_layers,
-        resolution,
-        path=None,
-        num_classes=None,
-        classifier=True,
-        device=None,
-    ):
-        """Loads parameters from checkpoint through Hugging Face Hub or through local
-        file system.
-        This function constructs two strings, `repo_dir` to find the model on Hugging
-        Face Hub and `file_to_choose` to select the correct file inside the repo, and
-        use them to download the pretrained model and initialize the PhiNet.
-
-        Arguments
-        ---------
-        dataset : string
-            The dataset on which the model has been trained with.
-        alpha : float
-            The alpha hyperparameter.
-        beta : float
-            The beta hyperparameter.
-        t_zero : float
-            The t_zero hyperparameter.
-        num_layers : int
-            The number of layers.
-        resolution : int
-            The resolution of the images used during training.
-        path : string
-            The directory path or file path pointing to the checkpoint.
-            If None, the checkpoint is searched on HuggingFace.
-        num_classes : int
-            The number of classes that the model has been trained for.
-            If None, it gets the specific value determined by the dataset used.
-        classifier : bool
-            If True, the model returend includes the classifier.
-        device : string
-            The device that loads all the tensors.
-            If None, it's set to "cuda" if it's available, it's set to "cpu" otherwise.
-
-        Returns
-        -------
-            PhiNet: nn.Module
-
-        Example
-        -------
-        .. doctest::
-
-            >>> from micromind import PhiNet
-            >>> model = PhiNet.from_pretrained("CIFAR-10", 3.0, 0.75, 6.0, 7, 160)
-            Checkpoint taken from HuggingHace hub.
-            Checkpoint loaded successfully.
-        """
-        if num_classes is None:
-            num_classes = micromind.datasets_info[dataset]["Nclasses"]
-
-        repo_dir = f"micromind/{dataset}"
-        file_to_choose = f"\
-                phinet_a{float(alpha)}_b{float(beta)}_tzero{float(t_zero)}_Nlayers{num_layers}\
-                _res{resolution}{micromind.datasets_info[dataset]['ext']}\
-            ".replace(
-            " ", ""
-        )
-
-        assert (
-            num_classes == micromind.datasets_info[dataset]["Nclasses"]
-        ), "Can't load model because num_classes does not match with dataset."
-
-        if device is None:
-            if torch.cuda.is_available():
-                device = "cuda"
-            else:
-                device = "cpu"
-
-        if path is not None:
-            path_to_search = os.path.join(path, file_to_choose)
-            if os.path.isfile(path):
-                path_to_search = path
-            if os.path.isfile(path_to_search):
-                state_dict = torch.load(str(path_to_search), map_location=device)
-                model_found = True
-                print("Checkpoint taken from local file system.")
-            else:
-                model_found = False
-                print(
-                    "Checkpoint not taken from local file system."
-                    + f"{path_to_search} is not a valid checkpoint."
-                )
-        if (path is None) or not model_found:
-            try:
-                downloaded_file_path = hf_hub_download(
-                    repo_id=repo_dir, filename=file_to_choose
-                )
-                state_dict = torch.load(str(downloaded_file_path), map_location=device)
-                print("Checkpoint taken from HuggingHace hub.")
-                model_found = True
-
-            except EntryNotFoundError:
-                state_dict = {
-                    "args": SimpleNamespace(
-                        alpha=alpha,
-                        beta=beta,
-                        t_zero=t_zero,
-                        num_layers=num_layers,
-                        num_classes=num_classes,
-                    )
-                }
-                model_found = False
-                logging.warning("Model initialized without loading checkpoint.")
-
-        # model initialized
-        model = cls(
-            (micromind.datasets_info[dataset]["NChannels"], resolution, resolution),
-            alpha=state_dict["args"].alpha,
-            beta=state_dict["args"].beta,
-            t_zero=state_dict["args"].t_zero,
-            num_layers=state_dict["args"].num_layers,
-            num_classes=state_dict["args"].num_classes,
-            include_top=classifier,
-            compatibility=False,
-        )
-
-        # model initialized with downloaded parameters
-        if model_found:
-            model.load_state_dict(state_dict["state_dict"], strict=False)
-            print("Checkpoint loaded successfully.")
-
-        return model
-
-    def save_params(self, save_path: Path):
-        """Saves state_dict of model into a given path.
-
-        Arguments
-        ---------
-        save_path : string or Path
-            Path where you want to store the state dict.
-
-        Returns
-        -------
-            None
-
-        Example
-        -------
-        .. doctest::
-
-            >>> from micromind import PhiNet
-            >>> model = PhiNet((3, 224, 224))
-            >>> model.save_params("checkpoint.pt")
-        """
-        torch.save(self.state_dict(), save_path)
-
-    def from_checkpoint(self, load_path: Path):
-        """Loads state_dict of model into current instance of the PhiNet class.
-
-        Arguments
-        ---------
-        load_path : string or Path
-            Path where you want to store the state dict.
-
-        Returns
-        -------
-            None
-
-        Example
-        -------
-        .. doctest::
-
-            >>> from micromind import PhiNet
-            >>> model = PhiNet((3, 224, 224))
-            >>> model.save_params("checkpoint.pt")
-            >>> model.from_checkpoint("checkpoint.pt")
-        """
-        self.load_state_dict(torch.load(load_path))
-
     def get_complexity(self):
         """Returns MAC and number of parameters of initialized architecture.
 
@@ -602,7 +414,7 @@ class PhiNet(nn.Module):
         -------
         .. doctest::
 
-            >>> from micromind import PhiNet
+            >>> from micromind.networks import PhiNet
             >>> model = PhiNet((3, 224, 224))
             >>> model.get_complexity()
             {'MAC': 9817670, 'params': 30917}
@@ -624,7 +436,7 @@ class PhiNet(nn.Module):
         -------
         .. doctest::
 
-            >>> from micromind import PhiNet
+            >>> from micromind.networks import PhiNet
             >>> model = PhiNet((3, 224, 224))
             >>> model.get_MAC()
             9817670
@@ -642,7 +454,7 @@ class PhiNet(nn.Module):
         -------
         .. doctest::
 
-            >>> from micromind import PhiNet
+            >>> from micromind.networks import PhiNet
             >>> model = PhiNet((3, 224, 224))
             >>> model.get_params()
             30917
@@ -667,6 +479,7 @@ class PhiNet(nn.Module):
         pool: bool = False,  # S2
         h_swish: bool = True,  # S1
         squeeze_excite: bool = True,  # S1
+        divisor: int = 1,
     ) -> None:
         """This class implements the PhiNet architecture.
 
@@ -720,7 +533,7 @@ class PhiNet(nn.Module):
 
         # Define self.activation function
         if h_swish:
-            activation = HSwish()
+            activation = nn.Hardswish(inplace=True)
         else:
             activation = ReLUMax(6)
 
@@ -735,7 +548,7 @@ class PhiNet(nn.Module):
 
             sep1 = SeparableConv2d(
                 in_channels,
-                int(first_conv_filters * alpha),
+                _make_divisible(int(first_conv_filters * alpha), divisor=divisor),
                 kernel_size=3,
                 stride=(first_conv_stride, first_conv_stride),
                 padding=0,
@@ -748,16 +561,17 @@ class PhiNet(nn.Module):
 
             block1 = PhiNetConvBlock(
                 in_shape=(
-                    int(first_conv_filters * alpha),
+                    _make_divisible(int(first_conv_filters * alpha), divisor=divisor),
                     res / first_conv_stride,
                     res / first_conv_stride,
                 ),
-                filters=int(b1_filters * alpha),
+                filters=_make_divisible(int(b1_filters * alpha), divisor=divisor),
                 stride=1,
                 expansion=1,
                 has_se=False,
                 res=residuals,
                 h_swish=h_swish,
+                divisor=divisor,
             )
 
             self._layers.append(block1)
@@ -773,44 +587,51 @@ class PhiNet(nn.Module):
             self._layers.append(bn_c1)
 
         block2 = PhiNetConvBlock(
-            (int(b1_filters * alpha), res / first_conv_stride, res / first_conv_stride),
-            filters=int(b1_filters * alpha),
+            (
+                _make_divisible(int(b1_filters * alpha), divisor=divisor),
+                res / first_conv_stride,
+                res / first_conv_stride,
+            ),
+            filters=_make_divisible(int(b1_filters * alpha), divisor=divisor),
             stride=2 if (not pool) else 1,
             expansion=get_xpansion_factor(t_zero, beta, 1, num_layers),
             block_id=1,
             has_se=squeeze_excite,
             res=residuals,
             h_swish=h_swish,
+            divisor=divisor,
         )
 
         block3 = PhiNetConvBlock(
             (
-                int(b1_filters * alpha),
+                _make_divisible(int(b1_filters * alpha), divisor=divisor),
                 res / first_conv_stride / 2,
                 res / first_conv_stride / 2,
             ),
-            filters=int(b1_filters * alpha),
+            filters=_make_divisible(int(b1_filters * alpha), divisor=divisor),
             stride=1,
             expansion=get_xpansion_factor(t_zero, beta, 2, num_layers),
             block_id=2,
             has_se=squeeze_excite,
             res=residuals,
             h_swish=h_swish,
+            divisor=divisor,
         )
 
         block4 = PhiNetConvBlock(
             (
-                int(b1_filters * alpha),
+                _make_divisible(int(b1_filters * alpha), divisor=divisor),
                 res / first_conv_stride / 2,
                 res / first_conv_stride / 2,
             ),
-            filters=int(b2_filters * alpha),
+            filters=_make_divisible(int(b2_filters * alpha), divisor=divisor),
             stride=2 if (not pool) else 1,
             expansion=get_xpansion_factor(t_zero, beta, 3, num_layers),
             block_id=3,
             has_se=squeeze_excite,
             res=residuals,
             h_swish=h_swish,
+            divisor=divisor,
         )
 
         self._layers.append(block2)
@@ -824,7 +645,7 @@ class PhiNet(nn.Module):
         block_id = 4
         block_filters = b2_filters
         spatial_res = res / first_conv_stride / 4
-        in_channels_next = int(b2_filters * alpha)
+        in_channels_next = _make_divisible(int(b2_filters * alpha), divisor=divisor)
         while num_layers >= block_id:
             if block_id in downsampling_layers:
                 block_filters *= 2
@@ -833,7 +654,7 @@ class PhiNet(nn.Module):
 
             pn_block = PhiNetConvBlock(
                 (in_channels_next, spatial_res, spatial_res),
-                filters=int(block_filters * alpha),
+                filters=_make_divisible(int(block_filters * alpha), divisor=divisor),
                 stride=(2 if (block_id in downsampling_layers) and (not pool) else 1),
                 expansion=get_xpansion_factor(t_zero, beta, block_id, num_layers),
                 block_id=block_id,
@@ -841,10 +662,13 @@ class PhiNet(nn.Module):
                 res=residuals,
                 h_swish=h_swish,
                 k_size=(5 if (block_id / num_layers) > (1 - conv5_percent) else 3),
+                divisor=divisor,
             )
 
             self._layers.append(pn_block)
-            in_channels_next = int(block_filters * alpha)
+            in_channels_next = _make_divisible(
+                int(block_filters * alpha), divisor=divisor
+            )
             spatial_res = (
                 spatial_res / 2 if block_id in downsampling_layers else spatial_res
             )
@@ -855,7 +679,11 @@ class PhiNet(nn.Module):
             self.classifier = nn.Sequential(
                 nn.AdaptiveAvgPool2d((1, 1)),
                 nn.Flatten(),
-                nn.Linear(int(block_filters * alpha), num_classes, bias=True),
+                nn.Linear(
+                    _make_divisible(int(block_filters * alpha), divisor=divisor),
+                    num_classes,
+                    bias=True,
+                ),
             )
 
     def forward(self, x):
