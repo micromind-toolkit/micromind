@@ -6,7 +6,7 @@
 Welcome to micromind's documentation!
 =====================================
 
-.. image:: https://img.shields.io/badge/python-3.9%20|%203.10-blue
+.. image:: https://img.shields.io/badge/python-3.8%20|3.9%20|%203.10-blue
     :target: https://www.python.org/downloads/
 
 .. image:: https://img.shields.io/badge/License-Apache_2.0-blue.svg
