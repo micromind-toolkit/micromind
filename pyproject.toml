@@ -56,7 +56,7 @@ profile = "black"
 py-modules = []
 
 [tool.bumpver]
-current_version = "0.0.5"
+current_version = "0.1.0"
 version_pattern = "MAJOR.MINOR.PATCH"
 commit_message = "bump version {old_version} -> {new_version}"
 commit = true
