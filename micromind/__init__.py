@@ -1,7 +1,7 @@
 from .core import MicroMind, Metric, Stage
 
 # Package version
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 """datasets_info is a dictionary that contains information about the attributes
 of the datasets.
