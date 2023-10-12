@@ -8,16 +8,27 @@ Authors:
 from typing import Dict, Union, Tuple, Callable, List
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from argparse import Namespace
 from pathlib import Path
-
-from accelerate import Accelerator
 from loguru import logger
 from tqdm import tqdm
+import shutil
+
+from accelerate import Accelerator
 import torch
 import os
 
-from .utils.helpers import select_and_load_checkpoint
+from .utils.helpers import select_and_load_checkpoint, get_random_string
 from .utils.checkpointer import Checkpointer
+
+# This is used ONLY if you are not using argparse to get the hparams
+default_cfg = {
+    "output_folder": "results",
+    "experiment_name": "micromind_exp",
+    "opt": "adam",  # this is ignored if you are overriding the configure_optimizers
+    "lr": 0.001,  # this is ignored if you are overriding the configure_optimizers
+    "debug": False,
+}
 
 
 @dataclass
@@ -66,7 +77,10 @@ class Metric:
 
 
 class MicroMind(ABC):
-    def __init__(self, hparams):
+    def __init__(self, hparams=None):
+        if hparams is None:
+            hparams = Namespace(**default_cfg)
+
         # here we should handle devices etc.
         self.modules = torch.nn.ModuleDict({})  # init empty modules dict
         self.hparams = hparams
@@ -142,6 +156,9 @@ class MicroMind(ABC):
         self.experiment_folder = os.path.join(
             self.hparams.output_folder, self.hparams.experiment_name
         )
+        if self.hparams.debug:
+            self.experiment_folder = "tmp_" + get_random_string()
+            logger.info(f"Created temporary folder for debug {self.experiment_folder}.")
 
         save_dir = os.path.join(self.experiment_folder, "save")
         if os.path.exists(save_dir):
@@ -191,6 +208,10 @@ class MicroMind(ABC):
             self.datasets[key] = accelerated[-(i + 1)]
 
     def on_train_end(self):
+        if self.hparams.debug:
+            logger.info(f"Removed temporary folder {self.experiment_folder}.")
+            shutil.rmtree(self.experiment_folder)
+
         if self.accelerator.is_local_main_process:
             self.checkpointer.close()
 

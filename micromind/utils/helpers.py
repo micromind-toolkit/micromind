@@ -6,7 +6,8 @@ Authors:
 """
 from typing import Union, Dict, Tuple
 from pathlib import Path
-
+import random
+import string
 import torch
 import os
 
@@ -33,3 +34,10 @@ def select_and_load_checkpoint(path: Union[Path, str]) -> Tuple[Dict, str]:
     best_checkpoint = checkpoints[values.index(best_key)]
 
     return torch.load(best_checkpoint), best_checkpoint
+
+
+def get_random_string(length=10):
+    letters = string.ascii_lowercase
+    result_str = "".join(random.choice(letters) for i in range(length))
+
+    return result_str
