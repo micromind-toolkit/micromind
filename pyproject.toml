@@ -23,6 +23,9 @@ dependencies = [
     "torch",
     "torchinfo",
     "huggingface_hub",
+    "accelerate==0.23.0",
+    "onnx",
+    "loguru"
 ]
 requires-python = ">=3.8"
 
@@ -53,7 +56,8 @@ profile = "black"
 py-modules = []
 
 [tool.bumpver]
-current_version = "0.0.5"
+current_version = "0.1.1"
+
 version_pattern = "MAJOR.MINOR.PATCH"
 commit_message = "bump version {old_version} -> {new_version}"
 commit = true

@@ -11,11 +11,3 @@ micromind.networks.phinet module
    :members:
    :undoc-members:
    :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: micromind.networks
-   :members:
-   :undoc-members:
-   :show-inheritance:

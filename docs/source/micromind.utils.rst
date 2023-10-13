@@ -4,18 +4,26 @@ micromind.utils package
 Submodules
 ----------
 
-micromind.utils.configlib module
---------------------------------
+micromind.utils.checkpointer module
+-----------------------------------
 
-.. automodule:: micromind.utils.configlib
+.. automodule:: micromind.utils.checkpointer
    :members:
    :undoc-members:
    :show-inheritance:
 
-Module contents
----------------
+micromind.utils.helpers module
+------------------------------
 
-.. automodule:: micromind.utils
+.. automodule:: micromind.utils.helpers
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+micromind.utils.parse module
+----------------------------
+
+.. automodule:: micromind.utils.parse
    :members:
    :undoc-members:
    :show-inheritance:

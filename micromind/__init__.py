@@ -1,10 +1,8 @@
-from .networks.phinet import PhiNet
-from .utils import configlib
-from .core import MicroMind
-
+from .core import MicroMind, Metric, Stage
 
 # Package version
-__version__ = "0.0.5"
+__version__ = "0.1.1"
+
 
 """datasets_info is a dictionary that contains information about the attributes
 of the datasets.
