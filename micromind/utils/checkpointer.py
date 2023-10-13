@@ -53,8 +53,8 @@ class Checkpointer:
             "key": self.key,
             "mode": self.mode,
             "epoch": epoch,
-            "optimizer": mind.opt,
-            "lr_scheduler": mind.lr_sched,
+            "optimizer": mind.opt.state_dict(),
+            # "lr_scheduler": mind.lr_sched,
         }
         to_remove = None
         if self.mode == "min":

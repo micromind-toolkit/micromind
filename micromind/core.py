@@ -291,7 +291,12 @@ class MicroMind(ABC):
             opt = torch.optim.Adam(self.modules.parameters(), self.hparams.lr)
         elif self.hparams.opt == "sgd":
             opt = torch.optim.SGD(self.modules.parameters(), self.hparams.lr)
-        return opt, None  # None is for learning rate sched
+
+        sched = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            opt, "min", factor=0.1, patience=10, threshold=5
+        )
+
+        return opt, sched
 
     def __call__(self, *x, **xv):
         """Just forwards everything to the forward method."""
@@ -315,8 +320,9 @@ class MicroMind(ABC):
             if len(os.listdir(save_dir)) != 0:
                 # select which checkpoint and load it.
                 checkpoint, path = select_and_load_checkpoint(save_dir)
-                self.opt = checkpoint["optimizer"]
-                self.lr_sched = checkpoint["lr_scheduler"]
+                self.opt, self.lr_sched = self.configure_optimizers()
+                self.opt.load_state_dict(checkpoint["optimizer"])
+                # self.lr_sched = checkpoint["lr_scheduler"]
                 self.start_epoch = checkpoint["epoch"] + 1
 
                 self.load_modules(path)
@@ -468,6 +474,8 @@ class MicroMind(ABC):
                     val_metrics = train_metrics.update(
                         {"val_loss": loss_epoch / (idx + 1)}
                     )
+
+                self.lr_sched.step(val_metrics["val_loss"])
 
                 if e >= 1 and self.debug:
                     break
