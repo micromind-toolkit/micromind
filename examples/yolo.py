@@ -132,9 +132,6 @@ class Loss(v8DetectionLoss):
         loss[0] *= self.hyp.box  # box gain
         loss[1] *= self.hyp.cls  # cls gain
         loss[2] *= self.hyp.dfl  # dfl gain
-        print(loss, [torch.std_mean(f) for f in feats])
-        torchvision.utils.save_image(batch["img"], "samples.png")
-        breakpoint()
 
         return loss.sum() * batch_size, loss.detach()  # loss(box, cls, dfl)
 
@@ -146,9 +143,9 @@ class YOLO(MicroMind):
         w, r, d = 1, 1, 1
         self.modules["yolo"] = YOLOv8(1, 1, 1, 80)
 
-        self.modules["yolo"].load_state_dict(
-            torch.load("/home/franz/dev/micromind/yolo_teo/yolov8l.pt")
-        )
+        # self.modules["yolo"].load_state_dict(
+        # torch.load("/home/franz/dev/micromind/yolo_teo/yolov8l.pt")
+        # )
 
         self.m_cfg = m_cfg
 
@@ -181,9 +178,15 @@ class YOLO(MicroMind):
         return lossi_sum
 
     def configure_optimizers(self):
-        opt = torch.optim.SGD(self.modules.parameters(), lr=0.01)
+        opt = torch.optim.SGD(self.modules.parameters(), lr=1e-5)
         sched = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            opt, "min", factor=0.1, patience=25, threshold=5, verbose=True
+            opt,
+            "min",
+            factor=0.1,
+            patience=100,
+            threshold=10,
+            min_lr=1e-5,
+            verbose=True,
         )
         return opt, sched
 
@@ -205,36 +208,18 @@ if __name__ == "__main__":
         m_cfg, "/mnt/data/coco8", batch_size, data_cfg, mode=mode, rect=mode == "val"
     )
 
-    coco8_data = torch.utils.data.Subset(coco8_dataset, [1])
-
     loader = DataLoader(
-        coco8_dataset, batch_size, collate_fn=getattr(coco8_dataset, "collate_fn", None)
+        coco8_dataset,
+        batch_size,
+        shuffle=False,
+        collate_fn=getattr(coco8_dataset, "collate_fn", None),
     )
-
-    # def preprocess_batch(batch):
-    # """Preprocesses a batch of images by scaling and converting to float."""
-    # batch['img'] = batch['img'].to(batch["img"].device, non_blocking=True).float() / 255
-    # for k in batch:
-    # if isinstance(k, torch.Tensor):
-    # print(k)
-    # batch[k] = batch[k].to(self.device)
-    # return batch
-    #
-    # for b in loader:
-    # b = preprocess_batch(b)
-    # torchvision.utils.save_image(b["img"], "batch1.png")
-    # print(b["img"].shape, torch.std_mean(b["img"]))
-    #
-    # for b in loader:
-    # b = preprocess_batch(b)
-    # torchvision.utils.save_image(b["img"], "batch2.png")
-    # print(b["img"].shape, torch.std_mean(b["img"]))
 
     hparams = parse_arguments()
     m = YOLO(m_cfg, hparams=hparams)
 
     m.train(
-        epochs=300,
+        epochs=2500,
         datasets={"train": loader, "val": loader},
     )
 
