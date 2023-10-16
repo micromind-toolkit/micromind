@@ -178,12 +178,12 @@ class YOLO(MicroMind):
         return lossi_sum
 
     def configure_optimizers(self):
-        opt = torch.optim.SGD(self.modules.parameters(), lr=1e-5)
+        opt = torch.optim.Adam(self.modules.parameters(), lr=1e-3)
         sched = torch.optim.lr_scheduler.ReduceLROnPlateau(
             opt,
             "min",
-            factor=0.1,
-            patience=100,
+            factor=0.2,
+            patience=50,
             threshold=10,
             min_lr=1e-5,
             verbose=True,
@@ -211,7 +211,7 @@ if __name__ == "__main__":
     loader = DataLoader(
         coco8_dataset,
         batch_size,
-        shuffle=False,
+        shuffle=True,
         collate_fn=getattr(coco8_dataset, "collate_fn", None),
     )
 
@@ -219,10 +219,10 @@ if __name__ == "__main__":
     m = YOLO(m_cfg, hparams=hparams)
 
     m.train(
-        epochs=2500,
+        epochs=25000,
         datasets={"train": loader, "val": loader},
     )
 
-    m.test(
-        datasets={"test": testloader},
-    )
+    # m.test(
+    # datasets={"test": testloader},
+    # )
