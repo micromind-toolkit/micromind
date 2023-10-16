@@ -33,7 +33,7 @@ def select_and_load_checkpoint(path: Union[Path, str]) -> Tuple[Dict, str]:
     best_key = min(values) if selected_mode == "min" else max(values)
     best_checkpoint = checkpoints[values.index(best_key)]
 
-    return torch.load(best_checkpoint), best_checkpoint
+    return torch.load(best_checkpoint, map_location="cpu"), best_checkpoint
 
 
 def get_random_string(length=10):

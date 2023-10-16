@@ -322,7 +322,7 @@ class MicroMind(ABC):
                 checkpoint, path = select_and_load_checkpoint(save_dir)
                 self.opt, self.lr_sched = self.configure_optimizers()
                 self.opt.load_state_dict(checkpoint["optimizer"])
-                # self.lr_sched = checkpoint["lr_scheduler"]
+                self.lr_sched.load_state_dict(checkpoint["lr_scheduler"])
                 self.start_epoch = checkpoint["epoch"] + 1
 
                 self.load_modules(path)
