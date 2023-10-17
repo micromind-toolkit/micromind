@@ -12,18 +12,15 @@ from micromind.utils.parse import parse_arguments
 from ultralytics.utils.ops import crop_mask, xywh2xyxy, xyxy2xywh
 from ultralytics.utils.tal import TaskAlignedAssigner, dist2bbox, make_anchors
 
-import sys
-
-sys.path.append("/home/franz/dev/micromind/yolo_teo")
-from modules import YOLOv8
+from micromind.networks.modules import YOLOv8
 
 
 class Loss(v8DetectionLoss):
     def __init__(self, h, m, device):  # model must be de-paralleled
         self.bce = nn.BCEWithLogitsLoss(reduction="none")
         self.hyp = h
-        self.stride = m.stride  # model strides
-        self.nc = m.nc  # number of classes
+        self.stride = m.stride
+        self.nc = m.nc
         self.no = m.no
         self.reg_max = m.reg_max
         self.device = device
@@ -62,8 +59,6 @@ class Loss(v8DetectionLoss):
                 .softmax(3)
                 .matmul(self.proj.type(pred_dist.dtype))
             )
-            # pred_dist = pred_dist.view(b, a, c // 4, 4).transpose(2,3).softmax(3).matmul(self.proj.type(pred_dist.dtype))
-            # pred_dist = (pred_dist.view(b, a, c // 4, 4).softmax(2) * self.proj.type(pred_dist.dtype).view(1, 1, -1, 1)).sum(2)
         return dist2bbox(pred_dist, anchor_points, xywh=False)
 
     def __call__(self, preds, batch):
