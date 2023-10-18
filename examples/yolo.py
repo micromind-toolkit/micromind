@@ -1,4 +1,6 @@
 from micromind import MicroMind
+from micromind import Metric, Stage
+from micromind.utils.yolo_helpers import postprocess
 
 import torch
 import torch.nn as nn
@@ -158,8 +160,9 @@ class YOLO(MicroMind):
 
     def forward(self, batch):
         preprocessed_batch = self.preprocess_batch(batch)
+        pred = self.modules["yolo"](preprocessed_batch["img"].to(self.device))
 
-        return self.modules["yolo"](preprocessed_batch["img"].to(self.device))
+        return pred
 
     def compute_loss(self, pred, batch):
         self.criterion = Loss(self.m_cfg, self.modules["yolo"].head, self.device)
@@ -184,6 +187,16 @@ class YOLO(MicroMind):
             verbose=True,
         )
         return opt, sched
+
+    def mAP(self, pred, batch):
+        
+        preprocessed_batch = self.preprocess_batch(batch)
+        post_predictions = postprocess(
+            preds=pred[0].detach().cpu(), img=preprocessed_batch, orig_imgs=batch
+        )
+        
+        #return len(pred[0]) 
+        return torch.Tensor([5, 2])
 
 
 if __name__ == "__main__":
@@ -212,10 +225,11 @@ if __name__ == "__main__":
 
     hparams = parse_arguments()
     m = YOLO(m_cfg, hparams=hparams)
-
+    map = Metric("mAP", m.mAP, reduction="mean")
     m.train(
         epochs=25000,
         datasets={"train": loader, "val": loader},
+        metrics = [map]
     )
 
     # m.test(

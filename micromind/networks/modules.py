@@ -13,7 +13,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils.yolo_helpers import *
+from micromind.utils.yolo_helpers import *
 
 
 class Upsample:

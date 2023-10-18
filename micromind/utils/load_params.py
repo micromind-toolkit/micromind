@@ -19,8 +19,8 @@ import sys
 import requests
 import os
 
-from networks.modules import YOLOv8
-from helpers import get_variant_multiples
+from micromind.networks.modules import YOLOv8
+from yolo_helpers import get_variant_multiples
 
 
 def download_variant(variant):

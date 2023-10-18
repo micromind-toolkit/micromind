@@ -455,10 +455,11 @@ def postprocess(preds, img, orig_imgs):
         multi_label=True,
     )
     all_preds = []
+    # TODO: DA SISTEMARE SE IN INGRESO C'è SINGOLA IMMAGINE O BATCH, COSI è BATCH 
     for i, pred in enumerate(preds):
         orig_img = orig_imgs[i] if isinstance(orig_imgs, list) else orig_imgs
         if not isinstance(orig_imgs, torch.Tensor):
-            pred[:, :4] = scale_boxes(img.shape[2:], pred[:, :4], orig_img.shape)
+            pred[:, :4] = scale_boxes(tuple(img["img"].shape[2:4]), pred[:, :4], orig_img["ori_shape"][i])
             all_preds.append(pred)
     return all_preds
 

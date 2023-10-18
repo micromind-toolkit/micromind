@@ -89,8 +89,8 @@ class Metric:
         self.history = {s: [] for s in [Stage.train, Stage.val, Stage.test]}
 
     def __call__(self, pred, batch, stage, device="cpu"):
-        if pred.device != device:
-            pred = pred.to(device)
+        # if pred.device != device:
+        #     pred = pred.to(device)
         dat = self.fn(pred, batch)
         if dat.ndim == 0:
             dat = dat.unsqueeze(0)
@@ -114,6 +114,7 @@ class Metric:
         """
 
         if self.reduction == "mean":
+            breakpoint()
             if clear or (
                 self.history[stage][-1].shape[0] != self.history[stage][0].shape[0]
             ):

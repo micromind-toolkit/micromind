@@ -62,7 +62,7 @@ if __name__ == "__main__":
         st = time.time()
 
         with torch.no_grad():
-            predictions = model(pre_processed_image).cpu()
+            predictions = model(pre_processed_image)#.cpu()
             print(f"Did inference in {int(round(((time.time() - st) * 1000)))}ms")
             post_predictions = postprocess(
                 preds=predictions, img=pre_processed_image, orig_imgs=image
