@@ -460,6 +460,7 @@ def postprocess(preds, img, orig_imgs):
         orig_img = orig_imgs[i] if isinstance(orig_imgs, list) else orig_imgs
         if not isinstance(orig_imgs, torch.Tensor):
             pred[:, :4] = scale_boxes(tuple(img["img"].shape[2:4]), pred[:, :4], orig_img["ori_shape"][i])
+            #pred[:, :4] = scale_boxes(img.shape[2:], pred[:, :4], orig_img.shape)
             all_preds.append(pred)
     return all_preds
 
@@ -693,3 +694,117 @@ def label_predictions(all_predictions):
             class_index_count[class_id] += 1
 
     return dict(class_index_count)
+
+
+def calculate_iou(box1, box2):
+    """
+    Calculate the Intersection over Union (IoU) between two bounding boxes.
+
+    Arguments
+    ---------
+    box1 : list 
+        First bounding box in the format [x1, y1, x2, y2].
+    box2 : list
+        Second bounding box in the format [x1, y1, x2, y2].
+
+    Returns
+    -------
+    float
+        The intersection over union of the two bounding boxes.
+    """
+    x1 = max(box1[0], box2[0])
+    y1 = max(box1[1], box2[1])
+    x2 = min(box1[2], box2[2])
+    y2 = min(box1[3], box2[3])
+
+    if x1 >= x2 or y1 >= y2:
+        return 0.0
+
+    intersection = (x2 - x1) * (y2 - y1)
+    area_box1 = (box1[2] - box1[0]) * (box1[3] - box1[1])
+    area_box2 = (box2[2] - box2[0]) * (box2[3] - box2[1])
+    union = area_box1 + area_box2 - intersection
+
+    iou = intersection / union
+    return iou
+
+def average_precision(predictions, ground_truth, class_id, iou_threshold=0.5):
+    """
+    Calculate the average precision (AP) for a specific class in YOLO predictions.
+
+    Arguments
+    ---------
+    predictions : list 
+        List of prediction boxes in the format [x1, y1, x2, y2, confidence, class_id].
+    ground_truth : list
+        List of ground truth boxes in the same format.
+    class_id : int
+        The class ID for which to calculate AP.
+    iou_threshold : float
+        The IoU threshold for considering a prediction as correct.
+
+    Returns
+    -------
+    float
+        The average precision for the specified class.
+    """
+    predictions = [p for p in predictions if p[5] == class_id]
+    ground_truth = [g for g in ground_truth if g[5] == class_id]
+
+    predictions.sort(key=lambda x: x[4], reverse=True)
+    tp = np.zeros(len(predictions))
+    fp = np.zeros(len(predictions))
+    gt_count = len(ground_truth)
+
+    for i, pred in enumerate(predictions):
+        best_iou = 0
+        for j, gt in enumerate(ground_truth):
+            iou = calculate_iou(pred[:4], gt[:4])
+            if iou > best_iou and iou >= iou_threshold:
+                best_iou = iou
+                best_gt_idx = j
+        if best_iou > 0:
+            tp[i] = 1
+            ground_truth.pop(best_gt_idx)
+        else:
+            fp[i] = 1
+
+    precision = np.cumsum(tp) / (np.cumsum(tp) + np.cumsum(fp))
+    recall = np.cumsum(tp) / gt_count
+
+    # Compute the average precision using the 11-point interpolation
+    ap = 0
+    for t in np.arange(0, 1.1, 0.1):
+        if np.sum(recall >= t) == 0:
+            p = 0
+        else:
+            p = np.max(precision[recall >= t])
+        ap += p / 11
+
+    return ap
+
+def mean_average_precision(predictions, ground_truth, num_classes, iou_threshold=0.5):
+    """
+    Calculate the mean average precision (mAP) for all classes in YOLO predictions.
+
+    Arguments
+    ---------
+    predictions : list
+        List of prediction boxes for all classes.
+    ground_truth : list
+        List of ground truth boxes for all classes.
+    num_classes : int
+        The number of classes.
+    iou_threshold : float
+        The IoU threshold for considering a prediction as correct.
+
+    Returns
+    -------
+    float
+        The mean average precision (mAP).
+    """
+    ap_sum = 0
+    for class_id in range(num_classes):
+        ap_sum += average_precision(predictions, ground_truth, class_id, iou_threshold)
+    mAP = ap_sum / num_classes
+    return mAP

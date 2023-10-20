@@ -1,6 +1,6 @@
 from micromind import MicroMind
 from micromind import Metric, Stage
-from micromind.utils.yolo_helpers import postprocess
+from micromind.utils.yolo_helpers import postprocess, calculate_iou, average_precision, mean_average_precision
 
 import torch
 import torch.nn as nn
@@ -15,6 +15,7 @@ from ultralytics.utils.ops import crop_mask, xywh2xyxy, xyxy2xywh
 from ultralytics.utils.tal import TaskAlignedAssigner, dist2bbox, make_anchors
 
 from micromind.networks.modules import YOLOv8
+from ultralytics.utils.metrics import Metric as M
 
 
 class Loss(v8DetectionLoss):
@@ -140,10 +141,6 @@ class YOLO(MicroMind):
         w, r, d = 1, 1, 1
         self.modules["yolo"] = YOLOv8(1, 1, 1, 80)
 
-        # self.modules["yolo"].load_state_dict(
-        # torch.load("/home/franz/dev/micromind/yolo_teo/yolov8l.pt")
-        # )
-
         self.m_cfg = m_cfg
 
     def preprocess_batch(self, batch):
@@ -169,7 +166,7 @@ class YOLO(MicroMind):
         preprocessed_batch = self.preprocess_batch(batch)
 
         lossi_sum, lossi = self.criterion(
-            pred[1],  # pass elements at the beginning of the backward graph
+            pred[1],
             preprocessed_batch,
         )
 
@@ -194,9 +191,26 @@ class YOLO(MicroMind):
         post_predictions = postprocess(
             preds=pred[0].detach().cpu(), img=preprocessed_batch, orig_imgs=batch
         )
+
+        mmAP = 0
+        for batch_el in range(batch_size):
+            ap_sum=0
+            for class_id in range(80):
+                num_cls = torch.sum(batch["batch_idx"] == batch_el).item() 
+                bbox_cls = batch["bboxes"][batch["batch_idx"] == batch_el]
+                cls_cls = batch["cls"][batch["batch_idx"] == batch_el]
+                gt = torch.cat((bbox_cls, cls_cls, torch.ones((num_cls, 1))), dim=1)
+                ap = average_precision(post_predictions[0], gt, class_id)
+                ap_sum += ap
+            mAP = ap_sum / 80
+            #print(f"mAP_img{batch_el}",mAP)
+            mmAP += mAP
+        mmAP /= batch_size
+        #print("mmAP", mmAP)
         
-        #return len(pred[0]) 
-        return torch.Tensor([5, 2])
+        #ultra_metric.update(results=post_predictions)
+        #m_test = ultra_metric.map50()
+        return torch.Tensor([mmAP])
 
 
 if __name__ == "__main__":
@@ -207,6 +221,8 @@ if __name__ == "__main__":
     m_cfg = get_cfg("yolo_cfg/default.yaml")
     data_cfg = check_det_dataset("yolo_cfg/coco8.yaml")
     batch_size = 8
+
+    #ultra_metric = M()
 
     # coco8_dataset = build_yolo_dataset(
     # m_cfg, mode="train", "/mnt/data/coco8", batch_size, data_cfg
