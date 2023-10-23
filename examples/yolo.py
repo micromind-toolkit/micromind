@@ -1,21 +1,20 @@
 from micromind import MicroMind
-from micromind import Metric, Stage
-from micromind.utils.yolo_helpers import postprocess, calculate_iou, average_precision, mean_average_precision
+from micromind import Metric
+from micromind.utils.yolo_helpers import (
+    postprocess,
+    average_precision,
+)
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import torchvision
-import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
-from ultralytics.utils.loss import v8DetectionLoss, BboxLoss, TaskAlignedAssigner
+from ultralytics.utils.loss import v8DetectionLoss, BboxLoss
 from micromind.utils.parse import parse_arguments
 
-from ultralytics.utils.ops import crop_mask, xywh2xyxy, xyxy2xywh
+from ultralytics.utils.ops import xywh2xyxy
 from ultralytics.utils.tal import TaskAlignedAssigner, dist2bbox, make_anchors
 
 from micromind.networks.modules import YOLOv8
-from ultralytics.utils.metrics import Metric as M
 
 
 class Loss(v8DetectionLoss):
@@ -37,7 +36,8 @@ class Loss(v8DetectionLoss):
         self.proj = torch.arange(m.reg_max, dtype=torch.float, device=device)
 
     def preprocess(self, targets, batch_size, scale_tensor):
-        """Preprocesses the target counts and matches with the input batch size to output a tensor."""
+        """Preprocesses the target counts and matches with
+        the input batch size to output a tensor."""
         if targets.shape[0] == 0:
             out = torch.zeros(batch_size, 0, 5, device=self.device)
         else:
@@ -54,7 +54,8 @@ class Loss(v8DetectionLoss):
         return out
 
     def bbox_decode(self, anchor_points, pred_dist):
-        """Decode predicted object bounding box coordinates from anchor points and distribution."""
+        """Decode predicted object bounding box coordinates
+        from anchor points and distribution."""
         if self.use_dfl:
             b, a, c = pred_dist.shape  # batch, anchors, channels
             pred_dist = (
@@ -65,7 +66,8 @@ class Loss(v8DetectionLoss):
         return dist2bbox(pred_dist, anchor_points, xywh=False)
 
     def __call__(self, preds, batch):
-        """Calculate the sum of the loss for box, cls and dfl multiplied by batch size."""
+        """Calculate the sum of the loss for box,
+        cls and dfl multiplied by batch size."""
         loss = torch.zeros(3, device=self.device)  # box, cls, dfl
         feats = preds[1] if isinstance(preds, tuple) else preds
         pred_distri, pred_scores = torch.cat(
@@ -109,7 +111,6 @@ class Loss(v8DetectionLoss):
         target_scores_sum = max(target_scores.sum(), 1)
 
         # Cls loss
-        # loss[1] = self.varifocal_loss(pred_scores, target_scores, target_labels) / target_scores_sum  # VFL way
         loss[1] = (
             self.bce(pred_scores, target_scores.to(dtype)).sum() / target_scores_sum
         )  # BCE
@@ -138,7 +139,6 @@ class YOLO(MicroMind):
     def __init__(self, m_cfg, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        w, r, d = 1, 1, 1
         self.modules["yolo"] = YOLOv8(1, 1, 1, 80)
 
         self.m_cfg = m_cfg
@@ -186,7 +186,7 @@ class YOLO(MicroMind):
         return opt, sched
 
     def mAP(self, pred, batch):
-        
+
         preprocessed_batch = self.preprocess_batch(batch)
         post_predictions = postprocess(
             preds=pred[0].detach().cpu(), img=preprocessed_batch, orig_imgs=batch
@@ -194,27 +194,27 @@ class YOLO(MicroMind):
 
         mmAP = 0
         for batch_el in range(batch_size):
-            ap_sum=0
+            ap_sum = 0
             for class_id in range(80):
-                num_cls = torch.sum(batch["batch_idx"] == batch_el).item() 
+                num_cls = torch.sum(batch["batch_idx"] == batch_el).item()
                 bbox_cls = batch["bboxes"][batch["batch_idx"] == batch_el]
                 cls_cls = batch["cls"][batch["batch_idx"] == batch_el]
                 gt = torch.cat((bbox_cls, cls_cls, torch.ones((num_cls, 1))), dim=1)
                 ap = average_precision(post_predictions[0], gt, class_id)
                 ap_sum += ap
             mAP = ap_sum / 80
-            #print(f"mAP_img{batch_el}",mAP)
+            # print(f"mAP_img{batch_el}",mAP)
             mmAP += mAP
         mmAP /= batch_size
-        #print("mmAP", mmAP)
-        
-        #ultra_metric.update(results=post_predictions)
-        #m_test = ultra_metric.map50()
+        # print("mmAP", mmAP)
+
+        # ultra_metric.update(results=post_predictions)
+        # m_test = ultra_metric.map50()
         return torch.Tensor([mmAP])
 
 
 if __name__ == "__main__":
-    from ultralytics.data import build_dataloader, build_yolo_dataset
+    from ultralytics.data import build_yolo_dataset
     from ultralytics.data.utils import check_det_dataset
     from ultralytics.cfg import get_cfg
 
@@ -222,7 +222,7 @@ if __name__ == "__main__":
     data_cfg = check_det_dataset("yolo_cfg/coco8.yaml")
     batch_size = 8
 
-    #ultra_metric = M()
+    # ultra_metric = M()
 
     # coco8_dataset = build_yolo_dataset(
     # m_cfg, mode="train", "/mnt/data/coco8", batch_size, data_cfg
@@ -245,7 +245,8 @@ if __name__ == "__main__":
     m.train(
         epochs=25000,
         datasets={"train": loader, "val": loader},
-        metrics = [map]
+        # metrics = [map],
+        debug=True,
     )
 
     # m.test(
