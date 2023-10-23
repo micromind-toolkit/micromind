@@ -246,7 +246,7 @@ if __name__ == "__main__":
         epochs=25000,
         datasets={"train": loader, "val": loader},
         # metrics = [map],
-        debug=True,
+        debug=False,
     )
 
     # m.test(
