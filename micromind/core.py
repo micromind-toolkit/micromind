@@ -518,11 +518,11 @@ class MicroMind(ABC):
     @torch.no_grad()
     def test(self, datasets: Dict = {}) -> None:
         """Runs the test steps."""
-        assert "test" in self.datasets, "Test dataloader was not specified."
+        assert "test" in datasets, "Test dataloader was not specified."
         self.modules.eval()
 
         pbar = tqdm(
-            self.datasets["test"],
+            datasets["test"],
             unit="batches",
             ascii=True,
             dynamic_ncols=True,
