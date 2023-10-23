@@ -18,7 +18,7 @@ from accelerate import Accelerator
 import torch
 import os
 
-from .utils.helpers import select_and_load_checkpoint, get_random_string
+from .utils.helpers import get_random_string
 from .utils.checkpointer import Checkpointer
 
 # This is used ONLY if you are not using argparse to get the hparams
@@ -114,11 +114,11 @@ class Metric:
         """
 
         if self.reduction == "mean":
-            #breakpoint()
+            # breakpoint()
             if clear or (
                 self.history[stage][-1].shape[0] != self.history[stage][0].shape[0]
             ):
-                #tmp = torch.stack(self.history[stage][:-1]).mean()
+                # tmp = torch.stack(self.history[stage][:-1]).mean()
                 tmp = torch.stack(self.history[stage]).mean()
             else:
                 tmp = torch.stack(self.history[stage]).mean()
@@ -317,42 +317,23 @@ class MicroMind(ABC):
             self.experiment_folder = "tmp_" + get_random_string()
             logger.info(f"Created temporary folder for debug {self.experiment_folder}.")
 
-        save_dir = os.path.join(self.experiment_folder, "save")
-        if os.path.exists(save_dir):
-            if len(os.listdir(save_dir)) != 0:
-                # select which checkpoint and load it.
-                checkpoint, path = select_and_load_checkpoint(save_dir)
-                self.opt, self.lr_sched = self.configure_optimizers()
-                self.opt.load_state_dict(checkpoint["optimizer"])
-                self.lr_sched.load_state_dict(checkpoint["lr_scheduler"])
-                self.start_epoch = checkpoint["epoch"] + 1
+        accelerate_dir = os.path.join(self.experiment_folder, "save")
+        if os.path.exists(accelerate_dir):
+            self.opt, self.lr_sched = self.configure_optimizers()
 
-                self.load_modules(path)
-
-                if self.accelerator.is_local_main_process:
-                    self.checkpointer = Checkpointer(
-                        checkpoint["key"],
-                        mode=checkpoint["mode"],
-                        checkpoint_path=self.experiment_folder,
-                    )
-
-                    logger.info(f"Loaded existing checkpoint from {path}.")
-            else:
-                self.opt, self.lr_sched = self.configure_optimizers()
-                self.start_epoch = 0
-
-                self.checkpointer = Checkpointer(
-                    "val_loss", checkpoint_path=self.experiment_folder
-                )
         else:
             os.makedirs(self.experiment_folder, exist_ok=True)
 
             self.opt, self.lr_sched = self.configure_optimizers()
             self.start_epoch = 0
 
-            self.checkpointer = Checkpointer(
-                "val_loss", checkpoint_path=self.experiment_folder
-            )
+        # handle start_epoch better
+        self.start_epoch = 0
+        self.checkpointer = Checkpointer(
+            "val_loss",
+            checkpoint_path=self.experiment_folder,
+            accelerator=self.accelerator,
+        )
 
         self.accelerator = Accelerator()
         self.device = self.accelerator.device
@@ -364,6 +345,9 @@ class MicroMind(ABC):
         self.modules, self.opt, self.lr_sched = accelerated[:3]
         for i, key in enumerate(self.datasets):
             self.datasets[key] = accelerated[-(i + 1)]
+
+        if os.path.exists(accelerate_dir):
+            self.accelerator.load_state(accelerate_dir)
 
     def on_train_end(self):
         """Runs at the end of each training. Cleans up before exiting."""
@@ -436,6 +420,7 @@ class MicroMind(ABC):
 
                     model_out = self(batch)
                     loss = self.compute_loss(model_out, batch)
+                    loss_epoch += loss.item()
 
                     self.accelerator.backward(loss)
                     self.opt.step()
@@ -449,7 +434,6 @@ class MicroMind(ABC):
 
                     running_train.update({"train_loss": loss_epoch / (idx + 1)})
 
-                    loss_epoch += loss.item()
                     pbar.set_postfix(**running_train)
 
                     if self.debug and idx > 10:
