@@ -794,15 +794,9 @@ def average_precision(predictions, ground_truth, class_id, iou_threshold=0.5):
         best_iou = 0
         for j, gt in enumerate(ground_truth):
             iou = calculate_iou(pred[:4], gt[:4])
-            # if len(predictions) != 0:
-            #     print(i, iou)
-            #     breakpoint()
-            # if len(predictions) != 0:
-            #    breakpoint()
             if iou > best_iou and iou >= iou_threshold:
                 best_iou = iou
                 best_gt_idx = j
-        #breakpoint()
         if best_iou > 0:
             tp[i] = 1
             ground_truth.pop(best_gt_idx)
@@ -821,8 +815,6 @@ def average_precision(predictions, ground_truth, class_id, iou_threshold=0.5):
             p = np.max(precision[recall >= t])
         ap += p / 11
 
-    # if len(predictions) != 0:
-    #     breakpoint()
     return ap
 
 def mean_average_precision(predictions, ground_truth, num_classes, iou_threshold=0.5):
