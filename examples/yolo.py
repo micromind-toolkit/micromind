@@ -139,7 +139,9 @@ class YOLO(MicroMind):
         super().__init__(*args, **kwargs)
 
         w, r, d = 1, 1, 1
-        self.modules["yolo"] = YOLOv8(1, 1, 1, 80)
+        model = YOLOv8(1, 1, 1, 80)
+        model.load_state_dict(torch.load("../micromind/networks/yolov8l.pt"), strict=True)
+        self.modules["yolo"] = model
 
         self.m_cfg = m_cfg
 
@@ -173,14 +175,14 @@ class YOLO(MicroMind):
         return lossi_sum
 
     def configure_optimizers(self):
-        opt = torch.optim.Adam(self.modules.parameters(), lr=1e-3)
+        opt = torch.optim.SGD(self.modules.parameters(), lr=0.)
         sched = torch.optim.lr_scheduler.ReduceLROnPlateau(
             opt,
             "min",
             factor=0.2,
             patience=50,
             threshold=10,
-            min_lr=1e-5,
+            min_lr=0,
             verbose=True,
         )
         return opt, sched
@@ -191,22 +193,37 @@ class YOLO(MicroMind):
         post_predictions = postprocess(
             preds=pred[0].detach().cpu(), img=preprocessed_batch, orig_imgs=batch
         )
+        
+
+        for i, pred in enumerate(post_predictions):
+            pred[:, :4] /=  640
+            pred[:, :4] = xywh2xyxy(pred[:, :4])
+            pred[:, :4] = torch.clamp(pred[:, :4], min=0, max=1)
+            post_predictions[i] = pred
+
+        batch_bboxes_xyxy = xywh2xyxy(batch["bboxes"])
+        postpred = post_predictions.copy()
 
         mmAP = 0
-        for batch_el in range(batch_size):
+        for batch_el in range(batch_size): # for every element in the batch
             ap_sum=0
-            for class_id in range(80):
-                num_cls = torch.sum(batch["batch_idx"] == batch_el).item() 
-                bbox_cls = batch["bboxes"][batch["batch_idx"] == batch_el]
-                cls_cls = batch["cls"][batch["batch_idx"] == batch_el]
-                gt = torch.cat((bbox_cls, cls_cls, torch.ones((num_cls, 1))), dim=1)
-                ap = average_precision(post_predictions[0], gt, class_id)
+            for class_id in range(80): # for every class in the dataset, compute the average precision for that class
+                num_cls = torch.sum(batch["batch_idx"] == batch_el).item() # number of objs in the current batch element
+                bbox_cls = batch_bboxes_xyxy[batch["batch_idx"] == batch_el] # bboxes for those objs in the current batch element
+                cls_cls = batch["cls"][batch["batch_idx"] == batch_el] # classes for those objs in the current batch element
+                gt = torch.cat((bbox_cls, torch.ones((num_cls, 1)), cls_cls), dim=1) # ground_truth
+                breakpoint()
+                ap = average_precision(post_predictions[batch_el], gt, class_id) # compute ap for a class for that batch element
                 ap_sum += ap
-            mAP = ap_sum / 80
-            #print(f"mAP_img{batch_el}",mAP)
+
+
+            # NUMERO DI DIVERSE CLASSI PRESENTI NEL BATCH
+            mAP = ap_sum / torch.unique(gt[:, -1]).size(0)
+            #mAP = ap_sum / torch.unique(postpred[batch_el][:, -1]).size(0)
+            print(f"mAP_img{batch_el}",mAP)
             mmAP += mAP
         mmAP /= batch_size
-        #print("mmAP", mmAP)
+        print("mmAP", mmAP)
         
         #ultra_metric.update(results=post_predictions)
         #m_test = ultra_metric.map50()
