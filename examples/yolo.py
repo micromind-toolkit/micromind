@@ -219,32 +219,39 @@ if __name__ == "__main__":
     from ultralytics.cfg import get_cfg
 
     m_cfg = get_cfg("yolo_cfg/default.yaml")
-    data_cfg = check_det_dataset("yolo_cfg/coco8.yaml")
-    batch_size = 8
+    data_cfg = check_det_dataset("yolo_cfg/coco.yaml")
+    batch_size = 16
 
-    # ultra_metric = M()
-
-    # coco8_dataset = build_yolo_dataset(
-    # m_cfg, mode="train", "/mnt/data/coco8", batch_size, data_cfg
-    # )
     mode = "train"
     coco8_dataset = build_yolo_dataset(
-        m_cfg, "/mnt/data/coco8", batch_size, data_cfg, mode=mode, rect=mode == "val"
+        m_cfg, "datasets/coco", batch_size, data_cfg, mode=mode, rect=mode == "val"
     )
 
-    loader = DataLoader(
+    train_loader = DataLoader(
         coco8_dataset,
         batch_size,
         shuffle=True,
         collate_fn=getattr(coco8_dataset, "collate_fn", None),
     )
 
+    mode = "val"
+    coco8_dataset = build_yolo_dataset(
+        m_cfg, "datasets/coco", batch_size, data_cfg, mode=mode, rect=mode == "val"
+    )
+
+    val_loader = DataLoader(
+        coco8_dataset,
+        batch_size,
+        shuffle=False,
+        collate_fn=getattr(coco8_dataset, "collate_fn", None),
+    )
+
     hparams = parse_arguments()
     m = YOLO(m_cfg, hparams=hparams)
-    map = Metric("mAP", m.mAP, reduction="mean")
+
     m.train(
-        epochs=25000,
-        datasets={"train": loader, "val": loader},
+        epochs=200,
+        datasets={"train": train_loader, "val": val_loader},
         # metrics = [map],
         debug=False,
     )
@@ -252,3 +259,4 @@ if __name__ == "__main__":
     # m.test(
     # datasets={"test": testloader},
     # )
+
