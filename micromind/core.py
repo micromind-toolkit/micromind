@@ -363,9 +363,6 @@ class MicroMind(ABC):
             logger.info(f"Removed temporary folder {self.experiment_folder}.")
             shutil.rmtree(self.experiment_folder)
 
-        if self.accelerator.is_local_main_process:
-            self.checkpointer.close()
-
     def train(
         self,
         epochs: int = 1,
