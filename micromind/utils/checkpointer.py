@@ -91,7 +91,6 @@ class Checkpointer:
                 torch.save(base_save, self.check_paths[id_best])
 
         if to_remove is not None and to_remove != "":
-            breakpoint()
             logger.info(f"Generated better checkpoint. Deleting {to_remove}.")
             os.remove(to_remove)
 
