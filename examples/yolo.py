@@ -231,6 +231,7 @@ if __name__ == "__main__":
         coco8_dataset,
         batch_size,
         shuffle=True,
+	num_workers=16,
         collate_fn=getattr(coco8_dataset, "collate_fn", None),
     )
 
@@ -243,6 +244,7 @@ if __name__ == "__main__":
         coco8_dataset,
         batch_size,
         shuffle=False,
+	num_workers=16,
         collate_fn=getattr(coco8_dataset, "collate_fn", None),
     )
 
@@ -250,7 +252,7 @@ if __name__ == "__main__":
     m = YOLO(m_cfg, hparams=hparams)
 
     m.train(
-        epochs=200,
+        epochs=50,
         datasets={"train": train_loader, "val": val_loader},
         # metrics = [map],
         debug=False,
