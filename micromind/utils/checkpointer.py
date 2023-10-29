@@ -70,6 +70,8 @@ class Checkpointer:
                 base_save.update(
                     {k: unwrap(v).state_dict() for k, v in mind.modules.items()}
                 ),
+                self.bests[id_best] = metrics[self.key]
+
                 torch.save(base_save, self.check_paths[id_best])
         elif self.mode == "max":
             if metrics[self.key] >= max(self.bests):
@@ -84,9 +86,12 @@ class Checkpointer:
                 base_save.update(
                     {k: unwrap(v).state_dict() for k, v in mind.modules.items()}
                 ),
+                self.bests[id_best] = metrics[self.key]
+
                 torch.save(base_save, self.check_paths[id_best])
 
         if to_remove is not None and to_remove != "":
+            breakpoint()
             logger.info(f"Generated better checkpoint. Deleting {to_remove}.")
             os.remove(to_remove)
 
