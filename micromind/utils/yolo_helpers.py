@@ -459,8 +459,11 @@ def postprocess(preds, img, orig_imgs):
     for i, pred in enumerate(preds):
         orig_img = orig_imgs[i] if isinstance(orig_imgs, list) else orig_imgs
         if not isinstance(orig_imgs, torch.Tensor):
+            #pred[:, :4] = scale_boxes(orig_img["ori_shape"][i], pred[:, :4], orig_img["ori_shape"][i])
             pred[:, :4] = scale_boxes(tuple(img["img"].shape[2:4]), pred[:, :4], orig_img["ori_shape"][i])
-            #pred[:, :4] = scale_boxes(img.shape[2:], pred[:, :4], orig_img.shape)
+            #print(tuple(img["img"].shape[2:4]), pred[:, :4], orig_img["ori_shape"][i])
+            #pred[:, :4] = scale_boxes(img.shape[2:], pred[:, :4], orig_img.shape) # SINGOLA IMMAGINE
+            #print(img.shape[2:], pred[:, :4], orig_img.shape)
             all_preds.append(pred)
     return all_preds
 

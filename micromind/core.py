@@ -95,7 +95,7 @@ class Metric:
         if dat.ndim == 0:
             dat = dat.unsqueeze(0)
 
-        self.history[stage].append(self.fn(pred, batch))
+        self.history[stage].append(dat)
 
     def reduce(self, stage, clear=False):
         """
@@ -463,6 +463,7 @@ class MicroMind(ABC):
                 train_metrics.update({"train_loss": loss_epoch / (idx + 1)})
 
                 if "val" in datasets:
+                    breakpoint()
                     val_metrics = self.validate()
                     if self.accelerator.is_local_main_process:
                         self.checkpointer(
