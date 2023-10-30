@@ -18,20 +18,19 @@ class Checkpointer:
         self,
         key: str,
         mode: str = "min",
-        top_k: int = 5,
+        top_k: int = 1,
         checkpoint_path: Union[str, Path] = ".",
     ) -> None:
         assert mode in ["max", "min"], "Checkpointer mode can be only max or min."
         self.key = key
         self.mode = mode
-        self.top_k = 5
+        self.top_k = top_k
 
         self.bests = [torch.inf] * self.top_k
         self.check_paths = [""] * self.top_k
         self.root_dir = checkpoint_path
         self.save_dir = os.path.join(self.root_dir, "save")
         os.makedirs(self.save_dir, exist_ok=True)
-        self.fstream = open(os.path.join(self.root_dir, "train_log.txt"), "a")
 
     def __call__(
         self,
@@ -41,6 +40,7 @@ class Checkpointer:
         metrics: Dict,
         unwrap: Callable = lambda x: x,
     ) -> Union[Path, str]:
+        self.fstream = open(os.path.join(self.root_dir, "train_log.txt"), "a")
         s_out = (
             f"Epoch {epoch}: "
             + " - ".join([f"{k}: {v:.2f}" for k, v in train_metrics.items()])
@@ -70,6 +70,8 @@ class Checkpointer:
                 base_save.update(
                     {k: unwrap(v).state_dict() for k, v in mind.modules.items()}
                 ),
+                self.bests[id_best] = metrics[self.key]
+
                 torch.save(base_save, self.check_paths[id_best])
         elif self.mode == "max":
             if metrics[self.key] >= max(self.bests):
@@ -84,16 +86,17 @@ class Checkpointer:
                 base_save.update(
                     {k: unwrap(v).state_dict() for k, v in mind.modules.items()}
                 ),
+                self.bests[id_best] = metrics[self.key]
+
                 torch.save(base_save, self.check_paths[id_best])
 
         if to_remove is not None and to_remove != "":
             logger.info(f"Generated better checkpoint. Deleting {to_remove}.")
             os.remove(to_remove)
 
+        self.fstream.close()
+
         if self.mode == "max":
             return self.check_paths[self.bests.index(max(self.bests))]
         elif self.mode == "min":
             return self.check_paths[self.bests.index(min(self.bests))]
-
-    def close(self):
-        self.fstream.close()

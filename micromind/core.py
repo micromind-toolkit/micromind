@@ -362,7 +362,7 @@ class MicroMind(ABC):
         convert = [self.modules, self.opt, self.lr_sched] + list(self.datasets.values())
         accelerated = self.accelerator.prepare(convert)
         self.modules, self.opt, self.lr_sched = accelerated[:3]
-        for i, key in enumerate(self.datasets):
+        for i, key in enumerate(list(self.datasets.keys())[::-1]):
             self.datasets[key] = accelerated[-(i + 1)]
 
     def on_train_end(self):
@@ -370,9 +370,6 @@ class MicroMind(ABC):
         if self.hparams.debug:
             logger.info(f"Removed temporary folder {self.experiment_folder}.")
             shutil.rmtree(self.experiment_folder)
-
-        if self.accelerator.is_local_main_process:
-            self.checkpointer.close()
 
     def train(
         self,
