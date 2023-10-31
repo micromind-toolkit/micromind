@@ -459,8 +459,11 @@ def postprocess(preds, img, orig_imgs):
     for i, pred in enumerate(preds):
         orig_img = orig_imgs[i] if isinstance(orig_imgs, list) else orig_imgs
         if not isinstance(orig_imgs, torch.Tensor):
+            #pred[:, :4] = scale_boxes(orig_img["ori_shape"][i], pred[:, :4], orig_img["ori_shape"][i])
             pred[:, :4] = scale_boxes(tuple(img["img"].shape[2:4]), pred[:, :4], orig_img["ori_shape"][i])
-            #pred[:, :4] = scale_boxes(img.shape[2:], pred[:, :4], orig_img.shape)
+            #print(tuple(img["img"].shape[2:4]), pred[:, :4], orig_img["ori_shape"][i])
+            #pred[:, :4] = scale_boxes(img.shape[2:], pred[:, :4], orig_img.shape) # SINGOLA IMMAGINE
+            #print(img.shape[2:], pred[:, :4], orig_img.shape)
             all_preds.append(pred)
     return all_preds
 
@@ -695,6 +698,32 @@ def label_predictions(all_predictions):
 
     return dict(class_index_count)
 
+def bbox_format(box):
+    """
+    Convert a list of coordinates [x, y, x, y] representing two points defining a rectangle
+    to the format [x1, y1, x2, y2], where x1, y1 represent the top-left corner, and x2, y2
+    represent the bottom-right corner of the rectangle.
+
+    Arguments
+    ---------
+    box : list 
+        A list of coordinates in the format [x1, y1, x2, y2] where x1, y1, x2, y2 represent
+        the coordinates of two points defining a rectangle.
+
+    Returns
+    -------
+    list
+        The coordinates in the format [x1, y1, x2, y2] where x1, y1 represent the top-left
+        vertex, and x2, y2 represent the bottom-right vertex of the rectangle.
+    """
+    x1, y1, x2, y2 = box[0], box[1], box[2], box[3]
+
+    x_min = min(x1, x2)
+    x_max = max(x1, x2)
+    y_min = min(y1, y2)
+    y_max = max(y1, y2)
+
+    return [x_min, y_min, x_max, y_max]
 
 def calculate_iou(box1, box2):
     """
@@ -712,6 +741,9 @@ def calculate_iou(box1, box2):
     float
         The intersection over union of the two bounding boxes.
     """
+    box1 = bbox_format(box1)
+    box2 = bbox_format(box2)
+
     x1 = max(box1[0], box2[0])
     y1 = max(box1[1], box2[1])
     x2 = min(box1[2], box2[2])
@@ -720,9 +752,9 @@ def calculate_iou(box1, box2):
     if x1 >= x2 or y1 >= y2:
         return 0.0
 
-    intersection = (x2 - x1) * (y2 - y1)
-    area_box1 = (box1[2] - box1[0]) * (box1[3] - box1[1])
-    area_box2 = (box2[2] - box2[0]) * (box2[3] - box2[1])
+    intersection = max(0, abs(x2 - x1)) * max(0, abs(y2 - y1))
+    area_box1 = abs((box1[2] - box1[0]) * (box1[3] - box1[1]))
+    area_box2 = abs((box2[2] - box2[0]) * (box2[3] - box2[1]))
     union = area_box1 + area_box2 - intersection
 
     iou = intersection / union
@@ -748,6 +780,11 @@ def average_precision(predictions, ground_truth, class_id, iou_threshold=0.5):
     float
         The average precision for the specified class.
     """
+    if isinstance(predictions, torch.Tensor):
+        predictions = predictions.tolist()
+    if isinstance(ground_truth, torch.Tensor):
+        ground_truth = ground_truth.tolist()
+    
     predictions = [p for p in predictions if p[5] == class_id]
     ground_truth = [g for g in ground_truth if g[5] == class_id]
 

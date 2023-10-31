@@ -1,9 +1,6 @@
 from micromind import MicroMind
-from micromind import Metric
-from micromind.utils.yolo_helpers import (
-    postprocess,
-    average_precision,
-)
+from micromind import Metric, Stage
+from micromind.utils.yolo_helpers import postprocess, calculate_iou, average_precision, mean_average_precision, draw_bounding_boxes_and_save
 
 import torch
 import torch.nn as nn
@@ -11,7 +8,7 @@ from torch.utils.data import DataLoader
 from ultralytics.utils.loss import v8DetectionLoss, BboxLoss
 from micromind.utils.parse import parse_arguments
 
-from ultralytics.utils.ops import xywh2xyxy
+from ultralytics.utils.ops import crop_mask, xywh2xyxy, xyxy2xywh, scale_boxes
 from ultralytics.utils.tal import TaskAlignedAssigner, dist2bbox, make_anchors
 
 from micromind.networks.modules import YOLOv8
@@ -156,6 +153,7 @@ class YOLO(MicroMind):
         return preprocessed_batch
 
     def forward(self, batch):
+        self.modules.eval()
         preprocessed_batch = self.preprocess_batch(batch)
         pred = self.modules["yolo"](preprocessed_batch["img"].to(self.device))
 
@@ -173,14 +171,14 @@ class YOLO(MicroMind):
         return lossi_sum
 
     def configure_optimizers(self):
-        opt = torch.optim.Adam(self.modules.parameters(), lr=1e-3)
+        opt = torch.optim.SGD(self.modules.parameters(), lr=0.)
         sched = torch.optim.lr_scheduler.ReduceLROnPlateau(
             opt,
             "min",
             factor=0.2,
             patience=50,
             threshold=10,
-            min_lr=1e-5,
+            min_lr=0,
             verbose=True,
         )
         return opt, sched
@@ -192,24 +190,61 @@ class YOLO(MicroMind):
             preds=pred[0].detach().cpu(), img=preprocessed_batch, orig_imgs=batch
         )
 
-        mmAP = 0
-        for batch_el in range(batch_size):
-            ap_sum = 0
-            for class_id in range(80):
-                num_cls = torch.sum(batch["batch_idx"] == batch_el).item()
-                bbox_cls = batch["bboxes"][batch["batch_idx"] == batch_el]
-                cls_cls = batch["cls"][batch["batch_idx"] == batch_el]
-                gt = torch.cat((bbox_cls, cls_cls, torch.ones((num_cls, 1))), dim=1)
-                ap = average_precision(post_predictions[0], gt, class_id)
-                ap_sum += ap
-            mAP = ap_sum / 80
-            # print(f"mAP_img{batch_el}",mAP)
-            mmAP += mAP
-        mmAP /= batch_size
-        # print("mmAP", mmAP)
+        # nel batch sono xywh con le dimensioni in 640x640
+        batch_bboxes_xyxy = xywh2xyxy(batch["bboxes"])
+        batch_bboxes_xyxy[:, :4] *= batch["resized_shape"][0][0] # *672
 
-        # ultra_metric.update(results=post_predictions)
-        # m_test = ultra_metric.map50()
+        #breakpoint()
+        # TODO: NON TUTTE LE IMMAGINI HANNO UNA DIMENSIONE A 640 E VENGNON RIDIMENSIONATE AD ESEMPIO A (672, 512)
+        # for i in range(len(batch["batch_idx"])):
+        #     tmp = torch.tensor(batch["ori_shape"][int(batch["batch_idx"][i].item())])
+        #     if torch.argmin(tmp)==0:
+                
+        #         batch_bboxes_xyxy[i][1] -= (640-tmp.min())/2
+        #         batch_bboxes_xyxy[i][3] -= (640-tmp.min())/2
+        #     else:
+        #         batch_bboxes_xyxy[i][0] -= (640-tmp.min())/2
+        #         batch_bboxes_xyxy[i][2] -= (640-tmp.min())/2
+        # breakpoint()
+        post_boxes = []
+        for i in range(len(batch["batch_idx"])):
+            for b in range(len(batch_bboxes_xyxy[batch["batch_idx"]==i, :])):
+                post_boxes.append(scale_boxes(batch["resized_shape"][i], batch_bboxes_xyxy[batch["batch_idx"]==i, :][b], batch["ori_shape"][i]))
+        post_boxes = torch.stack(post_boxes)
+        #breakpoint()
+
+        postpred = post_predictions.copy()
+        print("RICOMINCIATOOOOOOOOO")
+        breakpoint()
+        mmAP = []
+        print("BATCH_SIZE: ", batch_size)
+        for batch_el in range(batch_size): # for every element in the batch
+            print("BATCH_l: ", batch_el)
+            ap_sum=0
+            for class_id in range(80): # for every class in the dataset, compute the average precision for that class
+                num_cls = torch.sum(batch["batch_idx"] == batch_el).item() # number of objs in the current batch element
+                bbox_cls = post_boxes[batch["batch_idx"] == batch_el] # bboxes for those objs in the current batch element
+                cls_cls = batch["cls"][batch["batch_idx"] == batch_el] # classes for those objs in the current batch element
+                gt = torch.cat((bbox_cls, torch.ones((num_cls, 1)), cls_cls), dim=1) # ground_truth
+                #breakpoint()
+                ap = average_precision(post_predictions[batch_el], gt, class_id) # compute ap for a class for that batch element
+                ap_sum += ap
+
+
+            # NUMERO DI DIVERSE CLASSI PRESENTI NEL BATCH
+            print("AP_SUM:  ", ap_sum, torch.unique(gt[:, -1]).size(0))
+            
+            mAP = ap_sum / torch.unique(gt[:, -1]).size(0)
+            #mAP = ap_sum / torch.unique(postpred[batch_el][:, -1]).size(0)
+            print(f"mAP_img{batch_el}", mAP)
+            breakpoint()
+
+            mmAP.append(mAP) 
+        mmAP = sum(mmAP)/len(mmAP)
+        #print("mmAP", mmAP)
+        
+        #ultra_metric.update(results=post_predictions)
+        #m_test = ultra_metric.map50()
         return torch.Tensor([mmAP])
 
 
@@ -231,7 +266,7 @@ if __name__ == "__main__":
         coco8_dataset,
         batch_size,
         shuffle=True,
-	num_workers=16,
+        num_workers=16,
         collate_fn=getattr(coco8_dataset, "collate_fn", None),
     )
 
@@ -244,7 +279,7 @@ if __name__ == "__main__":
         coco8_dataset,
         batch_size,
         shuffle=False,
-	num_workers=16,
+        num_workers=16,
         collate_fn=getattr(coco8_dataset, "collate_fn", None),
     )
 
