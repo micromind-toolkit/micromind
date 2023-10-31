@@ -442,7 +442,6 @@ class MicroMind(ABC):
                 train_metrics.update({"train_loss": loss_epoch / (idx + 1)})
 
                 if "val" in datasets:
-                    breakpoint()
                     val_metrics = self.validate()
                     if self.accelerator.is_local_main_process:
                         self.checkpointer(

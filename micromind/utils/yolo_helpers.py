@@ -442,7 +442,7 @@ def postprocess(preds, img, orig_imgs):
         A list of post-processed prediction arrays, each containing bounding
         boxes and associated information.
     """
-    print("copying to CPU now for post processing")
+    # print("copying to CPU now for post processing")
     # if you are on CPU, this causes an overflow runtime error. doesn't "seem" to make any difference in the predictions though.
     # TODO: make non_max_suppression in tinygrad - to make this faster
     preds = preds
