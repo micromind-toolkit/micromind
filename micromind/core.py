@@ -114,7 +114,6 @@ class Metric:
         """
 
         if self.reduction == "mean":
-            #breakpoint()
             if clear or (
                 self.history[stage][-1].shape[0] != self.history[stage][0].shape[0]
             ):
@@ -231,8 +230,6 @@ class MicroMind(ABC):
             modules_keys.remove(k)
 
         if len(modules_keys) != 0:
-            print(modules_keys)
-            breakpoint()
             logger.info(f"Couldn't find a state_dict for modules {modules_keys}.")
 
     def export(
@@ -460,7 +457,6 @@ class MicroMind(ABC):
                 train_metrics.update({"train_loss": loss_epoch / (idx + 1)})
 
                 if "val" in datasets:
-                    breakpoint()
                     val_metrics = self.validate()
                     if self.accelerator.is_local_main_process:
                         self.checkpointer(

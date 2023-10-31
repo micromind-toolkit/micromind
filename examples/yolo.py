@@ -194,71 +194,19 @@ class YOLO(MicroMind):
         post_predictions = postprocess(
             preds=pred[0].detach().cpu(), img=preprocessed_batch, orig_imgs=batch
         )
-
-        # post_predictions ALREADY IN XYXY FORMAT with our implementation
-
-        for i, pred in enumerate(post_predictions):
-            #pred[:, :4] /=  640
-            #pred[:, :4] = xywh2xyxy(pred[:, :4])
-            #pred[:, :4] = torch.clamp(pred[:, :4], min=0, max=1)
-            post_predictions[i] = pred
-
-        #breakpoint()
-        # nel batch sono xywh con le dimensioni in 640x640
+        
         batch_bboxes_xyxy = xywh2xyxy(batch["bboxes"])
-        batch_bboxes_xyxy[:, :4] *= batch["resized_shape"][0][0] # *672
+        dim = batch["resized_shape"][0][0]
+        batch_bboxes_xyxy[:, :4] *=  dim
 
-        #breakpoint()
-        # TODO: NON TUTTE LE IMMAGINI HANNO UNA DIMENSIONE A 640 E VENGNON RIDIMENSIONATE AD ESEMPIO A (672, 512)
-        # for i in range(len(batch["batch_idx"])):
-        #     tmp = torch.tensor(batch["ori_shape"][int(batch["batch_idx"][i].item())])
-        #     if torch.argmin(tmp)==0:
-                
-        #         batch_bboxes_xyxy[i][1] -= (640-tmp.min())/2
-        #         batch_bboxes_xyxy[i][3] -= (640-tmp.min())/2
-        #     else:
-        #         batch_bboxes_xyxy[i][0] -= (640-tmp.min())/2
-        #         batch_bboxes_xyxy[i][2] -= (640-tmp.min())/2
-        # breakpoint()
-        post_boxes = []
+        batch_bboxes = []
         for i in range(len(batch["batch_idx"])):
             for b in range(len(batch_bboxes_xyxy[batch["batch_idx"]==i, :])):
-                post_boxes.append(scale_boxes(batch["resized_shape"][i], batch_bboxes_xyxy[batch["batch_idx"]==i, :][b], batch["ori_shape"][i]))
-        post_boxes = torch.stack(post_boxes)
-        #breakpoint()
+                batch_bboxes.append(scale_boxes(batch["resized_shape"][i], batch_bboxes_xyxy[batch["batch_idx"]==i, :][b], batch["ori_shape"][i]))
+        batch_bboxes = torch.stack(batch_bboxes)
 
-        postpred = post_predictions.copy()
-        print("RICOMINCIATOOOOOOOOO")
-        breakpoint()
-        mmAP = []
-        print("BATCH_SIZE: ", batch_size)
-        for batch_el in range(batch_size): # for every element in the batch
-            print("BATCH_l: ", batch_el)
-            ap_sum=0
-            for class_id in range(80): # for every class in the dataset, compute the average precision for that class
-                num_cls = torch.sum(batch["batch_idx"] == batch_el).item() # number of objs in the current batch element
-                bbox_cls = post_boxes[batch["batch_idx"] == batch_el] # bboxes for those objs in the current batch element
-                cls_cls = batch["cls"][batch["batch_idx"] == batch_el] # classes for those objs in the current batch element
-                gt = torch.cat((bbox_cls, torch.ones((num_cls, 1)), cls_cls), dim=1) # ground_truth
-                #breakpoint()
-                ap = average_precision(post_predictions[batch_el], gt, class_id) # compute ap for a class for that batch element
-                ap_sum += ap
-
-
-            # NUMERO DI DIVERSE CLASSI PRESENTI NEL BATCH
-            print("AP_SUM:  ", ap_sum, torch.unique(gt[:, -1]).size(0))
-            
-            mAP = ap_sum / torch.unique(gt[:, -1]).size(0)
-            #mAP = ap_sum / torch.unique(postpred[batch_el][:, -1]).size(0)
-            print(f"mAP_img{batch_el}", mAP)
-            breakpoint()
-
-            mmAP.append(mAP) 
-        mmAP = sum(mmAP)/len(mmAP)
-        #print("mmAP", mmAP)
+        mmAP = mean_average_precision(post_predictions, batch, batch_bboxes)
         
-        #ultra_metric.update(results=post_predictions)
-        #m_test = ultra_metric.map50()
         return torch.Tensor([mmAP])
 
 
@@ -270,8 +218,6 @@ if __name__ == "__main__":
     m_cfg = get_cfg("yolo_cfg/default.yaml")
     data_cfg = check_det_dataset("yolo_cfg/coco8.yaml")
     batch_size = 8
-
-    #ultra_metric = M()
 
     # coco8_dataset = build_yolo_dataset(
     # m_cfg, mode="train", "/mnt/data/coco8", batch_size, data_cfg

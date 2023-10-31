@@ -455,16 +455,14 @@ def postprocess(preds, img, orig_imgs):
         multi_label=True,
     )
     all_preds = []
-    # TODO: DA SISTEMARE SE IN INGRESO C'è SINGOLA IMMAGINE O BATCH, COSI è BATCH 
+    
     for i, pred in enumerate(preds):
         orig_img = orig_imgs[i] if isinstance(orig_imgs, list) else orig_imgs
-        if not isinstance(orig_imgs, torch.Tensor):
-            #pred[:, :4] = scale_boxes(orig_img["ori_shape"][i], pred[:, :4], orig_img["ori_shape"][i])
-            pred[:, :4] = scale_boxes(tuple(img["img"].shape[2:4]), pred[:, :4], orig_img["ori_shape"][i])
-            #print(tuple(img["img"].shape[2:4]), pred[:, :4], orig_img["ori_shape"][i])
-            #pred[:, :4] = scale_boxes(img.shape[2:], pred[:, :4], orig_img.shape) # SINGOLA IMMAGINE
-            #print(img.shape[2:], pred[:, :4], orig_img.shape)
-            all_preds.append(pred)
+        if isinstance(orig_img, dict):
+            pred[:, :4] = scale_boxes(tuple(img["img"].shape[2:4]), pred[:, :4], orig_img["ori_shape"][i]) # batch
+        else:
+            pred[:, :4] = scale_boxes(img.shape[2:], pred[:, :4], orig_img.shape) # single img
+        all_preds.append(pred)
     return all_preds
 
 
@@ -820,18 +818,18 @@ def average_precision(predictions, ground_truth, class_id, iou_threshold=0.5):
 
     return ap
 
-def mean_average_precision(predictions, ground_truth, num_classes, iou_threshold=0.5):
+def mean_average_precision(post_predictions, batch, batch_bboxes, iou_threshold=0.5):
     """
     Calculate the mean average precision (mAP) for all classes in YOLO predictions.
 
     Arguments
     ---------
-    predictions : list
-        List of prediction boxes for all classes.
-    ground_truth : list
-        List of ground truth boxes for all classes.
-    num_classes : int
-        The number of classes.
+    post_predictions : list
+        List of post-processed predictions for bounding boxes.
+    batch : dict
+        A dictionary containing batch information, including image files, batch indices, and more.
+    batch_bboxes : torch.Tensor
+        Tensor containing batch bounding boxes.
     iou_threshold : float
         The IoU threshold for considering a prediction as correct.
 
@@ -840,8 +838,28 @@ def mean_average_precision(predictions, ground_truth, num_classes, iou_threshold
     float
         The mean average precision (mAP).
     """
-    ap_sum = 0
-    for class_id in range(num_classes):
-        ap_sum += average_precision(predictions, ground_truth, class_id, iou_threshold)
-    mAP = ap_sum / num_classes
-    return mAP
+    batch_size = len(batch["im_file"])
+
+    mmAP = []
+    for batch_el in range(batch_size):
+        ap_sum=0
+
+        num_obj = torch.sum(batch["batch_idx"] == batch_el).item()
+        bboxes = batch_bboxes[batch["batch_idx"] == batch_el]
+        classes = batch["cls"][batch["batch_idx"] == batch_el]
+        gt = torch.cat((bboxes, torch.ones((num_obj, 1)), classes), dim=1)
+
+        for class_id in range(80):
+            ap = average_precision(post_predictions[batch_el], gt, class_id)
+            ap_sum += ap
+        
+        div = torch.unique(gt[:, -1]).size(0)
+        if div == 0:
+            mAP = 0
+        else:
+            mAP = ap_sum / div
+
+        mmAP.append(mAP) 
+    mmAP = sum(mmAP)/len(mmAP)
+
+    return mmAP
