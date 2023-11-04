@@ -442,7 +442,6 @@ def postprocess(preds, img, orig_imgs):
         A list of post-processed prediction arrays, each containing bounding
         boxes and associated information.
     """
-    print("copying to CPU now for post processing")
     # if you are on CPU, this causes an overflow runtime error. doesn't "seem" to make any difference in the predictions though.
     # TODO: make non_max_suppression in tinygrad - to make this faster
     preds = preds
@@ -670,58 +669,32 @@ def xywh2xyxy(x):
     return torch.Tensor(result)
 
 
-def label_predictions(all_predictions):
-    """Count the number of predictions for each class.
-
-    This function counts the number of predictions for each class
-    in a list of prediction arrays.
-
-    Arguments
-    ---------
-    all_predictions : list of list of numpy.ndarray
-        A list of lists of prediction arrays from the object detection model.
-
-    Returns
-    -------
-    dict
-        A dictionary where the keys are class indices and the values are
-        the counts of predictions for each class.
-    """
-    class_index_count = defaultdict(int)
-    for predictions in all_predictions:
-        predictions = np.array(predictions)
-        for pred_np in predictions:
-            class_id = int(pred_np[-1])
-            class_index_count[class_id] += 1
-
-    return dict(class_index_count)
-
 def bbox_format(box):
     """
-    Convert a list of coordinates [x, y, x, y] representing two points defining a rectangle
-    to the format [x1, y1, x2, y2], where x1, y1 represent the top-left corner, and x2, y2
-    represent the bottom-right corner of the rectangle.
+    Convert a tensor of coordinates [x1, y1, x2, y2] representing two points defining a rectangle
+    to the format [x_min, y_min, x_max, y_max], where x_min, y_min represent the top-left corner,
+    and x_max, y_max represent the bottom-right corner of the rectangle.
 
     Arguments
     ---------
-    box : list 
-        A list of coordinates in the format [x1, y1, x2, y2] where x1, y1, x2, y2 represent
+    box : torch.Tensor
+        A tensor of coordinates in the format [x1, y1, x2, y2] where x1, y1, x2, y2 represent
         the coordinates of two points defining a rectangle.
 
     Returns
     -------
-    list
-        The coordinates in the format [x1, y1, x2, y2] where x1, y1 represent the top-left
-        vertex, and x2, y2 represent the bottom-right vertex of the rectangle.
+    torch.Tensor
+        The coordinates in the format [x_min, y_min, x_max, y_max] where x_min, y_min represent
+        the top-left vertex, and x_max, y_max represent the bottom-right vertex of the rectangle.
     """
     x1, y1, x2, y2 = box[0], box[1], box[2], box[3]
 
-    x_min = min(x1, x2)
-    x_max = max(x1, x2)
-    y_min = min(y1, y2)
-    y_max = max(y1, y2)
+    x_min = torch.min(x1, x2)
+    x_max = torch.max(x1, x2)
+    y_min = torch.min(y1, y2)
+    y_max = torch.max(y1, y2)
 
-    return [x_min, y_min, x_max, y_max]
+    return torch.tensor([x_min, y_min, x_max, y_max])
 
 def calculate_iou(box1, box2):
     """
@@ -729,9 +702,9 @@ def calculate_iou(box1, box2):
 
     Arguments
     ---------
-    box1 : list 
+    box1 : torch.Tensor
         First bounding box in the format [x1, y1, x2, y2].
-    box2 : list
+    box2 : torch.Tensor
         Second bounding box in the format [x1, y1, x2, y2].
 
     Returns
@@ -742,21 +715,18 @@ def calculate_iou(box1, box2):
     box1 = bbox_format(box1)
     box2 = bbox_format(box2)
 
-    x1 = max(box1[0], box2[0])
-    y1 = max(box1[1], box2[1])
-    x2 = min(box1[2], box2[2])
-    y2 = min(box1[3], box2[3])
+    x1 = torch.max(box1[0], box2[0])
+    y1 = torch.max(box1[1], box2[1])
+    x2 = torch.min(box1[2], box2[2])
+    y2 = torch.min(box1[3], box2[3])
 
-    if x1 >= x2 or y1 >= y2:
-        return 0.0
-
-    intersection = max(0, abs(x2 - x1)) * max(0, abs(y2 - y1))
-    area_box1 = abs((box1[2] - box1[0]) * (box1[3] - box1[1]))
-    area_box2 = abs((box2[2] - box2[0]) * (box2[3] - box2[1]))
+    intersection = torch.clamp(x2 - x1, min=0) * torch.clamp(y2 - y1, min=0)
+    area_box1 = (box1[2] - box1[0]) * (box1[3] - box1[1])
+    area_box2 = (box2[2] - box2[0]) * (box2[3] - box2[1])
     union = area_box1 + area_box2 - intersection
 
     iou = intersection / union
-    return iou
+    return iou.item()
 
 def average_precision(predictions, ground_truth, class_id, iou_threshold=0.5):
     """
@@ -778,17 +748,12 @@ def average_precision(predictions, ground_truth, class_id, iou_threshold=0.5):
     float
         The average precision for the specified class.
     """
-    if isinstance(predictions, torch.Tensor):
-        predictions = predictions.tolist()
-    if isinstance(ground_truth, torch.Tensor):
-        ground_truth = ground_truth.tolist()
-    
     predictions = [p for p in predictions if p[5] == class_id]
     ground_truth = [g for g in ground_truth if g[5] == class_id]
 
     predictions.sort(key=lambda x: x[4], reverse=True)
-    tp = np.zeros(len(predictions))
-    fp = np.zeros(len(predictions))
+    tp = torch.zeros(len(predictions))
+    fp = torch.zeros(len(predictions))
     gt_count = len(ground_truth)
 
     for i, pred in enumerate(predictions):
@@ -804,19 +769,21 @@ def average_precision(predictions, ground_truth, class_id, iou_threshold=0.5):
         else:
             fp[i] = 1
 
-    precision = np.cumsum(tp) / (np.cumsum(tp) + np.cumsum(fp))
-    recall = np.cumsum(tp) / gt_count
+    precision = torch.cumsum(tp, dim=0) / (torch.cumsum(tp, dim=0) + torch.cumsum(fp, dim=0))
+    recall = torch.cumsum(tp, dim=0) / gt_count
 
     # Compute the average precision using the 11-point interpolation
-    ap = 0
-    for t in np.arange(0, 1.1, 0.1):
-        if np.sum(recall >= t) == 0:
-            p = 0
+    ap = torch.tensor(0.0)
+    for t in torch.arange(0.0, 1.1, 0.1):
+        recall_greater = recall >= t
+        num_true = torch.sum(recall_greater).item()
+        if num_true == 0:
+            p = torch.tensor(0.0)
         else:
-            p = np.max(precision[recall >= t])
-        ap += p / 11
-
-    return ap
+            p = torch.max(precision[recall_greater])
+        ap += p / 11.0
+    
+    return ap.item()
 
 def mean_average_precision(post_predictions, batch, batch_bboxes, iou_threshold=0.5):
     """
