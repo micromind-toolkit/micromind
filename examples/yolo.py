@@ -17,7 +17,10 @@ from micromind.utils.parse import parse_arguments
 from ultralytics.utils.ops import crop_mask, xywh2xyxy, xyxy2xywh, scale_boxes
 from ultralytics.utils.tal import TaskAlignedAssigner, dist2bbox, make_anchors
 
-from micromind.networks.modules import YOLOv8
+from micromind.networks.modules import YOLOv8, SPPF, Yolov8Neck, DetectionHead
+from micromind.networks import PhiNet
+
+from torchinfo import summary
 
 
 class Loss(v8DetectionLoss):
@@ -142,10 +145,36 @@ class YOLO(MicroMind):
     def __init__(self, m_cfg, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        w, r, d = 1, 1, 1
-        model = YOLOv8(1, 1, 1, 80)
-        model.load_state_dict(torch.load("yolo.ckpt")["yolo"], strict=True)
-        self.modules["yolo"] = model
+        self.modules["phinet"] = PhiNet(
+            input_shape=(3, 672, 672),
+            alpha=3,
+            num_layers=7,
+            beta=1,
+            t_zero=6,
+            include_top=False,
+            compatibility=False,
+            divisor=8,
+            downsampling_layers=[4,5,7],    # check consistency with return_layers
+            return_layers=[5,6,7]
+        )
+        self.modules["sppf"] = SPPF(
+            576, 576
+        )
+        self.modules["neck"] = Yolov8Neck(
+            [144, 288, 576]
+        )
+        self.modules["head"] = DetectionHead(
+            filters=(144, 288, 576)
+        )
+
+        tot_params = 0
+        for m in self.modules.values():
+            temp = summary(
+                m, verbose=0
+            )
+            tot_params += temp.total_params
+
+        print(f"Total parameters of model: {tot_params*1e-6:.2f} M")
 
         self.m_cfg = m_cfg
 
@@ -163,12 +192,16 @@ class YOLO(MicroMind):
 
     def forward(self, batch):
         preprocessed_batch = self.preprocess_batch(batch)
-        pred = self.modules["yolo"](preprocessed_batch["img"].to(self.device))
+        # pred = self.modules["yolo"](preprocessed_batch["img"].to(self.device))
+        backbone = self.modules["phinet"](preprocessed_batch["img"].to(self.device))[1]
+        backbone[-1] = self.modules["sppf"](backbone[-1])
+        neck = self.modules["neck"](*backbone)
+        head = self.modules["head"](neck)
 
-        return pred
+        return head
 
     def compute_loss(self, pred, batch):
-        self.criterion = Loss(self.m_cfg, self.modules["yolo"].head, self.device)
+        self.criterion = Loss(self.m_cfg, self.modules["head"], self.device)
         preprocessed_batch = self.preprocess_batch(batch)
 
         lossi_sum, lossi = self.criterion(
@@ -243,8 +276,12 @@ class YOLO(MicroMind):
 
             # NUMERO DI DIVERSE CLASSI PRESENTI NEL BATCH
             # print("AP_SUM:  ", ap_sum, torch.unique(gt[:, -1]).size(0))
-
-            mAP = ap_sum / torch.unique(gt[:, -1]).size(0)
+            
+            div = torch.unique(gt[:, -1]).size(0)
+            if div == 0:
+                mAP = 0
+            else:
+                mAP = ap_sum / div
             # mAP = ap_sum / torch.unique(postpred[batch_el][:, -1]).size(0)
             # print(f"mAP_img{batch_el}", mAP)
 
@@ -263,12 +300,12 @@ if __name__ == "__main__":
     from ultralytics.cfg import get_cfg
 
     m_cfg = get_cfg("yolo_cfg/default.yaml")
-    data_cfg = check_det_dataset("yolo_cfg/coco8.yaml")
-    batch_size = 16
+    data_cfg = check_det_dataset("yolo_cfg/coco.yaml")
+    batch_size = 8
 
     mode = "train"
     coco8_dataset = build_yolo_dataset(
-        m_cfg, "/mnt/data/coco8", batch_size, data_cfg, mode=mode, rect=mode == "val"
+        m_cfg, "datasets/coco", batch_size, data_cfg, mode=mode, rect=mode == "val"
     )
 
     train_loader = DataLoader(
@@ -281,7 +318,7 @@ if __name__ == "__main__":
 
     mode = "val"
     coco8_dataset = build_yolo_dataset(
-        m_cfg, "/mnt/data/coco8", batch_size, data_cfg, mode=mode, rect=mode == "val"
+        m_cfg, "datasets/coco", batch_size, data_cfg, mode=mode, rect=mode == "val"
     )
 
     val_loader = DataLoader(
@@ -297,9 +334,9 @@ if __name__ == "__main__":
     mAP = Metric("mAP", m.mAP)
 
     m.train(
-        epochs=50,
+        epochs=25,
         datasets={"train": train_loader, "val": val_loader},
-        metrics=[mAP],
+        # metrics=[mAP],
         debug=False,
     )
 

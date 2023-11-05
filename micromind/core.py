@@ -420,11 +420,11 @@ class MicroMind(ABC):
                     self.accelerator.backward(loss)
                     self.opt.step()
 
-                    for m in self.metrics:
-                        m(model_out, batch, Stage.train, self.device)
+                    # for m in self.metrics:
+                        # m(model_out, batch, Stage.train, self.device)
 
                     running_train = {
-                        "train_" + m.name: m.reduce(Stage.train) for m in self.metrics
+                        # "train_" + m.name: m.reduce(Stage.train) for m in self.metrics
                     }
 
                     running_train.update({"train_loss": loss_epoch / (idx + 1)})
@@ -437,7 +437,7 @@ class MicroMind(ABC):
                 pbar.close()
 
                 train_metrics = {
-                    "train_" + m.name: m.reduce(Stage.train, True) for m in self.metrics
+                    # "train_" + m.name: m.reduce(Stage.train, True) for m in self.metrics
                 }
                 train_metrics.update({"train_loss": loss_epoch / (idx + 1)})
 
