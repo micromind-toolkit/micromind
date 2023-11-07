@@ -1,6 +1,7 @@
 from micromind import MicroMind
 from micromind import Metric, Stage
 from micromind.utils.yolo_helpers import (
+    preprocess,
     postprocess,
     calculate_iou,
     average_precision,
@@ -21,6 +22,8 @@ from micromind.networks.modules import YOLOv8, SPPF, Yolov8Neck, DetectionHead
 from micromind.networks import PhiNet
 
 from torchinfo import summary
+import torchvision
+import cv2
 
 
 class Loss(v8DetectionLoss):
@@ -212,7 +215,7 @@ class YOLO(MicroMind):
         return lossi_sum
 
     def configure_optimizers(self):
-        opt = torch.optim.SGD(self.modules.parameters(), lr=0.0)
+        opt = torch.optim.Adam(self.modules.parameters(), lr=1e-3)
         sched = torch.optim.lr_scheduler.ReduceLROnPlateau(
             opt,
             "min",
@@ -251,6 +254,7 @@ if __name__ == "__main__":
     from ultralytics.data.utils import check_det_dataset
     from ultralytics.cfg import get_cfg
 
+    test_only = False
     m_cfg = get_cfg("yolo_cfg/default.yaml")
     data_cfg = check_det_dataset("yolo_cfg/coco.yaml")
     batch_size = 8
@@ -283,14 +287,26 @@ if __name__ == "__main__":
 
     hparams = parse_arguments()
     m = YOLO(m_cfg, hparams=hparams)
+    m.load_modules("results/exp/save/epoch_8_val_loss_38.4551.ckpt")
     mAP = Metric("mAP", m.mAP)
 
-    m.train(
-        epochs=25,
-        datasets={"train": train_loader, "val": val_loader},
-        # metrics=[mAP],
-        debug=False,
-    )
+    if not test_only:
+        m.train(
+            epochs=25,
+            datasets={"train": train_loader, "val": val_loader},
+            metrics=[mAP],
+            debug=False,
+        )
+
+    class_labels = [s.strip() for s in open("yolo_cfg/coco.names", "r").readlines()]
+    img_path = "datasets/coco/images/val2017/000000481404.jpg"
+    img = [cv2.imread(img_path)]
+    with torch.no_grad():
+        pre_img = preprocess(img) * 255.0     # maybe check dynamically?
+        preds = m({"img": pre_img})[0]
+        postprocessed = postprocess(preds, img=pre_img, orig_imgs=img)
+
+    draw_bounding_boxes_and_save(orig_img_paths=[img_path], output_img_paths=["pred.jpg"], all_predictions=postprocessed, class_labels=class_labels)
 
     # m.test(
     # datasets={"test": testloader},
