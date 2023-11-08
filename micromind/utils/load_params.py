@@ -51,14 +51,15 @@ def download_variant(variant):
 
 
 if __name__ == "__main__":
-
     valid_conf = ["n", "s", "m", "l", "x"]
     if len(sys.argv) < 2 or len(sys.argv[1]) > 1 or sys.argv[1] not in valid_conf:
         print(
-            "Falling back on yolov8l model. Configuration was not passed or was not valid."
+            "Falling back on yolov8l model. "
+            + "Configuration was not passed or was not valid."
         )
         print(
-            "If you want to change configuration, give as argument one valid option between {n, s, m, l, x}."
+            "If you want to change configuration, "
+            + "give as argument one valid option between {n, s, m, l, x}."
         )
         conf = "l"
     else:

@@ -27,11 +27,12 @@ def get_variant_multiples(variant):
 
 
 def autopad(k, p=None, d=1):  # kernel, padding, dilation
-    """Calculate padding value for a convolution operation based on kernel size and dilation.
+    """Calculate padding value for a convolution operation based on kernel
+    size and dilation.
 
     This function computes the padding value for a convolution operation to
     maintain the spatial size of the input tensor.
-    
+
     Arguments
     ---------
     k : int
@@ -61,7 +62,7 @@ def make_anchors(feats, strides, grid_cell_offset=0.5):
     """Generate anchor points and stride tensors.
 
     This function generates anchor points for each feature map and stride
-    combination. 
+    combination.
     It is commonly used in object detection tasks to define anchor boxes.
 
     Arguments
@@ -104,18 +105,18 @@ def dist2bbox(distance, anchor_points, xywh=True, dim=-1):
 
     This function takes distance predictions and anchor points to calculate
     bounding box coordinates.
-    
+
     Arguments
     ---------
     distance : torch.Tensor
-        Tensor containing distance predictions. 
+        Tensor containing distance predictions.
         It should be in the format [lt, rb] if `xywh` is True,
         or [x1y1, x2y2] if `xywh` is False.
     anchor_points : torch.Tensor
         Tensor containing anchor points used for the conversion.
     xywh : bool, optional
         If True, the function returns bounding boxes in the format
-        [center_x, center_y, width, height]. 
+        [center_x, center_y, width, height].
         If False, it returns bounding boxes in the format [x1, y1, x2, y2].
         Default is True.
     dim : int, optional
@@ -144,10 +145,10 @@ def compute_transform(
     This function computes a transformation of the input image to the specified
     new size and format, while optionally maintaining the aspect ratio or adding
     padding as needed.
-    
+
     Arguments
     ---------
-    image : numpy.ndarray
+    image : torch.Tensor
         The input image to be transformed.
     new_shape : int or tuple, optional
         The target size of the transformed image. If an integer is provided,
@@ -171,26 +172,23 @@ def compute_transform(
     -------
         The transformed image : numpy.ndarray
     """
-    shape = image.shape[:2]  # current shape [height, width]
+    shape = image.shape[-2:]  # current shape [height, width]
     new_shape = (new_shape, new_shape) if isinstance(new_shape, int) else new_shape
     r = min(new_shape[0] / shape[0], new_shape[1] / shape[1])
     r = min(r, 1.0) if not scaleup else r
     new_unpad = (int(round(shape[1] * r)), int(round(shape[0] * r)))
     dw, dh = new_shape[1] - new_unpad[0], new_shape[0] - new_unpad[1]
-    dw, dh = (np.mod(dw, stride), np.mod(dh, stride)) if auto else (0.0, 0.0)
+    dw, dh = (dw % stride, dh % stride) if auto else (0.0, 0.0)
     new_unpad = (new_shape[1], new_shape[0]) if scaleFill else new_unpad
+    new_unpad = (new_unpad[1], new_unpad[0])
     dw /= 2
     dh /= 2
-    image = (
-        cv2.resize(image, new_unpad, interpolation=cv2.INTER_LINEAR)
-        if shape[::-1] != new_unpad
-        else image
-    )
+    image = torch.nn.functional.interpolate(
+        image.unsqueeze(0), size=new_unpad, mode="bilinear", align_corners=False
+    ).squeeze(0)
     top, bottom = int(round(dh - 0.1)), int(round(dh + 0.1))
     left, right = int(round(dw - 0.1)), int(round(dw + 0.1))
-    image = cv2.copyMakeBorder(
-        image, top, bottom, left, right, cv2.BORDER_CONSTANT, value=(114, 114, 114)
-    )
+    image = torch.nn.functional.pad(image, (left, right, top, bottom), value=114)
     return image
 
 
@@ -199,21 +197,20 @@ def preprocess(im, imgsz=640, model_stride=32, model_pt=True):
 
     This function preprocesses a batch of images for inference by
     resizing, transforming, and normalizing them.
-    
+
     Arguments
     ---------
-    im : list of numpy.ndarray or numpy.ndarray
-        A batch of input images to be preprocessed. 
-        Can be a list of images or a single image as a numpy array.
+    im : torch.Tensor or list of torch.Tensor
+        An input image or a batch of images to be preprocessed.
     imgsz : int, optional
-        The target size of the images after preprocessing. 
+        The target size of the images after preprocessing.
         Default is 640.
     model_stride : int, optional
         The stride value used for padding calculation when `auto` is True
         in `compute_transform`. Default is 32.
     model_pt : bool, optional
         If True, the function automatically calculates the padding to
-        maintain the same shapes for all input images in the batch. 
+        maintain the same shapes for all input images in the batch.
         Default is True.
 
     Returns
@@ -223,21 +220,10 @@ def preprocess(im, imgsz=640, model_stride=32, model_pt=True):
         (n, 3, h, w), where n is the number of images, 3 represents the
         RGB channels, and h and w are the height and width of the images.
     """
-    same_shapes = all(x.shape == im[0].shape for x in im)
-    auto = same_shapes and model_pt
-    im = torch.Tensor(
-        np.array(
-            [
-                compute_transform(x, new_shape=imgsz, auto=auto, stride=model_stride)
-                for x in im
-            ]
-        )
-    )
-    im = torch.stack(im) if im.shape[0] > 1 else im
-    im = torch.flip(im, (-1,)).permute(
-        0, 3, 1, 2
-    )  # BGR to RGB, BHWC to BCHW, (n, 3, h, w)
-    im /= 255  # 0 - 255 to 0.0 - 1.0
+    auto = model_pt
+    im = compute_transform(im, new_shape=imgsz, auto=auto, stride=model_stride)
+    im = im.float() / 255.0  # 0 - 255 to 0.0 - 1.0
+    im = im.unsqueeze(0)
     return im
 
 
@@ -442,8 +428,6 @@ def postprocess(preds, img, orig_imgs):
         A list of post-processed prediction arrays, each containing bounding
         boxes and associated information.
     """
-    # if you are on CPU, this causes an overflow runtime error. doesn't "seem" to make any difference in the predictions though.
-    # TODO: make non_max_suppression in tinygrad - to make this faster
     preds = preds
     preds = non_max_suppression(
         prediction=preds,
@@ -454,13 +438,17 @@ def postprocess(preds, img, orig_imgs):
         multi_label=True,
     )
     all_preds = []
-    
+
     for i, pred in enumerate(preds):
         orig_img = orig_imgs[i] if isinstance(orig_imgs, list) else orig_imgs
         if isinstance(orig_img, dict):
-            pred[:, :4] = scale_boxes(tuple(img["img"].shape[2:4]), pred[:, :4], orig_img["ori_shape"][i]) # batch
+            pred[:, :4] = scale_boxes(
+                tuple(img["img"].shape[2:4]), pred[:, :4], orig_img["ori_shape"][i]
+            )  # batch
         else:
-            pred[:, :4] = scale_boxes(img.shape[2:], pred[:, :4], orig_img.shape) # single img
+            pred[:, :4] = scale_boxes(
+                img.shape[2:], pred[:, :4], orig_img.shape
+            )  # single img
         all_preds.append(pred)
     return all_preds
 
@@ -671,21 +659,23 @@ def xywh2xyxy(x):
 
 def bbox_format(box):
     """
-    Convert a tensor of coordinates [x1, y1, x2, y2] representing two points defining a rectangle
-    to the format [x_min, y_min, x_max, y_max], where x_min, y_min represent the top-left corner,
-    and x_max, y_max represent the bottom-right corner of the rectangle.
+    Convert a tensor of coordinates [x1, y1, x2, y2] representing two points
+    defining a rectangle to the format [x_min, y_min, x_max, y_max], where
+    x_min, y_min represent the top-left corner, and x_max, y_max represent the
+    bottom-right corner of the rectangle.
 
     Arguments
     ---------
     box : torch.Tensor
-        A tensor of coordinates in the format [x1, y1, x2, y2] where x1, y1, x2, y2 represent
-        the coordinates of two points defining a rectangle.
+        A tensor of coordinates in the format [x1, y1, x2, y2] where x1, y1, x2, y2
+        represent the coordinates of two points defining a rectangle.
 
     Returns
     -------
     torch.Tensor
-        The coordinates in the format [x_min, y_min, x_max, y_max] where x_min, y_min represent
-        the top-left vertex, and x_max, y_max represent the bottom-right vertex of the rectangle.
+        The coordinates in the format [x_min, y_min, x_max, y_max] where x_min, y_min
+        represent the top-left vertex, and x_max, y_max represent the bottom-right
+        vertex of the rectangle.
     """
     x1, y1, x2, y2 = box[0], box[1], box[2], box[3]
 
@@ -695,6 +685,7 @@ def bbox_format(box):
     y_max = torch.max(y1, y2)
 
     return torch.tensor([x_min, y_min, x_max, y_max])
+
 
 def calculate_iou(box1, box2):
     """
@@ -728,13 +719,14 @@ def calculate_iou(box1, box2):
     iou = intersection / union
     return iou.item()
 
+
 def average_precision(predictions, ground_truth, class_id, iou_threshold=0.5):
     """
     Calculate the average precision (AP) for a specific class in YOLO predictions.
 
     Arguments
     ---------
-    predictions : list 
+    predictions : list
         List of prediction boxes in the format [x1, y1, x2, y2, confidence, class_id].
     ground_truth : list
         List of ground truth boxes in the same format.
@@ -769,7 +761,9 @@ def average_precision(predictions, ground_truth, class_id, iou_threshold=0.5):
         else:
             fp[i] = 1
 
-    precision = torch.cumsum(tp, dim=0) / (torch.cumsum(tp, dim=0) + torch.cumsum(fp, dim=0))
+    precision = torch.cumsum(tp, dim=0) / (
+        torch.cumsum(tp, dim=0) + torch.cumsum(fp, dim=0)
+    )
     recall = torch.cumsum(tp, dim=0) / gt_count
 
     # Compute the average precision using the 11-point interpolation
@@ -782,8 +776,9 @@ def average_precision(predictions, ground_truth, class_id, iou_threshold=0.5):
         else:
             p = torch.max(precision[recall_greater])
         ap += p / 11.0
-    
+
     return ap.item()
+
 
 def mean_average_precision(post_predictions, batch, batch_bboxes, iou_threshold=0.5):
     """
@@ -794,7 +789,7 @@ def mean_average_precision(post_predictions, batch, batch_bboxes, iou_threshold=
     post_predictions : list
         List of post-processed predictions for bounding boxes.
     batch : dict
-        A dictionary containing batch information, including image files, batch indices, and more.
+        A dictionary containing batch information, including image files, batch indices.
     batch_bboxes : torch.Tensor
         Tensor containing batch bounding boxes.
     iou_threshold : float
@@ -809,7 +804,7 @@ def mean_average_precision(post_predictions, batch, batch_bboxes, iou_threshold=
 
     mmAP = []
     for batch_el in range(batch_size):
-        ap_sum=0
+        ap_sum = 0
 
         num_obj = torch.sum(batch["batch_idx"] == batch_el).item()
         bboxes = batch_bboxes[batch["batch_idx"] == batch_el]
@@ -819,14 +814,14 @@ def mean_average_precision(post_predictions, batch, batch_bboxes, iou_threshold=
         for class_id in range(80):
             ap = average_precision(post_predictions[batch_el], gt, class_id)
             ap_sum += ap
-        
+
         div = torch.unique(gt[:, -1]).size(0)
         if div == 0:
             mAP = 0
         else:
             mAP = ap_sum / div
 
-        mmAP.append(mAP) 
-    mmAP = sum(mmAP)/len(mmAP)
+        mmAP.append(mAP)
+    mmAP = sum(mmAP) / len(mmAP)
 
     return mmAP

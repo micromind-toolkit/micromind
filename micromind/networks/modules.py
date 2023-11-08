@@ -6,14 +6,15 @@ Authors:
     - Francesco Paissan, 2023
 
 This file contains the definition of the building blocks of the yolov8 network.
-Model architecture has been taken from https://github.com/ultralytics/ultralytics/issues/189
+Model architecture has been taken from
+https://github.com/ultralytics/ultralytics/issues/189
 """
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from micromind.utils.yolo_helpers import *
+from micromind.utils.yolo_helpers import autopad, make_anchors, dist2bbox
 
 
 class Upsample:
