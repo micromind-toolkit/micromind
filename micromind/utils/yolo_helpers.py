@@ -5,7 +5,9 @@ Authors:
     - Matteo Beltrami, 2023
     - Francesco Paissan, 2023
 """
-
+import types
+from pathlib import Path
+import yaml
 import numpy as np
 import cv2
 from collections import defaultdict
@@ -24,6 +26,77 @@ def get_variant_multiples(variant):
     }.get(variant, None)
 
     return tmp[1], tmp[2], tmp[0]
+
+
+def load_config(file_path):
+    """
+    Load configuration from a YAML file and preprocess it for training.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the YAML configuration file.
+
+    Returns
+    -------
+    m_cfg : types.SimpleNamespace
+        Model configuration containing task-specific parameters.
+    data_cfg : dict
+        Data configuration containing paths and settings for train, val and test.
+    """
+    with open(file_path, "r") as file:
+        config = yaml.safe_load(file)
+        path = Path(Path.cwd() / config["path"]).resolve()
+        train = Path(path / config["train"]) if "train" in config else None
+        val = Path(path / config["val"]) if "val" in config else None
+        if ("test" not in config) or (config["test"] is None):
+            test = None
+        else:
+            test = Path(path / config["val"])
+
+        data_cfg = {
+            "path": path,
+            "train": train.as_posix(),
+            "val": val.as_posix(),
+            "test": test,
+            "names": config["names"],
+            "download": config.get("download"),
+            "yaml_file": file_path,
+            "nc": len(config["names"]),
+        }
+        m_cfg = {
+            "task",
+            "mode",
+            "imgsz",
+            "rect",
+            "cache",
+            "single_cls",
+            "fraction",
+            "overlap_mask",
+            "mask_ratio",
+            "classes",
+            "box",
+            "cls",
+            "dfl",
+            "hsv_h",
+            "hsv_s",
+            "hsv_v",
+            "degrees",
+            "translate",
+            "scale",
+            "shear",
+            "perspective",
+            "flipud",
+            "fliplr",
+            "mosaic",
+            "mixup",
+            "copy_paste",
+        }
+
+        m_cfg = {key: config[key] for key in m_cfg if key in config}
+        m_cfg = types.SimpleNamespace(**m_cfg)
+
+    return m_cfg, data_cfg
 
 
 def autopad(k, p=None, d=1):  # kernel, padding, dilation

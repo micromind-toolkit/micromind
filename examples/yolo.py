@@ -1,6 +1,13 @@
 from micromind import MicroMind
 from micromind import Metric, Stage
-from micromind.utils.yolo_helpers import postprocess, calculate_iou, average_precision, mean_average_precision, draw_bounding_boxes_and_save
+from micromind.utils.yolo_helpers import (
+    postprocess,
+    calculate_iou,
+    average_precision,
+    mean_average_precision,
+    draw_bounding_boxes_and_save,
+    load_config,
+)
 
 import torch
 import torch.nn as nn
@@ -16,6 +23,7 @@ from ultralytics.utils.tal import TaskAlignedAssigner, dist2bbox, make_anchors
 
 from micromind.networks.modules import YOLOv8
 from ultralytics.utils.metrics import Metric as M
+from ultralytics.data import build_yolo_dataset
 
 
 class Loss(v8DetectionLoss):
@@ -140,7 +148,9 @@ class YOLO(MicroMind):
 
         w, r, d = 1, 1, 1
         model = YOLOv8(1, 1, 1, 80)
-        model.load_state_dict(torch.load("../micromind/networks/yolov8l.pt"), strict=True)
+        model.load_state_dict(
+            torch.load("../micromind/networks/yolov8l.pt"), strict=True
+        )
         self.modules["yolo"] = model
 
         self.m_cfg = m_cfg
@@ -176,7 +186,7 @@ class YOLO(MicroMind):
         return lossi_sum
 
     def configure_optimizers(self):
-        opt = torch.optim.SGD(self.modules.parameters(), lr=0.)
+        opt = torch.optim.SGD(self.modules.parameters(), lr=0.0)
         sched = torch.optim.lr_scheduler.ReduceLROnPlateau(
             opt,
             "min",
@@ -189,40 +199,36 @@ class YOLO(MicroMind):
         return opt, sched
 
     def mAP(self, pred, batch):
-        
         preprocessed_batch = self.preprocess_batch(batch)
         post_predictions = postprocess(
             preds=pred[0].detach().cpu(), img=preprocessed_batch, orig_imgs=batch
         )
-        
+
         batch_bboxes_xyxy = xywh2xyxy(batch["bboxes"])
         dim = batch["resized_shape"][0][0]
-        batch_bboxes_xyxy[:, :4] *=  dim
+        batch_bboxes_xyxy[:, :4] *= dim
 
         batch_bboxes = []
         for i in range(len(batch["batch_idx"])):
-            for b in range(len(batch_bboxes_xyxy[batch["batch_idx"]==i, :])):
-                batch_bboxes.append(scale_boxes(batch["resized_shape"][i], batch_bboxes_xyxy[batch["batch_idx"]==i, :][b], batch["ori_shape"][i]))
+            for b in range(len(batch_bboxes_xyxy[batch["batch_idx"] == i, :])):
+                batch_bboxes.append(
+                    scale_boxes(
+                        batch["resized_shape"][i],
+                        batch_bboxes_xyxy[batch["batch_idx"] == i, :][b],
+                        batch["ori_shape"][i],
+                    )
+                )
         batch_bboxes = torch.stack(batch_bboxes)
-
         mmAP = mean_average_precision(post_predictions, batch, batch_bboxes)
         
         return torch.Tensor([mmAP])
 
 
 if __name__ == "__main__":
-    from ultralytics.data import build_dataloader, build_yolo_dataset
-    from ultralytics.data.utils import check_det_dataset
-    from ultralytics.cfg import get_cfg
-
-    m_cfg = get_cfg("yolo_cfg/default.yaml")
-    data_cfg = check_det_dataset("yolo_cfg/coco8.yaml")
+    m_cfg, data_cfg = load_config("yolo_cfg/config.yaml")
     batch_size = 8
 
-    # coco8_dataset = build_yolo_dataset(
-    # m_cfg, mode="train", "/mnt/data/coco8", batch_size, data_cfg
-    # )
-    mode = "val"
+    mode = "train"
     coco8_dataset = build_yolo_dataset(
         m_cfg, "/mnt/data/coco8", batch_size, data_cfg, mode=mode, rect=mode == "val"
     )
@@ -237,11 +243,7 @@ if __name__ == "__main__":
     hparams = parse_arguments()
     m = YOLO(m_cfg, hparams=hparams)
     map = Metric("mAP", m.mAP, reduction="mean")
-    m.train(
-        epochs=25000,
-        datasets={"train": loader, "val": loader},
-        metrics = [map]
-    )
+    m.train(epochs=25000, datasets={"train": loader, "val": loader}, metrics=[map])
 
     # m.test(
     # datasets={"test": testloader},
