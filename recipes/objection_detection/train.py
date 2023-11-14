@@ -149,7 +149,7 @@ class YOLO(MicroMind):
         w, r, d = 1, 1, 1
         model = YOLOv8(w, r, d, 80)
         model.load_state_dict(
-            torch.load("../micromind/networks/yolov8l.pt"), strict=True
+            torch.load("../../micromind/networks/yolov8l.pt"), strict=True
         )
         self.modules["yolo"] = model
 
@@ -225,7 +225,7 @@ class YOLO(MicroMind):
 
 
 if __name__ == "__main__":
-    m_cfg, data_cfg = load_config("yolo_cfg/config.yaml")
+    m_cfg, data_cfg = load_config("cfg/coco8.yaml")
     batch_size = 8
 
     mode = "train"
