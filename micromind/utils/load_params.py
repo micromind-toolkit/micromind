@@ -39,7 +39,10 @@ def download_variant(variant):
     -------
         None
     """
-    url = f"https://github.com/ultralytics/assets/releases/download/v0.0.0/yolov8{variant}.pt"
+    url = (
+        f"https://github.com/ultralytics/"
+        f"assets/releases/download/v0.0.0/yolov8{variant}.pt"
+    )
     file_name = f"yolov8{variant}.pt"
     response = requests.get(url)
     if response.status_code == 200:

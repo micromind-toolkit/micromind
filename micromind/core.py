@@ -117,7 +117,7 @@ class Metric:
             if clear or (
                 self.history[stage][-1].shape[0] != self.history[stage][0].shape[0]
             ):
-                #tmp = torch.stack(self.history[stage][:-1]).mean()
+                # tmp = torch.stack(self.history[stage][:-1]).mean()
                 tmp = torch.stack(self.history[stage]).mean()
             else:
                 tmp = torch.stack(self.history[stage]).mean()

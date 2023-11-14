@@ -32,8 +32,8 @@ def load_config(file_path):
     """
     Load configuration from a YAML file and preprocess it for training.
 
-    Parameters
-    ----------
+    Arguments
+    ---------
     file_path : str
         Path to the YAML configuration file.
 
@@ -363,39 +363,56 @@ def non_max_suppression(
     max_wh=7680,
 ):
     """
-    Perform non-maximum suppression (NMS) on a set of boxes, with support for masks and multiple labels per box.
+    Perform non-maximum suppression (NMS) on a set of boxes, with support for masks
+    and multiple labels per box.
 
-    Args:
-        prediction (torch.Tensor): A tensor of shape (batch_size, num_classes + 4 + num_masks, num_boxes)
-            containing the predicted boxes, classes, and masks. The tensor should be in the format
-            output by a model, such as YOLO.
-        conf_thres (float): The confidence threshold below which boxes will be filtered out.
-            Valid values are between 0.0 and 1.0.
-        iou_thres (float): The IoU threshold below which boxes will be filtered out during NMS.
-            Valid values are between 0.0 and 1.0.
-        classes (List[int]): A list of class indices to consider. If None, all classes will be considered.
-        agnostic (bool): If True, the model is agnostic to the number of classes, and all
-            classes will be considered as one.
-        multi_label (bool): If True, each box may have multiple labels.
-        labels (List[List[Union[int, float, torch.Tensor]]]): A list of lists, where each inner
-            list contains the apriori labels for a given image. The list should be in the format
-            output by a dataloader, with each label being a tuple of (class_index, x1, y1, x2, y2).
-        max_det (int): The maximum number of boxes to keep after NMS.
-        nc (int, optional): The number of classes output by the model. Any indices after this will be considered masks.
-        max_time_img (float): The maximum time (seconds) for processing one image.
-        max_nms (int): The maximum number of boxes into torchvision.ops.nms().
-        max_wh (int): The maximum box width and height in pixels
+    Parameters
+    ----------
+    prediction : torch.Tensor
+        A tensor of shape (batch_size, num_classes + 4 + num_masks, num_boxes)
+        containing the predicted boxes, classes, and masks. The tensor should
+        be in the format output by a model, such as YOLO.
+    conf_thres : float, optional
+        The confidence threshold below which boxes will be filtered out.
+        Valid values are between 0.0 and 1.0. Default is 0.25.
+    iou_thres : float, optional
+        The IoU threshold below which boxes will be filtered out during NMS.
+        Valid values are between 0.0 and 1.0. Default is 0.45.
+    classes : List[int], optional
+        A list of class indices to consider. If None, all classes will be considered.
+    agnostic : bool, optional
+        If True, the model is agnostic to the number of classes, and all classes
+        will be considered as one. Default is False.
+    multi_label : bool, optional
+        If True, each box may have multiple labels. Default is False.
+    labels : List[List[Union[int, float, torch.Tensor]]], optional
+        A list of lists, where each inner list contains the apriori labels for a
+        given image. The list should be in the format output by a dataloader, with
+        each label being a tuple of (class_index, x1, y1, x2, y2).
+    max_det : int, optional
+        The maximum number of boxes to keep after NMS. Default is 300.
+    nc : int, optional
+        The number of classes output by the model. Any indices after this will be
+        considered masks. Default is 0.
+    max_time_img : float, optional
+        The maximum time (seconds) for processing one image. Default is 0.05.
+    max_nms : int, optional
+        The maximum number of boxes into torchvision.ops.nms(). Default is 30000.
+    max_wh : int, optional
+        The maximum box width and height in pixels. Default is 7680.
 
-    Returns:
-        (List[torch.Tensor]): A list of length batch_size, where each element is a tensor of
-            shape (num_boxes, 6 + num_masks) containing the kept boxes, with columns
-            (x1, y1, x2, y2, confidence, class, mask1, mask2, ...).
+    Returns
+    -------
+    List[torch.Tensor]
+        A list of length batch_size, where each element is a tensor of
+        shape (num_boxes, 6 + num_masks) containing the kept boxes, with columns
+        (x1, y1, x2, y2, confidence, class, mask1, mask2, ...).
     """
 
     # Checks
     assert (
         0 <= conf_thres <= 1
-    ), f"Invalid Confidence threshold {conf_thres}, valid values are between 0.0 and 1.0"
+    ), f"Invalid Confidence threshold {conf_thres}, valid values are between 0 and 1.0"
     assert (
         0 <= iou_thres <= 1
     ), f"Invalid IoU {iou_thres}, valid values are between 0.0 and 1.0"

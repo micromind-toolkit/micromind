@@ -1,28 +1,21 @@
 from micromind import MicroMind
-from micromind import Metric, Stage
+from micromind import Metric
 from micromind.utils.yolo_helpers import (
     postprocess,
-    calculate_iou,
-    average_precision,
     mean_average_precision,
-    draw_bounding_boxes_and_save,
     load_config,
 )
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import torchvision
-import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
-from ultralytics.utils.loss import v8DetectionLoss, BboxLoss, TaskAlignedAssigner
+from ultralytics.utils.loss import v8DetectionLoss, BboxLoss
 from micromind.utils.parse import parse_arguments
 
-from ultralytics.utils.ops import crop_mask, xywh2xyxy, xyxy2xywh, scale_boxes
+from ultralytics.utils.ops import xywh2xyxy, scale_boxes
 from ultralytics.utils.tal import TaskAlignedAssigner, dist2bbox, make_anchors
 
-from micromind.networks.modules import YOLOv8
-from ultralytics.utils.metrics import Metric as M
+from micromind.networks.yolov8 import YOLOv8
 from ultralytics.data import build_yolo_dataset
 
 
@@ -45,7 +38,10 @@ class Loss(v8DetectionLoss):
         self.proj = torch.arange(m.reg_max, dtype=torch.float, device=device)
 
     def preprocess(self, targets, batch_size, scale_tensor):
-        """Preprocesses the target counts and matches with the input batch size to output a tensor."""
+        """
+        Preprocesses the target counts and matches with the input batch size
+        to output a tensor.
+        """
         if targets.shape[0] == 0:
             out = torch.zeros(batch_size, 0, 5, device=self.device)
         else:
@@ -62,7 +58,10 @@ class Loss(v8DetectionLoss):
         return out
 
     def bbox_decode(self, anchor_points, pred_dist):
-        """Decode predicted object bounding box coordinates from anchor points and distribution."""
+        """
+        Decode predicted object bounding box coordinates from anchor points and
+        distribution.
+        """
         if self.use_dfl:
             b, a, c = pred_dist.shape  # batch, anchors, channels
             pred_dist = (
@@ -73,7 +72,9 @@ class Loss(v8DetectionLoss):
         return dist2bbox(pred_dist, anchor_points, xywh=False)
 
     def __call__(self, preds, batch):
-        """Calculate the sum of the loss for box, cls and dfl multiplied by batch size."""
+        """
+        Calculate the sum of the loss for box, cls and dfl multiplied by batch size.
+        """
         loss = torch.zeros(3, device=self.device)  # box, cls, dfl
         feats = preds[1] if isinstance(preds, tuple) else preds
         pred_distri, pred_scores = torch.cat(
@@ -117,7 +118,6 @@ class Loss(v8DetectionLoss):
         target_scores_sum = max(target_scores.sum(), 1)
 
         # Cls loss
-        # loss[1] = self.varifocal_loss(pred_scores, target_scores, target_labels) / target_scores_sum  # VFL way
         loss[1] = (
             self.bce(pred_scores, target_scores.to(dtype)).sum() / target_scores_sum
         )  # BCE
@@ -147,7 +147,7 @@ class YOLO(MicroMind):
         super().__init__(*args, **kwargs)
 
         w, r, d = 1, 1, 1
-        model = YOLOv8(1, 1, 1, 80)
+        model = YOLOv8(w, r, d, 80)
         model.load_state_dict(
             torch.load("../micromind/networks/yolov8l.pt"), strict=True
         )
@@ -220,7 +220,7 @@ class YOLO(MicroMind):
                 )
         batch_bboxes = torch.stack(batch_bboxes)
         mmAP = mean_average_precision(post_predictions, batch, batch_bboxes)
-        
+
         return torch.Tensor([mmAP])
 
 
