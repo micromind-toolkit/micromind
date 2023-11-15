@@ -529,7 +529,6 @@ class MicroMind(ABC):
             for idx, batch in enumerate(pbar):
                 if isinstance(batch, list):
                     batch = [b.to(self.device) for b in batch]
-                self.opt.zero_grad()
 
                 model_out = self(batch)
                 loss = self.compute_loss(model_out, batch)
