@@ -1,11 +1,9 @@
 from micromind import MicroMind
-from micromind import Metric, Stage
+from micromind import Metric
 from micromind.utils.yolo_helpers import (
     postprocess,
-    calculate_iou,
-    average_precision,
     mean_average_precision,
-    draw_bounding_boxes_and_save,
+    load_config,
 )
 
 import torch
@@ -14,10 +12,11 @@ from torch.utils.data import DataLoader
 from ultralytics.utils.loss import v8DetectionLoss, BboxLoss
 from micromind.utils.parse import parse_arguments
 
-from ultralytics.utils.ops import crop_mask, xywh2xyxy, xyxy2xywh, scale_boxes
+from ultralytics.utils.ops import xywh2xyxy, scale_boxes
 from ultralytics.utils.tal import TaskAlignedAssigner, dist2bbox, make_anchors
 
-from micromind.networks.modules import YOLOv8
+from micromind.networks.yolov8 import YOLOv8
+from ultralytics.data import build_yolo_dataset
 
 
 class Loss(v8DetectionLoss):
@@ -39,8 +38,10 @@ class Loss(v8DetectionLoss):
         self.proj = torch.arange(m.reg_max, dtype=torch.float, device=device)
 
     def preprocess(self, targets, batch_size, scale_tensor):
-        """Preprocesses the target counts and matches with
-        the input batch size to output a tensor."""
+        """
+        Preprocesses the target counts and matches with the input batch size
+        to output a tensor.
+        """
         if targets.shape[0] == 0:
             out = torch.zeros(batch_size, 0, 5, device=self.device)
         else:
@@ -57,8 +58,10 @@ class Loss(v8DetectionLoss):
         return out
 
     def bbox_decode(self, anchor_points, pred_dist):
-        """Decode predicted object bounding box coordinates
-        from anchor points and distribution."""
+        """
+        Decode predicted object bounding box coordinates from anchor points and
+        distribution.
+        """
         if self.use_dfl:
             b, a, c = pred_dist.shape  # batch, anchors, channels
             pred_dist = (
@@ -69,8 +72,9 @@ class Loss(v8DetectionLoss):
         return dist2bbox(pred_dist, anchor_points, xywh=False)
 
     def __call__(self, preds, batch):
-        """Calculate the sum of the loss for box,
-        cls and dfl multiplied by batch size."""
+        """
+        Calculate the sum of the loss for box, cls and dfl multiplied by batch size.
+        """
         loss = torch.zeros(3, device=self.device)  # box, cls, dfl
         feats = preds[1] if isinstance(preds, tuple) else preds
         pred_distri, pred_scores = torch.cat(
@@ -142,10 +146,28 @@ class YOLO(MicroMind):
     def __init__(self, m_cfg, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        w, r, d = 1, 1, 1
-        model = YOLOv8(1, 1, 1, 80)
-        model.load_state_dict(torch.load("yolo.ckpt")["yolo"], strict=True)
-        self.modules["yolo"] = model
+        self.modules["phinet"] = PhiNet(
+            input_shape=(3, 672, 672),
+            alpha=3,
+            num_layers=7,
+            beta=1,
+            t_zero=6,
+            include_top=False,
+            compatibility=False,
+            divisor=8,
+            downsampling_layers=[4, 5, 7],  # check consistency with return_layers
+            return_layers=[5, 6, 7],
+        )
+        self.modules["sppf"] = SPPF(576, 576)
+        self.modules["neck"] = Yolov8Neck([144, 288, 576])
+        self.modules["head"] = DetectionHead(filters=(144, 288, 576))
+
+        tot_params = 0
+        for m in self.modules.values():
+            temp = summary(m, verbose=0)
+            tot_params += temp.total_params
+
+        print(f"Total parameters of model: {tot_params*1e-6:.2f} M")
 
         self.m_cfg = m_cfg
 
@@ -163,12 +185,16 @@ class YOLO(MicroMind):
 
     def forward(self, batch):
         preprocessed_batch = self.preprocess_batch(batch)
-        pred = self.modules["yolo"](preprocessed_batch["img"].to(self.device))
+        # pred = self.modules["yolo"](preprocessed_batch["img"].to(self.device))
+        backbone = self.modules["phinet"](preprocessed_batch["img"].to(self.device))[1]
+        backbone[-1] = self.modules["sppf"](backbone[-1])
+        neck = self.modules["neck"](*backbone)
+        head = self.modules["head"](neck)
 
-        return pred
+        return head
 
     def compute_loss(self, pred, batch):
-        self.criterion = Loss(self.m_cfg, self.modules["yolo"].head, self.device)
+        self.criterion = Loss(self.m_cfg, self.modules["head"], self.device)
         preprocessed_batch = self.preprocess_batch(batch)
 
         lossi_sum, lossi = self.criterion(
@@ -179,7 +205,7 @@ class YOLO(MicroMind):
         return lossi_sum
 
     def configure_optimizers(self):
-        opt = torch.optim.SGD(self.modules.parameters(), lr=0.0)
+        opt = torch.optim.SGD(self.modules.parameters(), lr=1e-3)
         sched = torch.optim.lr_scheduler.ReduceLROnPlateau(
             opt,
             "min",
@@ -199,72 +225,30 @@ class YOLO(MicroMind):
             preds=pred[0].detach().cpu(), img=preprocessed_batch, orig_imgs=batch
         )
 
-        # nel batch sono xywh con le dimensioni in 640x640
         batch_bboxes_xyxy = xywh2xyxy(batch["bboxes"])
-        batch_bboxes_xyxy[:, :4] *= batch["resized_shape"][0][0]  # *672
+        dim = batch["resized_shape"][0][0]
+        batch_bboxes_xyxy[:, :4] *= dim
 
-        post_boxes = []
+        batch_bboxes = []
         for i in range(len(batch["batch_idx"])):
             for b in range(len(batch_bboxes_xyxy[batch["batch_idx"] == i, :])):
-                post_boxes.append(
+                batch_bboxes.append(
                     scale_boxes(
                         batch["resized_shape"][i],
                         batch_bboxes_xyxy[batch["batch_idx"] == i, :][b],
                         batch["ori_shape"][i],
                     )
                 )
-        post_boxes = torch.stack(post_boxes)
-        # breakpoint()
+        batch_bboxes = torch.stack(batch_bboxes)
+        mmAP = mean_average_precision(post_predictions, batch, batch_bboxes)
 
-        mmAP = []
-        # print("BATCH_SIZE: ", batch_size)
-        for batch_el in range(batch_size):  # for every element in the batch
-            # print("BATCH_l: ", batch_el)
-            ap_sum = 0
-            for class_id in range(
-                80
-            ):  # for every class in the dataset, compute the average precision for that class
-                num_cls = torch.sum(
-                    batch["batch_idx"] == batch_el
-                ).item()  # number of objs in the current batch element
-                bbox_cls = post_boxes[
-                    batch["batch_idx"] == batch_el
-                ]  # bboxes for those objs in the current batch element
-                cls_cls = batch["cls"][
-                    batch["batch_idx"] == batch_el
-                ]  # classes for those objs in the current batch element
-                gt = torch.cat(
-                    (bbox_cls, torch.ones((num_cls, 1)), cls_cls), dim=1
-                )  # ground_truth
-                ap = average_precision(
-                    post_predictions[batch_el], gt, class_id
-                )  # compute ap for a class for that batch element
-                ap_sum += ap
-
-            # NUMERO DI DIVERSE CLASSI PRESENTI NEL BATCH
-            # print("AP_SUM:  ", ap_sum, torch.unique(gt[:, -1]).size(0))
-
-            mAP = ap_sum / torch.unique(gt[:, -1]).size(0)
-            # mAP = ap_sum / torch.unique(postpred[batch_el][:, -1]).size(0)
-            # print(f"mAP_img{batch_el}", mAP)
-
-            mmAP.append(mAP)
-        mmAP = sum(mmAP) / len(mmAP)
-        # print("mmAP", mmAP)
-
-        # ultra_metric.update(results=post_predictions)
-        # m_test = ultra_metric.map50()
         return torch.Tensor([mmAP])
 
 
 if __name__ == "__main__":
-    from ultralytics.data import build_yolo_dataset
-    from ultralytics.data.utils import check_det_dataset
-    from ultralytics.cfg import get_cfg
-
-    m_cfg = get_cfg("yolo_cfg/default.yaml")
-    data_cfg = check_det_dataset("yolo_cfg/coco8.yaml")
     batch_size = 16
+
+    m_cfg, data_cfg = load_config("cfg/coco8.yaml")
 
     mode = "train"
     coco8_dataset = build_yolo_dataset(
@@ -293,16 +277,12 @@ if __name__ == "__main__":
     )
 
     hparams = parse_arguments()
-    m = YOLO(m_cfg, hparams=hparams)
     mAP = Metric("mAP", m.mAP)
 
+    m = YOLO(m_cfg, hparams=hparams)
     m.train(
         epochs=50,
         datasets={"train": train_loader, "val": val_loader},
         metrics=[mAP],
         debug=False,
     )
-
-    # m.test(
-    # datasets={"test": testloader},
-    # )

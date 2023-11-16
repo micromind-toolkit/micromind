@@ -5,7 +5,9 @@ Authors:
     - Matteo Beltrami, 2023
     - Francesco Paissan, 2023
 """
-
+import types
+from pathlib import Path
+import yaml
 import numpy as np
 import cv2
 from collections import defaultdict
@@ -26,8 +28,80 @@ def get_variant_multiples(variant):
     return tmp[1], tmp[2], tmp[0]
 
 
+def load_config(file_path):
+    """
+    Load configuration from a YAML file and preprocess it for training.
+
+    Arguments
+    ---------
+    file_path : str
+        Path to the YAML configuration file.
+
+    Returns
+    -------
+    m_cfg : types.SimpleNamespace
+        Model configuration containing task-specific parameters.
+    data_cfg : dict
+        Data configuration containing paths and settings for train, val and test.
+    """
+    with open(file_path, "r") as file:
+        config = yaml.safe_load(file)
+        path = Path(Path.cwd() / config["path"]).resolve()
+        train = Path(path / config["train"]) if "train" in config else None
+        val = Path(path / config["val"]) if "val" in config else None
+        if ("test" not in config) or (config["test"] is None):
+            test = None
+        else:
+            test = Path(path / config["val"])
+
+        data_cfg = {
+            "path": path,
+            "train": train.as_posix(),
+            "val": val.as_posix(),
+            "test": test,
+            "names": config["names"],
+            "download": config.get("download"),
+            "yaml_file": file_path,
+            "nc": len(config["names"]),
+        }
+        m_cfg = {
+            "task",
+            "mode",
+            "imgsz",
+            "rect",
+            "cache",
+            "single_cls",
+            "fraction",
+            "overlap_mask",
+            "mask_ratio",
+            "classes",
+            "box",
+            "cls",
+            "dfl",
+            "hsv_h",
+            "hsv_s",
+            "hsv_v",
+            "degrees",
+            "translate",
+            "scale",
+            "shear",
+            "perspective",
+            "flipud",
+            "fliplr",
+            "mosaic",
+            "mixup",
+            "copy_paste",
+        }
+
+        m_cfg = {key: config[key] for key in m_cfg if key in config}
+        m_cfg = types.SimpleNamespace(**m_cfg)
+
+    return m_cfg, data_cfg
+
+
 def autopad(k, p=None, d=1):  # kernel, padding, dilation
-    """Calculate padding value for a convolution operation based on kernel size and dilation.
+    """Calculate padding value for a convolution operation based on kernel
+    size and dilation.
 
     This function computes the padding value for a convolution operation to
     maintain the spatial size of the input tensor.
@@ -147,7 +221,7 @@ def compute_transform(
 
     Arguments
     ---------
-    image : numpy.ndarray
+    image : torch.Tensor
         The input image to be transformed.
     new_shape : int or tuple, optional
         The target size of the transformed image. If an integer is provided,
@@ -171,26 +245,23 @@ def compute_transform(
     -------
         The transformed image : numpy.ndarray
     """
-    shape = image.shape[:2]  # current shape [height, width]
+    shape = image.shape[-2:]  # current shape [height, width]
     new_shape = (new_shape, new_shape) if isinstance(new_shape, int) else new_shape
     r = min(new_shape[0] / shape[0], new_shape[1] / shape[1])
     r = min(r, 1.0) if not scaleup else r
     new_unpad = (int(round(shape[1] * r)), int(round(shape[0] * r)))
     dw, dh = new_shape[1] - new_unpad[0], new_shape[0] - new_unpad[1]
-    dw, dh = (np.mod(dw, stride), np.mod(dh, stride)) if auto else (0.0, 0.0)
+    dw, dh = (dw % stride, dh % stride) if auto else (0.0, 0.0)
     new_unpad = (new_shape[1], new_shape[0]) if scaleFill else new_unpad
+    new_unpad = (new_unpad[1], new_unpad[0])
     dw /= 2
     dh /= 2
-    image = (
-        cv2.resize(image, new_unpad, interpolation=cv2.INTER_LINEAR)
-        if shape[::-1] != new_unpad
-        else image
-    )
+    image = torch.nn.functional.interpolate(
+        image.unsqueeze(0), size=new_unpad, mode="bilinear", align_corners=False
+    ).squeeze(0)
     top, bottom = int(round(dh - 0.1)), int(round(dh + 0.1))
     left, right = int(round(dw - 0.1)), int(round(dw + 0.1))
-    image = cv2.copyMakeBorder(
-        image, top, bottom, left, right, cv2.BORDER_CONSTANT, value=(114, 114, 114)
-    )
+    image = torch.nn.functional.pad(image, (left, right, top, bottom), value=114)
     return image
 
 
@@ -202,9 +273,8 @@ def preprocess(im, imgsz=640, model_stride=32, model_pt=True):
 
     Arguments
     ---------
-    im : list of numpy.ndarray or numpy.ndarray
-        A batch of input images to be preprocessed.
-        Can be a list of images or a single image as a numpy array.
+    im : torch.Tensor or list of torch.Tensor
+        An input image or a batch of images to be preprocessed.
     imgsz : int, optional
         The target size of the images after preprocessing.
         Default is 640.
@@ -223,21 +293,10 @@ def preprocess(im, imgsz=640, model_stride=32, model_pt=True):
         (n, 3, h, w), where n is the number of images, 3 represents the
         RGB channels, and h and w are the height and width of the images.
     """
-    same_shapes = all(x.shape == im[0].shape for x in im)
-    auto = same_shapes and model_pt
-    im = torch.Tensor(
-        np.array(
-            [
-                compute_transform(x, new_shape=imgsz, auto=auto, stride=model_stride)
-                for x in im
-            ]
-        )
-    )
-    im = torch.stack(im) if im.shape[0] > 1 else im
-    im = torch.flip(im, (-1,)).permute(
-        0, 3, 1, 2
-    )  # BGR to RGB, BHWC to BCHW, (n, 3, h, w)
-    im /= 255  # 0 - 255 to 0.0 - 1.0
+    auto = model_pt
+    im = compute_transform(im, new_shape=imgsz, auto=auto, stride=model_stride)
+    im = im.float() / 255.0  # 0 - 255 to 0.0 - 1.0
+    im = im.unsqueeze(0)
     return im
 
 
@@ -304,39 +363,56 @@ def non_max_suppression(
     max_wh=7680,
 ):
     """
-    Perform non-maximum suppression (NMS) on a set of boxes, with support for masks and multiple labels per box.
+    Perform non-maximum suppression (NMS) on a set of boxes, with support for masks
+    and multiple labels per box.
 
-    Args:
-        prediction (torch.Tensor): A tensor of shape (batch_size, num_classes + 4 + num_masks, num_boxes)
-            containing the predicted boxes, classes, and masks. The tensor should be in the format
-            output by a model, such as YOLO.
-        conf_thres (float): The confidence threshold below which boxes will be filtered out.
-            Valid values are between 0.0 and 1.0.
-        iou_thres (float): The IoU threshold below which boxes will be filtered out during NMS.
-            Valid values are between 0.0 and 1.0.
-        classes (List[int]): A list of class indices to consider. If None, all classes will be considered.
-        agnostic (bool): If True, the model is agnostic to the number of classes, and all
-            classes will be considered as one.
-        multi_label (bool): If True, each box may have multiple labels.
-        labels (List[List[Union[int, float, torch.Tensor]]]): A list of lists, where each inner
-            list contains the apriori labels for a given image. The list should be in the format
-            output by a dataloader, with each label being a tuple of (class_index, x1, y1, x2, y2).
-        max_det (int): The maximum number of boxes to keep after NMS.
-        nc (int, optional): The number of classes output by the model. Any indices after this will be considered masks.
-        max_time_img (float): The maximum time (seconds) for processing one image.
-        max_nms (int): The maximum number of boxes into torchvision.ops.nms().
-        max_wh (int): The maximum box width and height in pixels
+    Parameters
+    ----------
+    prediction : torch.Tensor
+        A tensor of shape (batch_size, num_classes + 4 + num_masks, num_boxes)
+        containing the predicted boxes, classes, and masks. The tensor should
+        be in the format output by a model, such as YOLO.
+    conf_thres : float, optional
+        The confidence threshold below which boxes will be filtered out.
+        Valid values are between 0.0 and 1.0. Default is 0.25.
+    iou_thres : float, optional
+        The IoU threshold below which boxes will be filtered out during NMS.
+        Valid values are between 0.0 and 1.0. Default is 0.45.
+    classes : List[int], optional
+        A list of class indices to consider. If None, all classes will be considered.
+    agnostic : bool, optional
+        If True, the model is agnostic to the number of classes, and all classes
+        will be considered as one. Default is False.
+    multi_label : bool, optional
+        If True, each box may have multiple labels. Default is False.
+    labels : List[List[Union[int, float, torch.Tensor]]], optional
+        A list of lists, where each inner list contains the apriori labels for a
+        given image. The list should be in the format output by a dataloader, with
+        each label being a tuple of (class_index, x1, y1, x2, y2).
+    max_det : int, optional
+        The maximum number of boxes to keep after NMS. Default is 300.
+    nc : int, optional
+        The number of classes output by the model. Any indices after this will be
+        considered masks. Default is 0.
+    max_time_img : float, optional
+        The maximum time (seconds) for processing one image. Default is 0.05.
+    max_nms : int, optional
+        The maximum number of boxes into torchvision.ops.nms(). Default is 30000.
+    max_wh : int, optional
+        The maximum box width and height in pixels. Default is 7680.
 
-    Returns:
-        (List[torch.Tensor]): A list of length batch_size, where each element is a tensor of
-            shape (num_boxes, 6 + num_masks) containing the kept boxes, with columns
-            (x1, y1, x2, y2, confidence, class, mask1, mask2, ...).
+    Returns
+    -------
+    List[torch.Tensor]
+        A list of length batch_size, where each element is a tensor of
+        shape (num_boxes, 6 + num_masks) containing the kept boxes, with columns
+        (x1, y1, x2, y2, confidence, class, mask1, mask2, ...).
     """
 
     # Checks
     assert (
         0 <= conf_thres <= 1
-    ), f"Invalid Confidence threshold {conf_thres}, valid values are between 0.0 and 1.0"
+    ), f"Invalid Confidence threshold {conf_thres}, valid values are between 0 and 1.0"
     assert (
         0 <= iou_thres <= 1
     ), f"Invalid IoU {iou_thres}, valid values are between 0.0 and 1.0"
@@ -442,9 +518,6 @@ def postprocess(preds, img, orig_imgs):
         A list of post-processed prediction arrays, each containing bounding
         boxes and associated information.
     """
-    # print("copying to CPU now for post processing")
-    # if you are on CPU, this causes an overflow runtime error. doesn't "seem" to make any difference in the predictions though.
-    # TODO: make non_max_suppression in tinygrad - to make this faster
     preds = preds
     preds = non_max_suppression(
         prediction=preds,
@@ -455,18 +528,18 @@ def postprocess(preds, img, orig_imgs):
         multi_label=True,
     )
     all_preds = []
-    # TODO: DA SISTEMARE SE IN INGRESO C'è SINGOLA IMMAGINE O BATCH, COSI è BATCH
+
     for i, pred in enumerate(preds):
         orig_img = orig_imgs[i] if isinstance(orig_imgs, list) else orig_imgs
-        if not isinstance(orig_imgs, torch.Tensor):
-            # pred[:, :4] = scale_boxes(orig_img["ori_shape"][i], pred[:, :4], orig_img["ori_shape"][i])
+        if isinstance(orig_img, dict):
             pred[:, :4] = scale_boxes(
                 tuple(img["img"].shape[2:4]), pred[:, :4], orig_img["ori_shape"][i]
-            )
-            # print(tuple(img["img"].shape[2:4]), pred[:, :4], orig_img["ori_shape"][i])
-            # pred[:, :4] = scale_boxes(img.shape[2:], pred[:, :4], orig_img.shape) # SINGOLA IMMAGINE
-            # print(img.shape[2:], pred[:, :4], orig_img.shape)
-            all_preds.append(pred)
+            )  # batch
+        else:
+            pred[:, :4] = scale_boxes(
+                img.shape[2:], pred[:, :4], orig_img.shape
+            )  # single img
+        all_preds.append(pred)
     return all_preds
 
 
@@ -674,59 +747,34 @@ def xywh2xyxy(x):
     return torch.Tensor(result)
 
 
-def label_predictions(all_predictions):
-    """Count the number of predictions for each class.
-
-    This function counts the number of predictions for each class
-    in a list of prediction arrays.
-
-    Arguments
-    ---------
-    all_predictions : list of list of numpy.ndarray
-        A list of lists of prediction arrays from the object detection model.
-
-    Returns
-    -------
-    dict
-        A dictionary where the keys are class indices and the values are
-        the counts of predictions for each class.
-    """
-    class_index_count = defaultdict(int)
-    for predictions in all_predictions:
-        predictions = np.array(predictions)
-        for pred_np in predictions:
-            class_id = int(pred_np[-1])
-            class_index_count[class_id] += 1
-
-    return dict(class_index_count)
-
-
 def bbox_format(box):
     """
-    Convert a list of coordinates [x, y, x, y] representing two points defining a rectangle
-    to the format [x1, y1, x2, y2], where x1, y1 represent the top-left corner, and x2, y2
-    represent the bottom-right corner of the rectangle.
+    Convert a tensor of coordinates [x1, y1, x2, y2] representing two points
+    defining a rectangle to the format [x_min, y_min, x_max, y_max], where
+    x_min, y_min represent the top-left corner, and x_max, y_max represent the
+    bottom-right corner of the rectangle.
 
     Arguments
     ---------
-    box : list
-        A list of coordinates in the format [x1, y1, x2, y2] where x1, y1, x2, y2 represent
-        the coordinates of two points defining a rectangle.
+    box : torch.Tensor
+        A tensor of coordinates in the format [x1, y1, x2, y2] where x1, y1, x2, y2
+        represent the coordinates of two points defining a rectangle.
 
     Returns
     -------
-    list
-        The coordinates in the format [x1, y1, x2, y2] where x1, y1 represent the top-left
-        vertex, and x2, y2 represent the bottom-right vertex of the rectangle.
+    torch.Tensor
+        The coordinates in the format [x_min, y_min, x_max, y_max] where x_min, y_min
+        represent the top-left vertex, and x_max, y_max represent the bottom-right
+        vertex of the rectangle.
     """
     x1, y1, x2, y2 = box[0], box[1], box[2], box[3]
 
-    x_min = min(x1, x2)
-    x_max = max(x1, x2)
-    y_min = min(y1, y2)
-    y_max = max(y1, y2)
+    x_min = torch.min(x1, x2)
+    x_max = torch.max(x1, x2)
+    y_min = torch.min(y1, y2)
+    y_max = torch.max(y1, y2)
 
-    return [x_min, y_min, x_max, y_max]
+    return torch.tensor([x_min, y_min, x_max, y_max])
 
 
 def calculate_iou(box1, box2):
@@ -735,9 +783,9 @@ def calculate_iou(box1, box2):
 
     Arguments
     ---------
-    box1 : list
+    box1 : torch.Tensor
         First bounding box in the format [x1, y1, x2, y2].
-    box2 : list
+    box2 : torch.Tensor
         Second bounding box in the format [x1, y1, x2, y2].
 
     Returns
@@ -748,21 +796,18 @@ def calculate_iou(box1, box2):
     box1 = bbox_format(box1)
     box2 = bbox_format(box2)
 
-    x1 = max(box1[0], box2[0])
-    y1 = max(box1[1], box2[1])
-    x2 = min(box1[2], box2[2])
-    y2 = min(box1[3], box2[3])
+    x1 = torch.max(box1[0], box2[0])
+    y1 = torch.max(box1[1], box2[1])
+    x2 = torch.min(box1[2], box2[2])
+    y2 = torch.min(box1[3], box2[3])
 
-    if x1 >= x2 or y1 >= y2:
-        return 0.0
-
-    intersection = max(0, abs(x2 - x1)) * max(0, abs(y2 - y1))
-    area_box1 = abs((box1[2] - box1[0]) * (box1[3] - box1[1]))
-    area_box2 = abs((box2[2] - box2[0]) * (box2[3] - box2[1]))
+    intersection = torch.clamp(x2 - x1, min=0) * torch.clamp(y2 - y1, min=0)
+    area_box1 = (box1[2] - box1[0]) * (box1[3] - box1[1])
+    area_box2 = (box2[2] - box2[0]) * (box2[3] - box2[1])
     union = area_box1 + area_box2 - intersection
 
     iou = intersection / union
-    return iou
+    return iou.item()
 
 
 def average_precision(predictions, ground_truth, class_id, iou_threshold=0.5):
@@ -785,17 +830,12 @@ def average_precision(predictions, ground_truth, class_id, iou_threshold=0.5):
     float
         The average precision for the specified class.
     """
-    if isinstance(predictions, torch.Tensor):
-        predictions = predictions.tolist()
-    if isinstance(ground_truth, torch.Tensor):
-        ground_truth = ground_truth.tolist()
-
     predictions = [p for p in predictions if p[5] == class_id]
     ground_truth = [g for g in ground_truth if g[5] == class_id]
 
     predictions.sort(key=lambda x: x[4], reverse=True)
-    tp = np.zeros(len(predictions))
-    fp = np.zeros(len(predictions))
+    tp = torch.zeros(len(predictions))
+    fp = torch.zeros(len(predictions))
     gt_count = len(ground_truth)
 
     for i, pred in enumerate(predictions):
@@ -811,33 +851,37 @@ def average_precision(predictions, ground_truth, class_id, iou_threshold=0.5):
         else:
             fp[i] = 1
 
-    precision = np.cumsum(tp) / (np.cumsum(tp) + np.cumsum(fp))
-    recall = np.cumsum(tp) / gt_count
+    precision = torch.cumsum(tp, dim=0) / (
+        torch.cumsum(tp, dim=0) + torch.cumsum(fp, dim=0)
+    )
+    recall = torch.cumsum(tp, dim=0) / gt_count
 
     # Compute the average precision using the 11-point interpolation
-    ap = 0
-    for t in np.arange(0, 1.1, 0.1):
-        if np.sum(recall >= t) == 0:
-            p = 0
+    ap = torch.tensor(0.0)
+    for t in torch.arange(0.0, 1.1, 0.1):
+        recall_greater = recall >= t
+        num_true = torch.sum(recall_greater).item()
+        if num_true == 0:
+            p = torch.tensor(0.0)
         else:
-            p = np.max(precision[recall >= t])
-        ap += p / 11
+            p = torch.max(precision[recall_greater])
+        ap += p / 11.0
 
-    return ap
+    return ap.item()
 
 
-def mean_average_precision(predictions, ground_truth, num_classes, iou_threshold=0.5):
+def mean_average_precision(post_predictions, batch, batch_bboxes, iou_threshold=0.5):
     """
     Calculate the mean average precision (mAP) for all classes in YOLO predictions.
 
     Arguments
     ---------
-    predictions : list
-        List of prediction boxes for all classes.
-    ground_truth : list
-        List of ground truth boxes for all classes.
-    num_classes : int
-        The number of classes.
+    post_predictions : list
+        List of post-processed predictions for bounding boxes.
+    batch : dict
+        A dictionary containing batch information, including image files, batch indices.
+    batch_bboxes : torch.Tensor
+        Tensor containing batch bounding boxes.
     iou_threshold : float
         The IoU threshold for considering a prediction as correct.
 
@@ -846,8 +890,28 @@ def mean_average_precision(predictions, ground_truth, num_classes, iou_threshold
     float
         The mean average precision (mAP).
     """
-    ap_sum = 0
-    for class_id in range(num_classes):
-        ap_sum += average_precision(predictions, ground_truth, class_id, iou_threshold)
-    mAP = ap_sum / num_classes
-    return mAP
+    batch_size = len(batch["im_file"])
+
+    mmAP = []
+    for batch_el in range(batch_size):
+        ap_sum = 0
+
+        num_obj = torch.sum(batch["batch_idx"] == batch_el).item()
+        bboxes = batch_bboxes[batch["batch_idx"] == batch_el]
+        classes = batch["cls"][batch["batch_idx"] == batch_el]
+        gt = torch.cat((bboxes, torch.ones((num_obj, 1)), classes), dim=1)
+
+        for class_id in range(80):
+            ap = average_precision(post_predictions[batch_el], gt, class_id)
+            ap_sum += ap
+
+        div = torch.unique(gt[:, -1]).size(0)
+        if div == 0:
+            mAP = 0
+        else:
+            mAP = ap_sum / div
+
+        mmAP.append(mAP)
+    mmAP = sum(mmAP) / len(mmAP)
+
+    return mmAP

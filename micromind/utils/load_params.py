@@ -1,8 +1,4 @@
 """
-Authors:
-    - Matteo Beltrami, 2023
-    - Francesco Paissan, 2023
-
 This code is used to obtain a version of the yolov8 model with pre-trained
 weights that can be used with the implementation of the network present in
 this repository.
@@ -12,6 +8,10 @@ command line (available options are "n", "s", "m", "l", "x").
 The desired model is downloaded and each model parameter is copied into the
 model state dictionary initialized via our yolov8 implementation.
 The model state dictionary is finally saved in the pytorch .pt format.
+
+Authors:
+    - Matteo Beltrami, 2023
+    - Francesco Paissan, 2023
 """
 
 import torch
@@ -19,7 +19,7 @@ import sys
 import requests
 import os
 
-from micromind.networks.modules import YOLOv8
+from micromind.networks.yolov8 import YOLOv8
 from yolo_helpers import get_variant_multiples
 
 
@@ -39,7 +39,10 @@ def download_variant(variant):
     -------
         None
     """
-    url = f"https://github.com/ultralytics/assets/releases/download/v0.0.0/yolov8{variant}.pt"
+    url = (
+        f"https://github.com/ultralytics/"
+        f"assets/releases/download/v0.0.0/yolov8{variant}.pt"
+    )
     file_name = f"yolov8{variant}.pt"
     response = requests.get(url)
     if response.status_code == 200:
@@ -51,14 +54,15 @@ def download_variant(variant):
 
 
 if __name__ == "__main__":
-
     valid_conf = ["n", "s", "m", "l", "x"]
     if len(sys.argv) < 2 or len(sys.argv[1]) > 1 or sys.argv[1] not in valid_conf:
         print(
-            "Falling back on yolov8l model. Configuration was not passed or was not valid."
+            "Falling back on yolov8l model. "
+            + "Configuration was not passed or was not valid."
         )
         print(
-            "If you want to change configuration, give as argument one valid option between {n, s, m, l, x}."
+            "If you want to change configuration, "
+            + "give as argument one valid option between {n, s, m, l, x}."
         )
         conf = "l"
     else:
