@@ -114,24 +114,13 @@ class Metric:
         """
 
         if self.reduction == "mean":
-            if clear or (
-                self.history[stage][-1].shape[0] != self.history[stage][0].shape[0]
-            ):
-                # tmp = torch.stack(self.history[stage][:-1]).mean()
-                tmp = torch.stack(self.history[stage]).mean()
-            else:
-                tmp = torch.stack(self.history[stage]).mean()
+            tmp = torch.cat(self.history[stage], dim=0).mean()
         elif self.reduction == "sum":
-            if (
-                clear
-                or self.history[stage][-1].shape[0] != self.history[stage][0].shape[0]
-            ):
-                tmp = torch.stack(self.history[stage][:-1]).sum()
-            else:
-                tmp = torch.stack(self.history[stage]).sum()
+            tmp = torch.cat(self.history[stage], dim=0).sum()
 
         if clear:
             self.history[stage] = []
+
         return tmp.item()
 
 

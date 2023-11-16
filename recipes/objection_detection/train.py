@@ -1,6 +1,7 @@
 from micromind import MicroMind
 from micromind import Metric
 from micromind.utils.yolo_helpers import (
+    preprocess,
     postprocess,
     mean_average_precision,
     load_config,
@@ -9,14 +10,19 @@ from micromind.utils.yolo_helpers import (
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from ultralytics.utils.loss import v8DetectionLoss, BboxLoss
 from micromind.utils.parse import parse_arguments
 
-from ultralytics.utils.ops import xywh2xyxy, scale_boxes
 from ultralytics.utils.tal import TaskAlignedAssigner, dist2bbox, make_anchors
-
-from micromind.networks.yolov8 import YOLOv8
+from ultralytics.utils.loss import v8DetectionLoss, BboxLoss
+from ultralytics.utils.ops import xywh2xyxy, scale_boxes
 from ultralytics.data import build_yolo_dataset
+
+from micromind.networks.yolov8 import YOLOv8, SPPF, Yolov8Neck, DetectionHead
+from micromind.networks import PhiNet
+
+from torchinfo import summary
+import torchvision
+import cv2
 
 
 class Loss(v8DetectionLoss):
@@ -205,7 +211,7 @@ class YOLO(MicroMind):
         return lossi_sum
 
     def configure_optimizers(self):
-        opt = torch.optim.SGD(self.modules.parameters(), lr=1e-3)
+        opt = torch.optim.Adam(self.modules.parameters(), lr=1e-3)
         sched = torch.optim.lr_scheduler.ReduceLROnPlateau(
             opt,
             "min",
@@ -252,7 +258,7 @@ if __name__ == "__main__":
 
     mode = "train"
     coco8_dataset = build_yolo_dataset(
-        m_cfg, "/mnt/data/coco8", batch_size, data_cfg, mode=mode, rect=mode == "val"
+        m_cfg, "datasets/coco", batch_size, data_cfg, mode=mode, rect=mode == "val"
     )
 
     train_loader = DataLoader(
@@ -265,7 +271,7 @@ if __name__ == "__main__":
 
     mode = "val"
     coco8_dataset = build_yolo_dataset(
-        m_cfg, "/mnt/data/coco8", batch_size, data_cfg, mode=mode, rect=mode == "val"
+        m_cfg, "datasets/coco", batch_size, data_cfg, mode=mode, rect=mode == "val"
     )
 
     val_loader = DataLoader(
