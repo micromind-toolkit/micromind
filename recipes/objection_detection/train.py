@@ -1,6 +1,7 @@
 from micromind import MicroMind
 from micromind import Metric
 from micromind.utils.yolo_helpers import (
+    preprocess,
     postprocess,
     mean_average_precision,
     load_config,
@@ -9,14 +10,19 @@ from micromind.utils.yolo_helpers import (
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from ultralytics.utils.loss import v8DetectionLoss, BboxLoss
 from micromind.utils.parse import parse_arguments
 
-from ultralytics.utils.ops import xywh2xyxy, scale_boxes
 from ultralytics.utils.tal import TaskAlignedAssigner, dist2bbox, make_anchors
-
-from micromind.networks.yolov8 import YOLOv8
+from ultralytics.utils.loss import v8DetectionLoss, BboxLoss
+from ultralytics.utils.ops import xywh2xyxy, scale_boxes
 from ultralytics.data import build_yolo_dataset
+
+from micromind.networks.yolov8 import YOLOv8, SPPF, Yolov8Neck, DetectionHead
+from micromind.networks import PhiNet
+
+from torchinfo import summary
+import torchvision
+import cv2
 
 
 class Loss(v8DetectionLoss):
@@ -146,12 +152,28 @@ class YOLO(MicroMind):
     def __init__(self, m_cfg, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        w, r, d = 1, 1, 1
-        model = YOLOv8(w, r, d, 80)
-        model.load_state_dict(
-            torch.load("../../micromind/networks/yolov8l.pt"), strict=True
+        self.modules["phinet"] = PhiNet(
+            input_shape=(3, 672, 672),
+            alpha=3,
+            num_layers=7,
+            beta=1,
+            t_zero=6,
+            include_top=False,
+            compatibility=False,
+            divisor=8,
+            downsampling_layers=[4, 5, 7],  # check consistency with return_layers
+            return_layers=[5, 6, 7],
         )
-        self.modules["yolo"] = model
+        self.modules["sppf"] = SPPF(576, 576)
+        self.modules["neck"] = Yolov8Neck([144, 288, 576])
+        self.modules["head"] = DetectionHead(filters=(144, 288, 576))
+
+        tot_params = 0
+        for m in self.modules.values():
+            temp = summary(m, verbose=0)
+            tot_params += temp.total_params
+
+        print(f"Total parameters of model: {tot_params*1e-6:.2f} M")
 
         self.m_cfg = m_cfg
 
@@ -168,14 +190,17 @@ class YOLO(MicroMind):
         return preprocessed_batch
 
     def forward(self, batch):
-        self.modules.eval()
         preprocessed_batch = self.preprocess_batch(batch)
-        pred = self.modules["yolo"](preprocessed_batch["img"].to(self.device))
+        # pred = self.modules["yolo"](preprocessed_batch["img"].to(self.device))
+        backbone = self.modules["phinet"](preprocessed_batch["img"].to(self.device))[1]
+        backbone[-1] = self.modules["sppf"](backbone[-1])
+        neck = self.modules["neck"](*backbone)
+        head = self.modules["head"](neck)
 
-        return pred
+        return head
 
     def compute_loss(self, pred, batch):
-        self.criterion = Loss(self.m_cfg, self.modules["yolo"].head, self.device)
+        self.criterion = Loss(self.m_cfg, self.modules["head"], self.device)
         preprocessed_batch = self.preprocess_batch(batch)
 
         lossi_sum, lossi = self.criterion(
@@ -186,7 +211,7 @@ class YOLO(MicroMind):
         return lossi_sum
 
     def configure_optimizers(self):
-        opt = torch.optim.SGD(self.modules.parameters(), lr=0.0)
+        opt = torch.optim.Adam(self.modules.parameters(), lr=1e-3)
         sched = torch.optim.lr_scheduler.ReduceLROnPlateau(
             opt,
             "min",
@@ -199,6 +224,8 @@ class YOLO(MicroMind):
         return opt, sched
 
     def mAP(self, pred, batch):
+        batch_size = len(batch["im_file"])
+
         preprocessed_batch = self.preprocess_batch(batch)
         post_predictions = postprocess(
             preds=pred[0].detach().cpu(), img=preprocessed_batch, orig_imgs=batch
@@ -225,26 +252,43 @@ class YOLO(MicroMind):
 
 
 if __name__ == "__main__":
+    batch_size = 16
+
     m_cfg, data_cfg = load_config("cfg/coco8.yaml")
-    batch_size = 8
 
     mode = "train"
     coco8_dataset = build_yolo_dataset(
-        m_cfg, "/mnt/data/coco8", batch_size, data_cfg, mode=mode, rect=mode == "val"
+        m_cfg, "datasets/coco", batch_size, data_cfg, mode=mode, rect=mode == "val"
     )
 
-    loader = DataLoader(
+    train_loader = DataLoader(
+        coco8_dataset,
+        batch_size,
+        shuffle=True,
+        num_workers=16,
+        collate_fn=getattr(coco8_dataset, "collate_fn", None),
+    )
+
+    mode = "val"
+    coco8_dataset = build_yolo_dataset(
+        m_cfg, "datasets/coco", batch_size, data_cfg, mode=mode, rect=mode == "val"
+    )
+
+    val_loader = DataLoader(
         coco8_dataset,
         batch_size,
         shuffle=False,
+        num_workers=16,
         collate_fn=getattr(coco8_dataset, "collate_fn", None),
     )
 
     hparams = parse_arguments()
-    m = YOLO(m_cfg, hparams=hparams)
-    map = Metric("mAP", m.mAP, reduction="mean")
-    m.train(epochs=25000, datasets={"train": loader, "val": loader}, metrics=[map])
+    mAP = Metric("mAP", m.mAP)
 
-    # m.test(
-    # datasets={"test": testloader},
-    # )
+    m = YOLO(m_cfg, hparams=hparams)
+    m.train(
+        epochs=50,
+        datasets={"train": train_loader, "val": val_loader},
+        metrics=[mAP],
+        debug=False,
+    )

@@ -20,12 +20,14 @@ class Checkpointer:
         mode: str = "min",
         top_k: int = 1,
         checkpoint_path: Union[str, Path] = ".",
+        accelerator=None,
     ) -> None:
         assert mode in ["max", "min"], "Checkpointer mode can be only max or min."
         self.key = key
         self.mode = mode
         self.top_k = top_k
 
+        self.accelerator = accelerator
         self.bests = [torch.inf] * self.top_k
         self.check_paths = [""] * self.top_k
         self.root_dir = checkpoint_path
@@ -96,7 +98,12 @@ class Checkpointer:
 
         self.fstream.close()
 
+        self.accelerator.save_state(
+            output_dir=os.path.join(self.save_dir, "accelerate")
+        )
+
         if self.mode == "max":
             return self.check_paths[self.bests.index(max(self.bests))]
         elif self.mode == "min":
             return self.check_paths[self.bests.index(min(self.bests))]
+

@@ -480,7 +480,8 @@ class PhiNet(nn.Module):
         h_swish: bool = True,  # S1
         squeeze_excite: bool = True,  # S1
         divisor: int = 1,
-    ) -> None:
+        return_layers=None
+        ) -> None:
         """This class implements the PhiNet architecture.
 
         Arguments
@@ -509,6 +510,7 @@ class PhiNet(nn.Module):
         self.t_zero = t_zero
         self.num_layers = num_layers
         self.num_classes = num_classes
+        self.return_layers = return_layers
 
         if compatibility:  # disables operations hard for some platforms
             h_swish = False
@@ -686,6 +688,12 @@ class PhiNet(nn.Module):
                 ),
             )
 
+        if self.return_layers is not None:
+            print(f"PhiNet configured to return layers {self.return_layers}:")
+            for i in self.return_layers:
+                print(f"Layer {i} - {self._layers[i].__class__}")
+
+
     def forward(self, x):
         """Executes PhiNet network
 
@@ -698,10 +706,15 @@ class PhiNet(nn.Module):
         ------
             Logits if `include_top=True`, otherwise embeddings : torch.Tensor
         """
-        for layers in self._layers:
+        ret = []
+        for i, layers in enumerate(self._layers):
             x = layers(x)
+            if i in self.return_layers: ret.append(x)
 
         if self.classify:
             x = self.classifier(x)
 
+        if self.return_layers is not None:
+            return x, ret
         return x
+
