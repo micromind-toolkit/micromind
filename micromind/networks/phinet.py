@@ -480,8 +480,8 @@ class PhiNet(nn.Module):
         h_swish: bool = True,  # S1
         squeeze_excite: bool = True,  # S1
         divisor: int = 1,
-        return_layers=None
-        ) -> None:
+        return_layers=None,
+    ) -> None:
         """This class implements the PhiNet architecture.
 
         Arguments
@@ -693,7 +693,6 @@ class PhiNet(nn.Module):
             for i in self.return_layers:
                 print(f"Layer {i} - {self._layers[i].__class__}")
 
-
     def forward(self, x):
         """Executes PhiNet network
 
@@ -709,7 +708,8 @@ class PhiNet(nn.Module):
         ret = []
         for i, layers in enumerate(self._layers):
             x = layers(x)
-            if i in self.return_layers: ret.append(x)
+            if i in self.return_layers:
+                ret.append(x)
 
         if self.classify:
             x = self.classifier(x)
@@ -717,4 +717,3 @@ class PhiNet(nn.Module):
         if self.return_layers is not None:
             return x, ret
         return x
-

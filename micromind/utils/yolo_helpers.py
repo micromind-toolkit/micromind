@@ -52,13 +52,13 @@ def load_config(file_path):
         if ("test" not in config) or (config["test"] is None):
             test = None
         else:
-            test = Path(path / config["val"])
+            test = Path(path / config["test"])
 
         data_cfg = {
             "path": path,
             "train": train.as_posix(),
             "val": val.as_posix(),
-            "test": test,
+            "test": test.as_posix(),
             "names": config["names"],
             "download": config.get("download"),
             "yaml_file": file_path,
@@ -268,36 +268,30 @@ def compute_transform(
 def preprocess(im, imgsz=640, model_stride=32, model_pt=True):
     """Preprocess a batch of images for inference.
 
-        This function preprocesses a batch of images for inference by
-        resizing, transforming, and normalizing them.
+    This function preprocesses a batch of images for inference by
+    resizing, transforming, and normalizing them.
 
-        Arguments
-        ---------
-    <<<<<<< HEAD
-        im : torch.Tensor or list of torch.Tensor
-            An input image or a batch of images to be preprocessed.
-    =======
-        im : list of numpy.ndarray or numpy.ndarray
-            A batch of input images to be preprocessed.
-            Can be a list of images or a single image as a numpy array.
-    >>>>>>> c9d189aba6190520147128b8a16b4924003dd7b1
-        imgsz : int, optional
-            The target size of the images after preprocessing.
-            Default is 640.
-        model_stride : int, optional
-            The stride value used for padding calculation when `auto` is True
-            in `compute_transform`. Default is 32.
-        model_pt : bool, optional
-            If True, the function automatically calculates the padding to
-            maintain the same shapes for all input images in the batch.
-            Default is True.
+    Arguments
+    ---------
+    im : torch.Tensor or list of torch.Tensor
+        An input image or a batch of images to be preprocessed.
+    imgsz : int, optional
+        The target size of the images after preprocessing.
+        Default is 640.
+    model_stride : int, optional
+        The stride value used for padding calculation when `auto` is True
+        in `compute_transform`. Default is 32.
+    model_pt : bool, optional
+        If True, the function automatically calculates the padding to
+        maintain the same shapes for all input images in the batch.
+        Default is True.
 
-        Returns
-        -------
-        torch.Tensor
-            The preprocessed batch of images as a torch.Tensor with shape
-            (n, 3, h, w), where n is the number of images, 3 represents the
-            RGB channels, and h and w are the height and width of the images.
+    Returns
+    -------
+    torch.Tensor
+        The preprocessed batch of images as a torch.Tensor with shape
+        (n, 3, h, w), where n is the number of images, 3 represents the
+        RGB channels, and h and w are the height and width of the images.
     """
     auto = model_pt
     im = compute_transform(im, new_shape=imgsz, auto=auto, stride=model_stride)
@@ -754,28 +748,23 @@ def xywh2xyxy(x):
 
 def bbox_format(box):
     """
-        Convert a tensor of coordinates [x1, y1, x2, y2] representing two points
-        defining a rectangle to the format [x_min, y_min, x_max, y_max], where
-        x_min, y_min represent the top-left corner, and x_max, y_max represent the
-        bottom-right corner of the rectangle.
+    Convert a tensor of coordinates [x1, y1, x2, y2] representing two points
+    defining a rectangle to the format [x_min, y_min, x_max, y_max], where
+    x_min, y_min represent the top-left corner, and x_max, y_max represent the
+    bottom-right corner of the rectangle.
 
-        Arguments
-        ---------
-        box : torch.Tensor
-    <<<<<<< HEAD
-            A tensor of coordinates in the format [x1, y1, x2, y2] where x1, y1, x2, y2
-            represent the coordinates of two points defining a rectangle.
-    =======
-            A tensor of coordinates in the format [x1, y1, x2, y2] where x1, y1, x2, y2 represent
-            the coordinates of two points defining a rectangle.
-    >>>>>>> c9d189aba6190520147128b8a16b4924003dd7b1
+    Arguments
+    ---------
+    box : torch.Tensor
+        A tensor of coordinates in the format [x1, y1, x2, y2] where x1, y1, x2, y2
+        represent the coordinates of two points defining a rectangle.
 
-        Returns
-        -------
-        torch.Tensor
-            The coordinates in the format [x_min, y_min, x_max, y_max] where x_min, y_min
-            represent the top-left vertex, and x_max, y_max represent the bottom-right
-            vertex of the rectangle.
+    Returns
+    -------
+    torch.Tensor
+        The coordinates in the format [x_min, y_min, x_max, y_max] where x_min, y_min
+        represent the top-left vertex, and x_max, y_max represent the bottom-right
+        vertex of the rectangle.
     """
     x1, y1, x2, y2 = box[0], box[1], box[2], box[3]
 

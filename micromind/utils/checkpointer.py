@@ -106,4 +106,3 @@ class Checkpointer:
             return self.check_paths[self.bests.index(max(self.bests))]
         elif self.mode == "min":
             return self.check_paths[self.bests.index(min(self.bests))]
-

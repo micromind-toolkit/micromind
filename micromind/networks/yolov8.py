@@ -350,7 +350,7 @@ class Darknet(nn.Module):
 class Yolov8Neck(nn.Module):
     """Implements YOLOv8's neck"""
 
-    def __init__(self, w, r, d):
+    def __init__(self, filters=[256, 512, 768], d=1):
         """Defines the structure of a YOLOv8 neck.
 
         Arguments
@@ -365,19 +365,32 @@ class Yolov8Neck(nn.Module):
         super().__init__()
         self.up = Upsample(2, mode="nearest")
         self.n1 = C2f(
-            c1=int(512 * w * (1 + r)), c2=int(512 * w), n=round(3 * d), shortcut=False
+            c1=int(filters[1] + filters[2]),
+            c2=int(filters[1]),
+            n=round(3 * d),
+            shortcut=False,
         )
-        self.n2 = C2f(c1=int(768 * w), c2=int(256 * w), n=round(3 * d), shortcut=False)
+        self.n2 = C2f(
+            c1=int(filters[0] + filters[1]),
+            c2=int(filters[0]),
+            n=round(3 * d),
+            shortcut=False,
+        )
         self.n3 = Conv(
-            c1=int(256 * w), c2=int(256 * w), kernel_size=3, stride=2, padding=1
+            c1=int(filters[0]), c2=int(filters[0]), kernel_size=3, stride=2, padding=1
         )
-        self.n4 = C2f(c1=int(768 * w), c2=int(512 * w), n=round(3 * d), shortcut=False)
+        self.n4 = C2f(
+            c1=int(filters[0] + filters[1]),
+            c2=int(filters[1]),
+            n=round(3 * d),
+            shortcut=False,
+        )
         self.n5 = Conv(
-            c1=int(512 * w), c2=int(512 * w), kernel_size=3, stride=2, padding=1
+            c1=int(filters[1]), c2=int(filters[1]), kernel_size=3, stride=2, padding=1
         )
         self.n6 = C2f(
-            c1=int(512 * w * (1 + r)),
-            c2=int(512 * w * r),
+            c1=int(filters[1] + filters[2]),
+            c2=int(filters[2]),
             n=round(3 * d),
             shortcut=False,
         )

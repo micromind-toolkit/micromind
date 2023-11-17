@@ -252,13 +252,18 @@ class YOLO(MicroMind):
 
 
 if __name__ == "__main__":
-    batch_size = 16
+    batch_size = 8
 
-    m_cfg, data_cfg = load_config("cfg/coco8.yaml")
+    m_cfg, data_cfg = load_config("cfg/coco.yaml")
 
     mode = "train"
     coco8_dataset = build_yolo_dataset(
-        m_cfg, "datasets/coco", batch_size, data_cfg, mode=mode, rect=mode == "val"
+        m_cfg,
+        "datasets/coco/images/train2017",
+        batch_size,
+        data_cfg,
+        mode=mode,
+        rect=mode == "val",
     )
 
     train_loader = DataLoader(
@@ -271,7 +276,12 @@ if __name__ == "__main__":
 
     mode = "val"
     coco8_dataset = build_yolo_dataset(
-        m_cfg, "datasets/coco", batch_size, data_cfg, mode=mode, rect=mode == "val"
+        m_cfg,
+        "datasets/coco/images/val2017",
+        batch_size,
+        data_cfg,
+        mode=mode,
+        rect=mode == "val",
     )
 
     val_loader = DataLoader(
@@ -283,12 +293,12 @@ if __name__ == "__main__":
     )
 
     hparams = parse_arguments()
+    m = YOLO(m_cfg, hparams=hparams)
     mAP = Metric("mAP", m.mAP)
 
-    m = YOLO(m_cfg, hparams=hparams)
     m.train(
         epochs=50,
         datasets={"train": train_loader, "val": val_loader},
         metrics=[mAP],
-        debug=False,
+        debug=hparams.debug,
     )
