@@ -223,12 +223,13 @@ class YOLO(MicroMind):
         )
         return opt, sched
 
+    @torch.no_grad()
     def mAP(self, pred, batch):
         batch_size = len(batch["im_file"])
 
         preprocessed_batch = self.preprocess_batch(batch)
         post_predictions = postprocess(
-            preds=pred[0].detach().cpu(), img=preprocessed_batch, orig_imgs=batch
+            preds=pred[0], img=preprocessed_batch, orig_imgs=batch
         )
 
         batch_bboxes_xyxy = xywh2xyxy(batch["bboxes"])
