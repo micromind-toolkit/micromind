@@ -515,7 +515,6 @@ def postprocess(preds, img, orig_imgs):
         A list of post-processed prediction arrays, each containing bounding
         boxes and associated information.
     """
-    tt1 = time.time()
     preds = non_max_suppression(
         prediction=preds,
         conf_thres=0.25,
@@ -528,14 +527,18 @@ def postprocess(preds, img, orig_imgs):
     all_preds = []
     for i, pred in enumerate(preds):
         orig_img = orig_imgs[i] if isinstance(orig_imgs, list) else orig_imgs
-        if isinstance(orig_img, dict):
-            pred[:, :4] = scale_boxes(
-                tuple(img["img"].shape[2:4]), pred[:, :4], orig_img["ori_shape"][i]
-            )  # batch
-        else:
-            pred[:, :4] = scale_boxes(
-                img.shape[2:], pred[:, :4], orig_img.shape
-            )  # single img
+        # if isinstance(orig_img, dict):
+            # pred[:, :4] = scale_boxes(
+                # tuple(img["img"].shape[2:4]), pred[:, :4], orig_img["ori_shape"][i]
+            # )  # batch
+        # else:
+            # print(pred[0, :4])
+            # breakpoint()
+            # pred[:, :4] = scale_boxes(
+                # img.shape[2:], pred[:, :4], orig_img.shape
+            # )  # single img
+            # print(pred[0, :4])
+            # breakpoint()
         all_preds.append(pred)
     return all_preds
 
