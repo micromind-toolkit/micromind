@@ -57,7 +57,7 @@ def load_config(file_path):
             "path": path,
             "train": train.as_posix(),
             "val": val.as_posix(),
-            "test": test.as_posix(),
+            "test": test,
             "names": config["names"],
             "download": config.get("download"),
             "yaml_file": file_path,
