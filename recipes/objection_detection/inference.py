@@ -80,7 +80,6 @@ class ObjectDetectionInference(MicroMind):
         -------
             Output of the detection network : torch.Tensor
         """
-        print(x.shape)
         backbone = self.modules["backbone"](x)[1]
         backbone[-1] = self.modules["sppf"](backbone[-1])
         neck = self.modules["neck"](*backbone)
