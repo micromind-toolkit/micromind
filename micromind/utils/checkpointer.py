@@ -10,6 +10,7 @@ from datetime import datetime
 from loguru import logger
 from pathlib import Path
 import shutil
+import yaml
 import os
 
 import torch
@@ -47,11 +48,21 @@ class Checkpointer:
         self.save_dir = os.path.join(self.root_dir, "save")
         self.last_dir = "default"
 
+    # def recover_from_checkpoint(self):
+
     @staticmethod
     def dump_modules(modules, out_folder):
         base_save = {k: v.state_dict() for k, v in modules.items()}
 
         torch.save(base_save, os.path.join(out_folder, "state-dict.pth.tar"))
+
+    @staticmethod
+    def dump_status(status, out_dir):
+        yaml_status = yaml.dump(status)
+
+        print(out_dir)
+        with open(os.path.join(out_dir, "status.yaml"), "w") as f:
+            f.write(yaml_status)
 
     def __call__(
         self,
@@ -62,6 +73,12 @@ class Checkpointer:
         current_folder = datetime.now().strftime("%Y-%m-%d+%H-%M-%S")
         current_folder = os.path.join(self.save_dir, current_folder)
         os.makedirs(current_folder, exist_ok=True)
+
+        status_dict = {
+            "epoch": mind.current_epoch,
+            "metric": metrics[self.key],
+            "metric_key": self.key,
+        }
 
         self.fstream = open(os.path.join(self.root_dir, "train_log.txt"), "a")
         s_out = (
@@ -75,6 +92,7 @@ class Checkpointer:
 
         mind.accelerator.save_state(os.path.join(current_folder, "accelerate_dump"))
         self.dump_modules(mind.modules, current_folder)
+        self.dump_status(status_dict, current_folder)
 
         # remove previous last dir after saving the current version
         if os.path.exists(self.last_dir):
@@ -91,6 +109,8 @@ class Checkpointer:
                     os.path.join(current_folder, "accelerate_dump")
                 )
                 self.dump_modules(mind.modules, current_folder)
+                self.dump_status(status_dict, current_folder)
+
                 self.bests = metrics[self.key]
                 self.check_paths = current_folder
 
@@ -102,12 +122,15 @@ class Checkpointer:
                     os.path.join(current_folder, "accelerate_dump")
                 )
                 self.dump_modules(mind.modules, current_folder)
+                self.dump_status(status_dict, current_folder)
+
                 self.bests = metrics[self.key]
                 self.check_paths = current_folder
 
         if to_remove is not None and to_remove != "":
             logger.info(f"Generated better checkpoint. Deleting {to_remove}.")
-            shutil.rmtree(to_remove)
+            if os.path.exists(to_remove):
+                shutil.rmtree(to_remove)
 
         self.fstream.close()
 

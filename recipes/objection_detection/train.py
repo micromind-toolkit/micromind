@@ -6,6 +6,7 @@ from micromind.utils.yolo_helpers import (
     mean_average_precision,
     load_config,
 )
+import micromind as mm
 
 import torch
 import torch.nn as nn
@@ -254,13 +255,26 @@ class YOLO(MicroMind):
 
 if __name__ == "__main__":
     batch_size = 8
+    hparams = parse_arguments()
 
-    m_cfg, data_cfg = load_config("cfg/coco.yaml")
+    m_cfg, data_cfg = load_config("cfg/coco8.yaml")
+
+    exp_folder = mm.utils.checkpointer.create_experiment_folder(
+        hparams.output_folder, hparams.experiment_name
+    )
+
+    checkpointer = mm.utils.checkpointer.Checkpointer(exp_folder, key="loss")
+
+    yolo_mind = YOLO(m_cfg, hparams=hparams)
+
+    checkpointer(yolo_mind, {}, {"val_loss": 1})
+    checkpointer(yolo_mind, {}, {"val_loss": 0})
+    exit(0)
 
     mode = "train"
     coco8_dataset = build_yolo_dataset(
         m_cfg,
-        "datasets/coco/images/train2017",
+        "datasets/coco8/images/train",
         batch_size,
         data_cfg,
         mode=mode,
@@ -278,7 +292,7 @@ if __name__ == "__main__":
     mode = "val"
     coco8_dataset = build_yolo_dataset(
         m_cfg,
-        "datasets/coco/images/val2017",
+        "datasets/coco8/images/val",
         batch_size,
         data_cfg,
         mode=mode,
@@ -293,8 +307,6 @@ if __name__ == "__main__":
         collate_fn=getattr(coco8_dataset, "collate_fn", None),
     )
 
-    hparams = parse_arguments()
-    m = YOLO(m_cfg, hparams=hparams)
     mAP = Metric("mAP", m.mAP, eval_only=True, eval_period=1)
 
     m.train(
