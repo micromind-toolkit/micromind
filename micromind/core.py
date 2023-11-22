@@ -349,6 +349,10 @@ class MicroMind(ABC):
             logger.info(f"Removed temporary folder {self.experiment_folder}.")
             shutil.rmtree(self.experiment_folder)
 
+    def eval(self):
+        for m self.modules:
+            self.modules[m].eval()
+
     def train(
         self,
         epochs: int = 1,
@@ -418,14 +422,13 @@ class MicroMind(ABC):
                     self.opt.step()
 
                     for m in self.metrics:
-                        if not m.eval_only and (e + 1) % m.eval_period == 0:
+                        if (self.current_epoch + 1) % m.eval_period == 0 and not m.eval_only:
                             m(model_out, batch, Stage.train, self.device)
 
-                    running_train = {
-                        "train_" + m.name: m.reduce(Stage.train)
-                        for m in self.metrics
-                        if not m.eval_only
-                    }
+                    running_train = {}
+                    for m in self.metrics:
+                        if (self.current_epoch + 1) % m.eval_period == 0 and not m.eval_only:
+                            running_train["train_" + m.name] = m.reduce(Stage.train)
 
                     running_train.update({"train_loss": loss_epoch / (idx + 1)})
 
@@ -436,11 +439,11 @@ class MicroMind(ABC):
 
                 pbar.close()
 
-                train_metrics = {
-                    "train_" + m.name: m.reduce(Stage.train, True)
-                    for m in self.metrics
-                    if not m.eval_only
-                }
+                train_metrics = {}
+                for m in self.metrics:
+                    if (self.current_epoch + 1) % m.eval_period == 0 and not m.eval_only:
+                        train_metrics["train_" + m.name] = m.reduce(Stage.train, True)
+
                 train_metrics.update({"train_loss": loss_epoch / (idx + 1)})
 
                 if "val" in datasets:
@@ -500,12 +503,13 @@ class MicroMind(ABC):
                 if self.debug and idx > 10:
                     break
 
-        if (self.current_epoch + 1) % m.eval_period == 0:
-            val_metrics = {
-                "val_" + m.name: m.reduce(Stage.val, True) for m in self.metrics
-            }
-        else:
-            val_metrics = {}
+        val_metrics = {}
+        for m in self.metrics:
+            if (self.current_epoch + 1) % m.eval_period == 0:
+                val_metrics = {
+                    "val_" + m.name: m.reduce(Stage.val, True)
+                }
+
         val_metrics.update({"val_loss": loss_epoch / (idx + 1)})
 
         pbar.close()

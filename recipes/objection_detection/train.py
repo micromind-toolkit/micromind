@@ -295,10 +295,10 @@ if __name__ == "__main__":
 
     hparams = parse_arguments()
     m = YOLO(m_cfg, hparams=hparams)
-    mAP = Metric("mAP", m.mAP)
+    mAP = Metric("mAP", m.mAP, eval_only=False, eval_period=2)
 
     m.train(
-        epochs=50,
+        epochs=2,
         datasets={"train": train_loader, "val": val_loader},
         metrics=[mAP],
         debug=hparams.debug,
