@@ -5,7 +5,7 @@ multi-gpu and FP16 training with HF Accelerate and much more.
 Authors:
     - Francesco Paissan, 2023
 """
-from typing import Dict, Union, Tuple, Callable, List
+from typing import Dict, Union, Tuple, Callable, List, Optional
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from argparse import Namespace
@@ -82,15 +82,23 @@ class Metric:
         0.5
     """
 
-    def __init__(self, name: str, fn: Callable, reduction="mean"):
+    def __init__(
+        self,
+        name: str,
+        fn: Callable,
+        reduction: Optional[str] = "mean",
+        eval_only: Optional[bool] = False,
+        eval_period: Optional[int] = 1,
+    ):
         self.name = name
         self.fn = fn
         self.reduction = reduction
+        self.eval_only = eval_only
+        self.eval_period = eval_period
+
         self.history = {s: [] for s in [Stage.train, Stage.val, Stage.test]}
 
     def __call__(self, pred, batch, stage, device="cpu"):
-        # if pred.device != device:
-        #     pred = pred.to(device)
         dat = self.fn(pred, batch)
         if dat.ndim == 0:
             dat = dat.unsqueeze(0)
@@ -385,6 +393,7 @@ class MicroMind(ABC):
             )
         with self.accelerator.autocast():
             for e in range(self.start_epoch, epochs):
+                self.current_epoch = e
                 pbar = tqdm(
                     self.datasets["train"],
                     unit="batches",
@@ -409,10 +418,13 @@ class MicroMind(ABC):
                     self.opt.step()
 
                     for m in self.metrics:
-                        m(model_out, batch, Stage.train, self.device)
+                        if not m.eval_only and (e + 1) % m.eval_period == 0:
+                            m(model_out, batch, Stage.train, self.device)
 
                     running_train = {
-                        "train_" + m.name: m.reduce(Stage.train) for m in self.metrics
+                        "train_" + m.name: m.reduce(Stage.train)
+                        for m in self.metrics
+                        if not m.eval_only
                     }
 
                     running_train.update({"train_loss": loss_epoch / (idx + 1)})
@@ -425,7 +437,9 @@ class MicroMind(ABC):
                 pbar.close()
 
                 train_metrics = {
-                    "train_" + m.name: m.reduce(Stage.train, True) for m in self.metrics
+                    "train_" + m.name: m.reduce(Stage.train, True)
+                    for m in self.metrics
+                    if not m.eval_only
                 }
                 train_metrics.update({"train_loss": loss_epoch / (idx + 1)})
 
@@ -477,7 +491,8 @@ class MicroMind(ABC):
                 model_out = self(batch)
                 loss = self.compute_loss(model_out, batch)
                 for m in self.metrics:
-                    m(model_out, batch, Stage.val, self.device)
+                    if (self.current_epoch + 1) % m.eval_period == 0:
+                        m(model_out, batch, Stage.val, self.device)
 
                 loss_epoch += loss.item()
                 pbar.set_postfix(loss=loss_epoch / (idx + 1))
@@ -485,7 +500,12 @@ class MicroMind(ABC):
                 if self.debug and idx > 10:
                     break
 
-        val_metrics = {"val_" + m.name: m.reduce(Stage.val, True) for m in self.metrics}
+        if (self.current_epoch + 1) % m.eval_period == 0:
+            val_metrics = {
+                "val_" + m.name: m.reduce(Stage.val, True) for m in self.metrics
+            }
+        else:
+            val_metrics = {}
         val_metrics.update({"val_loss": loss_epoch / (idx + 1)})
 
         pbar.close()
@@ -493,10 +513,7 @@ class MicroMind(ABC):
         return val_metrics
 
     @torch.no_grad()
-    def test(
-        self,
-        datasets: Dict = {},
-        metrics: List[Metric] = []) -> None:
+    def test(self, datasets: Dict = {}, metrics: List[Metric] = []) -> None:
         """Runs the test steps."""
         assert "test" in datasets, "Test dataloader was not specified."
         self.modules.eval()
@@ -525,9 +542,7 @@ class MicroMind(ABC):
 
         pbar.close()
 
-        test_metrics = {
-            "test_" + m.name: m.reduce(Stage.test, True) for m in metrics
-        }
+        test_metrics = {"test_" + m.name: m.reduce(Stage.test, True) for m in metrics}
         test_metrics.update({"test_loss": loss_epoch / (idx + 1)})
         s_out = (
             "Testing "

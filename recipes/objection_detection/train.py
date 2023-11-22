@@ -255,12 +255,12 @@ class YOLO(MicroMind):
 if __name__ == "__main__":
     batch_size = 8
 
-    m_cfg, data_cfg = load_config("cfg/coco.yaml")
+    m_cfg, data_cfg = load_config("cfg/coco8.yaml")
 
     mode = "train"
     coco8_dataset = build_yolo_dataset(
         m_cfg,
-        "datasets/coco/images/train2017",
+        "datasets/coco8/images/train",
         batch_size,
         data_cfg,
         mode=mode,
@@ -278,7 +278,7 @@ if __name__ == "__main__":
     mode = "val"
     coco8_dataset = build_yolo_dataset(
         m_cfg,
-        "datasets/coco/images/val2017",
+        "datasets/coco8/images/val",
         batch_size,
         data_cfg,
         mode=mode,
