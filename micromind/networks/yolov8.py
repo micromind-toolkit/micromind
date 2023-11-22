@@ -512,7 +512,7 @@ class YOLOv8(nn.Module):
         )
 
     def forward(self, x):
-        """Executes YOLOv8 detection head.
+        """Executes YOLOv8 network.
 
         Arguments
         ---------

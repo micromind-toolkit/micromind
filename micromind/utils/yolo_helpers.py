@@ -11,6 +11,7 @@ import yaml
 import cv2
 from collections import defaultdict
 import time
+import numpy as np
 import torch
 import torchvision
 
