@@ -159,6 +159,8 @@ class MicroMind(ABC):
         self.device = "cpu"  # used just to init the models
         self.accelerator = Accelerator()
 
+        self.current_epoch = 0
+
     @abstractmethod
     def forward(self, batch):
         """

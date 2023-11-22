@@ -5,104 +5,110 @@ state etc.
 Authors:
     - Francesco Paissan, 2023
 """
-from typing import Union, Dict, Callable
+from typing import Union, Dict, Optional
+from datetime import datetime
 from loguru import logger
 from pathlib import Path
+import shutil
 import os
 
 import torch
 
 
+def create_experiment_folder(
+    output_folder: Union[Path, str], exp_name: Union[Path, str]
+) -> Path:
+    exp_folder = os.path.join(output_folder, exp_name)
+
+    os.makedirs(exp_folder, exist_ok=True)
+    os.makedirs(os.path.join(exp_folder, "save"), exist_ok=True)
+
+    return exp_folder
+
+
 class Checkpointer:
     def __init__(
         self,
-        key: str,
-        mode: str = "min",
-        top_k: int = 1,
-        checkpoint_path: Union[str, Path] = ".",
-        accelerator=None,
+        experiment_folder: Union[str, Path],
+        key: Optional[str] = "loss",
+        mode: Optional[str] = "min",
     ) -> None:
+        assert experiment_folder != "", "You should pass a valid experiment folder."
+        assert os.path.exists(
+            os.path.join(experiment_folder, "save")
+        ), "Invalid experiment folder."
         assert mode in ["max", "min"], "Checkpointer mode can be only max or min."
-        self.key = key
+        self.key = "val_" + key
         self.mode = mode
-        self.top_k = top_k
 
-        self.accelerator = accelerator
-        self.bests = [torch.inf] * self.top_k
-        self.check_paths = [""] * self.top_k
-        self.root_dir = checkpoint_path
+        self.bests = torch.inf if mode == "min" else -torch.inf
+        self.check_paths = ""
+        self.root_dir = experiment_folder
         self.save_dir = os.path.join(self.root_dir, "save")
-        os.makedirs(self.save_dir, exist_ok=True)
+        self.last_dir = "default"
+
+    @staticmethod
+    def dump_modules(modules, out_folder):
+        base_save = {k: v.state_dict() for k, v in modules.items()}
+
+        torch.save(base_save, os.path.join(out_folder, "state-dict.pth.tar"))
 
     def __call__(
         self,
         mind,
-        epoch: int,
         train_metrics: Dict,
         metrics: Dict,
-        unwrap: Callable = lambda x: x,
     ) -> Union[Path, str]:
+        current_folder = datetime.now().strftime("%Y-%m-%d+%H-%M-%S")
+        current_folder = os.path.join(self.save_dir, current_folder)
+        os.makedirs(current_folder, exist_ok=True)
+
         self.fstream = open(os.path.join(self.root_dir, "train_log.txt"), "a")
         s_out = (
-            f"Epoch {epoch}: "
+            f"Epoch {mind.current_epoch}: "
             + " - ".join([f"{k}: {v:.2f}" for k, v in train_metrics.items()])
             + "; "
         )
         s_out += " - ".join([f"{k2}: {v2:.4f}" for k2, v2 in metrics.items()]) + ".\n"
         self.fstream.write(s_out)
         logger.info(s_out)
-        base_save = {
-            "key": self.key,
-            "mode": self.mode,
-            "epoch": epoch,
-            "optimizer": mind.opt.state_dict(),
-            "lr_scheduler": mind.lr_sched.state_dict(),
-        }
+
+        mind.accelerator.save_state(os.path.join(current_folder, "accelerate_dump"))
+        self.dump_modules(mind.modules, current_folder)
+
+        # remove previous last dir after saving the current version
+        if os.path.exists(self.last_dir):
+            shutil.rmtree(self.last_dir)
+
+        self.last_dir = current_folder
+
         to_remove = None
         if self.mode == "min":
-            if metrics[self.key] <= min(self.bests):
-                id_best = self.bests.index(min(self.bests))
-                to_remove = self.check_paths[id_best]
+            if metrics[self.key] <= self.bests:
+                to_remove = self.check_paths
 
-                self.check_paths[id_best] = os.path.join(
-                    self.save_dir,
-                    f"epoch_{epoch}_{self.key}_{metrics[self.key]:.4f}.ckpt",
+                mind.accelerator.save_state(
+                    os.path.join(current_folder, "accelerate_dump")
                 )
+                self.dump_modules(mind.modules, current_folder)
+                self.bests = metrics[self.key]
+                self.check_paths = current_folder
 
-                base_save.update(
-                    {k: unwrap(v).state_dict() for k, v in mind.modules.items()}
-                ),
-                self.bests[id_best] = metrics[self.key]
-
-                torch.save(base_save, self.check_paths[id_best])
         elif self.mode == "max":
-            if metrics[self.key] >= max(self.bests):
-                id_best = self.bests.index(min(self.bests))
-                to_remove = self.check_paths[id_best]
+            if metrics[self.key] >= self.bests:
+                to_remove = self.check_paths
 
-                self.check_paths[id_best] = os.path.join(
-                    self.save_dir,
-                    f"epoch_{epoch}_{self.key}_{metrics[self.key]:.4f}.ckpt",
+                mind.accelerator.save_state(
+                    os.path.join(current_folder, "accelerate_dump")
                 )
-
-                base_save.update(
-                    {k: unwrap(v).state_dict() for k, v in mind.modules.items()}
-                ),
-                self.bests[id_best] = metrics[self.key]
-
-                torch.save(base_save, self.check_paths[id_best])
+                self.dump_modules(mind.modules, current_folder)
+                self.bests = metrics[self.key]
+                self.check_paths = current_folder
 
         if to_remove is not None and to_remove != "":
             logger.info(f"Generated better checkpoint. Deleting {to_remove}.")
-            os.remove(to_remove)
+            shutil.rmtree(to_remove)
 
         self.fstream.close()
 
-        self.accelerator.save_state(
-            output_dir=os.path.join(self.save_dir, "accelerate")
-        )
-
-        if self.mode == "max":
-            return self.check_paths[self.bests.index(max(self.bests))]
-        elif self.mode == "min":
-            return self.check_paths[self.bests.index(min(self.bests))]
+        return self.check_paths
