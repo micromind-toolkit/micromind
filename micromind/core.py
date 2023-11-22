@@ -493,7 +493,10 @@ class MicroMind(ABC):
         return val_metrics
 
     @torch.no_grad()
-    def test(self, datasets: Dict = {}) -> None:
+    def test(
+        self,
+        datasets: Dict = {},
+        metrics: List[Metric] = []) -> None:
         """Runs the test steps."""
         assert "test" in datasets, "Test dataloader was not specified."
         self.modules.eval()
@@ -511,11 +514,10 @@ class MicroMind(ABC):
             for idx, batch in enumerate(pbar):
                 if isinstance(batch, list):
                     batch = [b.to(self.device) for b in batch]
-                self.opt.zero_grad()
 
                 model_out = self(batch)
                 loss = self.compute_loss(model_out, batch)
-                for m in self.metrics:
+                for m in metrics:
                     m(model_out, batch, Stage.test, self.device)
 
                 loss_epoch += loss.item()
@@ -524,7 +526,7 @@ class MicroMind(ABC):
         pbar.close()
 
         test_metrics = {
-            "test_" + m.name: m.reduce(Stage.test, True) for m in self.metrics
+            "test_" + m.name: m.reduce(Stage.test, True) for m in metrics
         }
         test_metrics.update({"test_loss": loss_epoch / (idx + 1)})
         s_out = (
