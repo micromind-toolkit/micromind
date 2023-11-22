@@ -350,8 +350,7 @@ class MicroMind(ABC):
             shutil.rmtree(self.experiment_folder)
 
     def eval(self):
-        for m self.modules:
-            self.modules[m].eval()
+        self.modules.eval()
 
     def train(
         self,
@@ -422,12 +421,16 @@ class MicroMind(ABC):
                     self.opt.step()
 
                     for m in self.metrics:
-                        if (self.current_epoch + 1) % m.eval_period == 0 and not m.eval_only:
+                        if (
+                            self.current_epoch + 1
+                        ) % m.eval_period == 0 and not m.eval_only:
                             m(model_out, batch, Stage.train, self.device)
 
                     running_train = {}
                     for m in self.metrics:
-                        if (self.current_epoch + 1) % m.eval_period == 0 and not m.eval_only:
+                        if (
+                            self.current_epoch + 1
+                        ) % m.eval_period == 0 and not m.eval_only:
                             running_train["train_" + m.name] = m.reduce(Stage.train)
 
                     running_train.update({"train_loss": loss_epoch / (idx + 1)})
@@ -441,7 +444,9 @@ class MicroMind(ABC):
 
                 train_metrics = {}
                 for m in self.metrics:
-                    if (self.current_epoch + 1) % m.eval_period == 0 and not m.eval_only:
+                    if (
+                        self.current_epoch + 1
+                    ) % m.eval_period == 0 and not m.eval_only:
                         train_metrics["train_" + m.name] = m.reduce(Stage.train, True)
 
                 train_metrics.update({"train_loss": loss_epoch / (idx + 1)})
@@ -506,9 +511,7 @@ class MicroMind(ABC):
         val_metrics = {}
         for m in self.metrics:
             if (self.current_epoch + 1) % m.eval_period == 0:
-                val_metrics = {
-                    "val_" + m.name: m.reduce(Stage.val, True)
-                }
+                val_metrics = {"val_" + m.name: m.reduce(Stage.val, True)}
 
         val_metrics.update({"val_loss": loss_epoch / (idx + 1)})
 
