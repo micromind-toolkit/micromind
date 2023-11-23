@@ -311,13 +311,13 @@ class MicroMind(ABC):
 
         self.init_devices()
 
+        self.start_epoch = 0
         if self.checkpointer is not None:
             # recover state
-            # self.checkpointer.recover_state()
-            pass
-
-        # handle start_epoch better
-        self.start_epoch = 0
+            ckpt = self.checkpointer.recover_state()
+            if ckpt is not None:
+                accelerate_path, self.start_epoch = ckpt
+                self.accelerator.load_state(accelerate_path)
 
     def init_devices(self):
         """Initializes the data pipeline and modules for DDP and accelerated inference.
@@ -402,11 +402,11 @@ class MicroMind(ABC):
 
         if self.accelerator.is_local_main_process:
             logger.info(
-                f"Starting from epoch {self.start_epoch}."
+                f"Starting from epoch {self.start_epoch + 1}."
                 + f" Training is scheduled for {epochs} epochs."
             )
         with self.accelerator.autocast():
-            for e in range(self.start_epoch, epochs):
+            for e in range(self.start_epoch + 1, epochs + 1):
                 self.current_epoch = e
                 pbar = tqdm(
                     self.datasets["train"],
@@ -416,7 +416,7 @@ class MicroMind(ABC):
                     disable=not self.accelerator.is_local_main_process,
                 )
                 loss_epoch = 0
-                pbar.set_description(f"Running epoch {e + 1}/{epochs}")
+                pbar.set_description(f"Running epoch {self.current_epoch}/{epochs}")
                 self.modules.train()
                 for idx, batch in enumerate(pbar):
                     if isinstance(batch, list):

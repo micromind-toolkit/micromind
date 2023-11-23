@@ -48,7 +48,44 @@ class Checkpointer:
         self.save_dir = os.path.join(self.root_dir, "save")
         self.last_dir = "default"
 
-    # def recover_from_checkpoint(self):
+    def recover_state(self):
+        available_ckpts = list(Path(self.save_dir).iterdir())
+        if len(available_ckpts) < 1:
+            return
+        dates = [
+            datetime.strptime(str(ckpt.name), "%Y-%m-%d+%H-%M-%S")
+            for ckpt in available_ckpts
+        ]
+        dates = sorted(dates, reverse=True)
+
+        for date in dates:
+            oldest_name = os.path.join(
+                self.save_dir, date.strftime("%Y-%m-%d+%H-%M-%S")
+            )
+            breakpoint()
+            try:
+                print(os.path.join(oldest_name, "status.yaml"))
+                with open(os.path.join(oldest_name, "status.yaml"), "r") as f:
+                    dat = yaml.safe_load(f)
+
+                epoch = dat["epoch"]
+                self.bests = dat["metric"]
+                self.key = dat["metric_key"]
+
+                accelerate_path = os.path.join(oldest_name, "accelerate_dump")
+                logger.info(
+                    f"Recovered info from checkpoint {oldest_name} at epoch {epoch}."
+                )
+                logger.info(f"{self.key} was {self.bests:.4f} for this checkpoint.")
+
+                return accelerate_path, epoch
+            except Exception as e:
+                logger.info(
+                    f"Tried to recover checkpoint {oldest_name}, \
+                    but it appears corrupted."
+                )
+                logger.debug(str(e))
+        return
 
     @staticmethod
     def dump_modules(modules, out_folder):
@@ -112,6 +149,9 @@ class Checkpointer:
 
                 self.bests = metrics[self.key]
                 self.check_paths = current_folder
+                logger.info(
+                    f"Generated better checkpoint at epoch {mind.current_epoch}."
+                )
 
         elif self.mode == "max":
             if metrics[self.key] >= self.bests:
@@ -125,9 +165,12 @@ class Checkpointer:
 
                 self.bests = metrics[self.key]
                 self.check_paths = current_folder
+                logger.info(
+                    f"Generated better checkpoint at epoch {mind.current_epoch}."
+                )
 
         if to_remove is not None and to_remove != "":
-            logger.info(f"Generated better checkpoint. Deleting {to_remove}.")
+            logger.info(f"Deleting {to_remove}.")
             if os.path.exists(to_remove):
                 shutil.rmtree(to_remove)
 
