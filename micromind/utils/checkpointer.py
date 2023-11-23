@@ -60,7 +60,6 @@ class Checkpointer:
     def dump_status(status, out_dir):
         yaml_status = yaml.dump(status)
 
-        print(out_dir)
         with open(os.path.join(out_dir, "status.yaml"), "w") as f:
             f.write(yaml_status)
 
@@ -95,7 +94,7 @@ class Checkpointer:
         self.dump_status(status_dict, current_folder)
 
         # remove previous last dir after saving the current version
-        if os.path.exists(self.last_dir):
+        if os.path.exists(self.last_dir) and self.last_dir != self.check_paths:
             shutil.rmtree(self.last_dir)
 
         self.last_dir = current_folder

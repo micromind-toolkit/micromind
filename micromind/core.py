@@ -16,10 +16,6 @@ import shutil
 
 from accelerate import Accelerator
 import torch
-import os
-
-from .utils.helpers import get_random_string
-from .utils.checkpointer import Checkpointer
 
 # This is used ONLY if you are not using argparse to get the hparams
 default_cfg = {
@@ -156,8 +152,8 @@ class MicroMind(ABC):
         self.hparams = hparams
         self.input_shape = None
 
-        self.device = "cpu"  # used just to init the models
         self.accelerator = Accelerator()
+        self.device = self.accelerator.device
 
         self.current_epoch = 0
 
@@ -306,44 +302,55 @@ class MicroMind(ABC):
 
         This function gets executed at the beginning of every training.
         """
-        self.experiment_folder = os.path.join(
-            self.hparams.output_folder, self.hparams.experiment_name
-        )
-        if self.hparams.debug:
-            self.experiment_folder = "tmp_" + get_random_string()
-            logger.info(f"Created temporary folder for debug {self.experiment_folder}.")
 
-        accelerate_dir = os.path.join(self.experiment_folder, "save")
-        if os.path.exists(accelerate_dir):
-            self.opt, self.lr_sched = self.configure_optimizers()
-
+        init_opt = self.configure_optimizers()
+        if isinstance(init_opt, list) or isinstance(init_opt, tuple):
+            self.opt, self.lr_sched = init_opt
         else:
-            os.makedirs(self.experiment_folder, exist_ok=True)
+            self.opt = init_opt
 
-            self.opt, self.lr_sched = self.configure_optimizers()
-            self.start_epoch = 0
+        self.init_devices()
+
+        if self.checkpointer is not None:
+            # recover state
+            # self.checkpointer.recover_state()
+            pass
 
         # handle start_epoch better
         self.start_epoch = 0
-        self.checkpointer = Checkpointer(
-            "val_loss",
-            checkpoint_path=self.experiment_folder,
-            accelerator=self.accelerator,
-        )
 
-        self.accelerator = Accelerator()
-        self.device = self.accelerator.device
-        self.modules.to(self.device)
-        print("Set device to ", self.device)
+    def init_devices(self):
+        """Initializes the data pipeline and modules for DDP and accelerated inference.
+        To control the device selection, use `accelerate config`."""
 
-        convert = [self.modules, self.opt, self.lr_sched] + list(self.datasets.values())
+        convert = [self.modules]
+        if hasattr(self, "opt"):
+            convert += [self.opt]
+
+        if hasattr(self, "lr_sched"):
+            convert += [self.lr_sched]
+
+        if hasattr(self, "datasets"):
+            # if the datasets are store here, prepare them for DDP
+            convert += list(self.datasets.values())
+
         accelerated = self.accelerator.prepare(convert)
-        self.modules, self.opt, self.lr_sched = accelerated[:3]
-        for i, key in enumerate(list(self.datasets.keys())[::-1]):
-            self.datasets[key] = accelerated[-(i + 1)]
+        self.modules = accelerated[0]
+        self.accelerator.register_for_checkpointing(self.modules)
 
-        if os.path.exists(accelerate_dir):
-            self.accelerator.load_state(accelerate_dir)
+        if hasattr(self, "opt"):
+            self.opt = accelerated[1]
+            self.accelerator.register_for_checkpointing(self.opt)
+
+        if hasattr(self, "lr_sched"):
+            self.lr_sched = accelerated[2]
+            self.accelerator.register_for_checkpointing(self.lr_sched)
+
+        if hasattr(self, "datasets"):
+            for i, key in enumerate(list(self.datasets.keys())[::-1]):
+                self.datasets[key] = accelerated[-(i + 1)]
+
+        self.modules.to(self.device)
 
     def on_train_end(self):
         """Runs at the end of each training. Cleans up before exiting."""
@@ -359,6 +366,7 @@ class MicroMind(ABC):
         epochs: int = 1,
         datasets: Dict = {},
         metrics: List[Metric] = [],
+        checkpointer=None,  # fix type hints
         debug: bool = False,
     ) -> None:
         """
@@ -384,6 +392,7 @@ class MicroMind(ABC):
         """
         self.datasets = datasets
         self.metrics = metrics
+        self.checkpointer = checkpointer
         assert "train" in self.datasets, "Training dataloader was not specified."
         assert epochs > 0, "You must specify at least one epoch."
 
@@ -455,13 +464,14 @@ class MicroMind(ABC):
 
                 if "val" in datasets:
                     val_metrics = self.validate()
-                    if self.accelerator.is_local_main_process:
+                    if (
+                        self.accelerator.is_local_main_process
+                        and self.checkpointer is not None
+                    ):
                         self.checkpointer(
                             self,
-                            e,
                             train_metrics,
                             val_metrics,
-                            lambda x: self.accelerator.unwrap_model(x),
                         )
                 else:
                     val_metrics = train_metrics.update(
