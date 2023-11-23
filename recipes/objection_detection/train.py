@@ -1,24 +1,20 @@
-from micromind.utils.yolo_helpers import (
-    postprocess,
-    mean_average_precision,
-    load_config,
-)
-import micromind as mm
-
 import torch
 import torch.nn as nn
-from micromind.utils.parse import parse_arguments
-
-from ultralytics.utils.tal import TaskAlignedAssigner, dist2bbox, make_anchors
-from ultralytics.utils.loss import v8DetectionLoss, BboxLoss
-from ultralytics.utils.ops import xywh2xyxy, scale_boxes
-
-from micromind.networks.yolov8 import SPPF, Yolov8Neck, DetectionHead
-from micromind.networks import PhiNet
-
 from prepare_data import create_loaders
-
 from torchinfo import summary
+from ultralytics.utils.loss import BboxLoss, v8DetectionLoss
+from ultralytics.utils.ops import scale_boxes, xywh2xyxy
+from ultralytics.utils.tal import TaskAlignedAssigner, dist2bbox, make_anchors
+
+import micromind as mm
+from micromind.networks import PhiNet
+from micromind.networks.yolov8 import SPPF, DetectionHead, Yolov8Neck
+from micromind.utils.parse import parse_arguments
+from micromind.utils.yolo_helpers import (
+    load_config,
+    mean_average_precision,
+    postprocess,
+)
 
 
 class Loss(v8DetectionLoss):
