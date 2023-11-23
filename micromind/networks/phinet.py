@@ -708,8 +708,9 @@ class PhiNet(nn.Module):
         ret = []
         for i, layers in enumerate(self._layers):
             x = layers(x)
-            if i in self.return_layers:
-                ret.append(x)
+            if self.return_layers is not None:
+                if i in self.return_layers:
+                    ret.append(x)
 
         if self.classify:
             x = self.classifier(x)
