@@ -1,7 +1,4 @@
-from micromind import MicroMind
-from micromind import Metric
 from micromind.utils.yolo_helpers import (
-    preprocess,
     postprocess,
     mean_average_precision,
     load_config,
@@ -10,20 +7,18 @@ import micromind as mm
 
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
 from micromind.utils.parse import parse_arguments
 
 from ultralytics.utils.tal import TaskAlignedAssigner, dist2bbox, make_anchors
 from ultralytics.utils.loss import v8DetectionLoss, BboxLoss
 from ultralytics.utils.ops import xywh2xyxy, scale_boxes
-from ultralytics.data import build_yolo_dataset
 
-from micromind.networks.yolov8 import YOLOv8, SPPF, Yolov8Neck, DetectionHead
+from micromind.networks.yolov8 import SPPF, Yolov8Neck, DetectionHead
 from micromind.networks import PhiNet
 
+from prepare_data import create_loaders
+
 from torchinfo import summary
-import torchvision
-import cv2
 
 
 class Loss(v8DetectionLoss):
@@ -149,7 +144,7 @@ class Loss(v8DetectionLoss):
         return loss.sum() * batch_size, loss.detach()  # loss(box, cls, dfl)
 
 
-class YOLO(MicroMind):
+class YOLO(mm.MicroMind):
     def __init__(self, m_cfg, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -226,8 +221,6 @@ class YOLO(MicroMind):
 
     @torch.no_grad()
     def mAP(self, pred, batch):
-        batch_size = len(batch["im_file"])
-
         preprocessed_batch = self.preprocess_batch(batch)
         post_predictions = postprocess(
             preds=pred[0], img=preprocessed_batch, orig_imgs=batch
@@ -258,6 +251,7 @@ if __name__ == "__main__":
     hparams = parse_arguments()
 
     m_cfg, data_cfg = load_config("cfg/coco8.yaml")
+    train_loader, val_loader = create_loaders(m_cfg, data_cfg, batch_size)
 
     exp_folder = mm.utils.checkpointer.create_experiment_folder(
         hparams.output_folder, hparams.experiment_name
@@ -267,51 +261,12 @@ if __name__ == "__main__":
 
     yolo_mind = YOLO(m_cfg, hparams=hparams)
 
-    checkpointer(yolo_mind, {}, {"val_loss": 1})
-    checkpointer(yolo_mind, {}, {"val_loss": 0})
-    exit(0)
+    mAP = mm.Metric("mAP", yolo_mind.mAP, eval_only=True, eval_period=1)
 
-    mode = "train"
-    coco8_dataset = build_yolo_dataset(
-        m_cfg,
-        "datasets/coco8/images/train",
-        batch_size,
-        data_cfg,
-        mode=mode,
-        rect=mode == "val",
-    )
-
-    train_loader = DataLoader(
-        coco8_dataset,
-        batch_size,
-        shuffle=True,
-        num_workers=16,
-        collate_fn=getattr(coco8_dataset, "collate_fn", None),
-    )
-
-    mode = "val"
-    coco8_dataset = build_yolo_dataset(
-        m_cfg,
-        "datasets/coco8/images/val",
-        batch_size,
-        data_cfg,
-        mode=mode,
-        rect=mode == "val",
-    )
-
-    val_loader = DataLoader(
-        coco8_dataset,
-        batch_size,
-        shuffle=False,
-        num_workers=16,
-        collate_fn=getattr(coco8_dataset, "collate_fn", None),
-    )
-
-    mAP = Metric("mAP", m.mAP, eval_only=True, eval_period=1)
-
-    m.train(
-        epochs=100,
+    yolo_mind.train(
+        epochs=20,
         datasets={"train": train_loader, "val": val_loader},
         metrics=[mAP],
+        checkpointer=checkpointer,
         debug=hparams.debug,
     )
