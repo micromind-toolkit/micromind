@@ -421,8 +421,6 @@ def non_max_suppression(
     ):  # YOLOv8 model in validation model, output = (inference_out, loss_out)
         prediction = prediction[0]  # select only inference output
 
-    device = prediction.device
-
     bs = prediction.shape[0]  # batch size
     nc = nc or (prediction.shape[1] - 4)  # number of classes
     nm = prediction.shape[1] - nc - 4
@@ -524,23 +522,7 @@ def postprocess(preds, img, orig_imgs):
         multi_label=True,
     )
 
-    all_preds = []
-    for i, pred in enumerate(preds):
-        orig_img = orig_imgs[i] if isinstance(orig_imgs, list) else orig_imgs
-        # if isinstance(orig_img, dict):
-            # pred[:, :4] = scale_boxes(
-                # tuple(img["img"].shape[2:4]), pred[:, :4], orig_img["ori_shape"][i]
-            # )  # batch
-        # else:
-            # print(pred[0, :4])
-            # breakpoint()
-            # pred[:, :4] = scale_boxes(
-                # img.shape[2:], pred[:, :4], orig_img.shape
-            # )  # single img
-            # print(pred[0, :4])
-            # breakpoint()
-        all_preds.append(pred)
-    return all_preds
+    return preds
 
 
 def draw_bounding_boxes_and_save(

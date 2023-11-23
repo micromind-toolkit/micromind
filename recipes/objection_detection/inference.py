@@ -87,7 +87,8 @@ class ObjectDetectionInference(MicroMind):
         return head
 
     def compute_loss(self):
-        """Since we only want to get the output of the network, we are not interested in calculating the loss."""
+        """Since we only want to get the output of the network,
+        we are not interested in calculating the loss."""
         pass
 
 
