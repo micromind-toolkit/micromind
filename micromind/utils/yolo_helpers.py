@@ -5,15 +5,16 @@ Authors:
     - Matteo Beltrami, 2023
     - Francesco Paissan, 2023
 """
-import types
-from pathlib import Path
-import yaml
-import cv2
-from collections import defaultdict
 import time
+import types
+from collections import defaultdict
+from pathlib import Path
+
+import cv2
 import numpy as np
 import torch
 import torchvision
+import yaml
 
 
 def get_variant_multiples(variant):

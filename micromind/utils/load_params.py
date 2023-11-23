@@ -14,13 +14,14 @@ Authors:
     - Francesco Paissan, 2023
 """
 
-import torch
-import sys
-import requests
 import os
+import sys
+
+import requests
+import torch
+from yolo_helpers import get_variant_multiples
 
 from micromind.networks.yolov8 import YOLOv8
-from yolo_helpers import get_variant_multiples
 
 
 def download_variant(variant):

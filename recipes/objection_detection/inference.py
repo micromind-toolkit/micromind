@@ -12,19 +12,20 @@ the inference and the configuration of the model to use
 """
 
 import sys
+import time
 from pathlib import Path
+
 import torch
 import torch.nn as nn
-import time
 import torchvision
 
-from micromind.networks.yolov8 import SPPF, Yolov8Neck, DetectionHead
-from micromind.networks.phinet import PhiNet
 from micromind.core import MicroMind
+from micromind.networks.phinet import PhiNet
+from micromind.networks.yolov8 import SPPF, DetectionHead, Yolov8Neck
 from micromind.utils.yolo_helpers import (
-    preprocess,
-    postprocess,
     draw_bounding_boxes_and_save,
+    postprocess,
+    preprocess,
 )
 
 

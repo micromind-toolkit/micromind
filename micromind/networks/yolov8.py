@@ -14,7 +14,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from micromind.utils.yolo_helpers import autopad, make_anchors, dist2bbox
+from micromind.utils.yolo_helpers import autopad, dist2bbox, make_anchors
 
 
 class Upsample:

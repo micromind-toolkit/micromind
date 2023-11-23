@@ -4,12 +4,15 @@ micromind helper functions.
 Authors:
     - Francesco Paissan, 2023
 """
-from typing import Union, Dict, Tuple
-from pathlib import Path
+import os
 import random
 import string
+import sys
+from pathlib import Path
+from typing import Dict, Tuple, Union
+
 import torch
-import os
+from loguru import logger
 
 
 def get_value_from_key(s: str, key: str, cast=float) -> float:
@@ -41,3 +44,13 @@ def get_random_string(length=10):
     result_str = "".join(random.choice(letters) for i in range(length))
 
     return result_str
+
+
+def get_logger():
+    fmt = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | \
+            <level>{level: <8}</level> |  \
+            <level>{message}</level>"
+    logger.remove()
+    logger.add(sys.stderr, format=fmt)
+
+    return logger

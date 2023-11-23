@@ -10,10 +10,10 @@ Authors:
 from typing import List
 
 import torch
+import torch.ao.nn.quantized as nnq
 import torch.nn as nn
 import torch.nn.functional as F
 from torchinfo import summary
-import torch.ao.nn.quantized as nnq
 
 
 def _make_divisible(v, divisor=8, min_value=None):

@@ -1,6 +1,7 @@
+from typing import Dict
+
 from torch.utils.data import DataLoader
 from ultralytics.data import build_yolo_dataset
-from typing import Dict
 
 
 def create_loaders(m_cfg: Dict, data_cfg: Dict, batch_size: int):

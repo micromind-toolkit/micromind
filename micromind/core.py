@@ -5,17 +5,20 @@ multi-gpu and FP16 training with HF Accelerate and much more.
 Authors:
     - Francesco Paissan, 2023
 """
-from typing import Dict, Union, Tuple, Callable, List, Optional
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from argparse import Namespace
-from pathlib import Path
-from loguru import logger
-from tqdm import tqdm
 import shutil
+from abc import ABC, abstractmethod
+from argparse import Namespace
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
-from accelerate import Accelerator
 import torch
+from accelerate import Accelerator
+from tqdm import tqdm
+
+from .utils.helpers import get_logger
+
+logger = get_logger()
 
 # This is used ONLY if you are not using argparse to get the hparams
 default_cfg = {

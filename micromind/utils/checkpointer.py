@@ -5,15 +5,18 @@ state etc.
 Authors:
     - Francesco Paissan, 2023
 """
-from typing import Union, Dict, Optional
-from datetime import datetime
-from loguru import logger
-from pathlib import Path
-import shutil
-import yaml
 import os
+import shutil
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, Optional, Union
 
 import torch
+import yaml
+
+from .helpers import get_logger
+
+logger = get_logger()
 
 
 def create_experiment_folder(

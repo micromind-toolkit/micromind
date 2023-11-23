@@ -2,6 +2,7 @@ import torch
 from prepare_data import create_loaders
 from torchinfo import summary
 from ultralytics.utils.ops import scale_boxes, xywh2xyxy
+from yolo_loss import Loss
 
 import micromind as mm
 from micromind.networks import PhiNet
@@ -12,7 +13,6 @@ from micromind.utils.yolo_helpers import (
     mean_average_precision,
     postprocess,
 )
-from yolo_loss import Loss
 
 
 class YOLO(mm.MicroMind):

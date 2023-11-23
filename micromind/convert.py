@@ -6,12 +6,16 @@ Authors:
     - Francesco Paissan, 2023
     - Alberto Ancilotto, 2023
 """
-from pathlib import Path
-from loguru import logger
-from typing import Union
-import torch.nn as nn
-import torch
 import os
+from pathlib import Path
+from typing import Union
+
+import torch
+import torch.nn as nn
+
+from .utils.helpers import get_logger
+
+logger = get_logger()
 
 
 @torch.no_grad()
@@ -70,9 +74,9 @@ def convert_to_openvino(
         os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
         import sys
         from pathlib import Path
-        from loguru import logger
 
         import onnx
+        from loguru import logger
         from onnx_tf.backend import prepare
         from openvino.tools.mo import main as mo_main
 
@@ -134,10 +138,10 @@ def convert_to_tflite(
         import shutil
         import sys
         from pathlib import Path
-        from loguru import logger
 
         import numpy as np
         import tensorflow as tf
+        from loguru import logger
 
     except Exception as e:
         print(str(e))
