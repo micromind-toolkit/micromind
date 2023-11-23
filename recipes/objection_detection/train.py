@@ -40,7 +40,7 @@ class YOLO(mm.MicroMind):
             temp = summary(m, verbose=0)
             tot_params += temp.total_params
 
-        print(f"Total parameters of model: {tot_params*1e-6:.2f} M")
+        print(f"Total parameters of model: {tot_params * 1e-6:.2f} M")
 
         self.m_cfg = m_cfg
 
