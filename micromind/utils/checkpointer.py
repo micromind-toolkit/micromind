@@ -62,7 +62,6 @@ class Checkpointer:
             oldest_name = os.path.join(
                 self.save_dir, date.strftime("%Y-%m-%d+%H-%M-%S")
             )
-            breakpoint()
             try:
                 print(os.path.join(oldest_name, "status.yaml"))
                 with open(os.path.join(oldest_name, "status.yaml"), "r") as f:
