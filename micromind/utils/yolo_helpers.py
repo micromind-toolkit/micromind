@@ -523,7 +523,19 @@ def postprocess(preds, img, orig_imgs):
         multi_label=True,
     )
 
-    return preds
+    all_preds = []
+    for i, pred in enumerate(preds):
+        orig_img = orig_imgs[i] if isinstance(orig_imgs, list) else orig_imgs
+        if isinstance(orig_img, dict):
+            pred[:, :4] = scale_boxes(
+                tuple(img["img"].shape[2:4]), pred[:, :4], orig_img["ori_shape"][i]
+            )  # batch
+        else:
+            pred[:, :4] = scale_boxes(
+                img.shape[2:], pred[:, :4], orig_img.shape[1:]
+            )  # single img
+        all_preds.append(pred)
+    return all_preds
 
 
 def draw_bounding_boxes_and_save(
