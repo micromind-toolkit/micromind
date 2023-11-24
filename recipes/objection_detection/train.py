@@ -170,7 +170,7 @@ class YOLO(MicroMind):
             include_top=False,
             compatibility=False,
             divisor=divisor,
-            downsampling_layers=downsampling_layers,  # check consistency with return_layers
+            downsampling_layers=downsampling_layers,
             return_layers=return_layers,
         )
 
@@ -190,30 +190,37 @@ class YOLO(MicroMind):
         self.m_cfg = m_cfg
 
     def get_parameters(self):
-        """Checks validity of the model created."""
-        in_shape = (self.modules["phinet"].input_shape)
+        """
+        Gets the parameters with which to initialize the network detection part
+        (SPPF block, Yolov8Neck, DetectionHead).
+        """
+        in_shape = self.modules["phinet"].input_shape
         x = torch.randn(1, *in_shape)
         y = self.modules["phinet"](x)
 
         c1 = c2 = y[1][2].shape[1]
-        sppf = SPPF(c1, c2) # 576, 576 
+        sppf = SPPF(c1, c2)
         out_sppf = sppf(y[1][2])
 
         neck_filters = [y[1][0].shape[1], y[1][1].shape[1], out_sppf.shape[1]]
         up = [2, 2]
-        up[0] =  y[1][1].shape[2] / out_sppf.shape[2]
+        up[0] = y[1][1].shape[2] / out_sppf.shape[2]
         up[1] = y[1][0].shape[2] / (up[0] * out_sppf.shape[2])
         temp = """The layers you selected are not valid. \
-            Please choose only layers between which the spatial resolution doubles every time. \
-            You can try changing the downsampling layers"""
-        
+            Please choose only layers between which the spatial resolution \
+            doubles every time. You can try changing the downsampling layers"""
+
         assert up == [2, 2], " ".join(temp.split())
 
-        neck = Yolov8Neck(filters=neck_filters, up=up) # [144, 288, 576]
+        neck = Yolov8Neck(filters=neck_filters, up=up)
         out_neck = neck(y[1][0], y[1][1], out_sppf)
 
-        head_filters = (out_neck[0].shape[1], out_neck[1].shape[1], out_neck[2].shape[1])
-        head = DetectionHead(filters=head_filters) # (144, 288, 576)
+        head_filters = (
+            out_neck[0].shape[1],
+            out_neck[1].shape[1],
+            out_neck[2].shape[1],
+        )
+        head = DetectionHead(filters=head_filters)
         out_head = head(out_neck)
 
         return (c1, c2), neck_filters, up, head_filters
@@ -232,7 +239,6 @@ class YOLO(MicroMind):
 
     def forward(self, batch):
         preprocessed_batch = self.preprocess_batch(batch)
-        # pred = self.modules["yolo"](preprocessed_batch["img"].to(self.device))
         backbone = self.modules["phinet"](preprocessed_batch["img"].to(self.device))[1]
         backbone[-1] = self.modules["sppf"](backbone[-1])
         neck = self.modules["neck"](*backbone)
