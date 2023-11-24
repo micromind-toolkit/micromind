@@ -152,21 +152,33 @@ class YOLO(MicroMind):
     def __init__(self, m_cfg, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        input_shape = (3, 672, 672)
+        alpha = 3
+        num_layers = 7
+        beta = 1
+        t_zero = 6
+        divisor = 8
+        downsampling_layers = [4, 5, 7]
+        return_layers = [5, 6, 7]
+
         self.modules["phinet"] = PhiNet(
-            input_shape=(3, 672, 672),
-            alpha=3,
-            num_layers=7,
-            beta=1,
-            t_zero=6,
+            input_shape=input_shape,
+            alpha=alpha,
+            num_layers=num_layers,
+            beta=beta,
+            t_zero=t_zero,
             include_top=False,
             compatibility=False,
-            divisor=8,
-            downsampling_layers=[4, 5, 7],  # check consistency with return_layers
-            return_layers=[5, 6, 7],
+            divisor=divisor,
+            downsampling_layers=downsampling_layers,  # check consistency with return_layers
+            return_layers=return_layers,
         )
-        self.modules["sppf"] = SPPF(576, 576)
-        self.modules["neck"] = Yolov8Neck([144, 288, 576])
-        self.modules["head"] = DetectionHead(filters=(144, 288, 576))
+
+        sppf_ch, neck_filters, up, head_filters = self.get_parameters()
+
+        self.modules["sppf"] = SPPF(*sppf_ch)
+        self.modules["neck"] = Yolov8Neck(filters=neck_filters, up=up)
+        self.modules["head"] = DetectionHead(filters=head_filters)
 
         tot_params = 0
         for m in self.modules.values():
@@ -176,6 +188,35 @@ class YOLO(MicroMind):
         print(f"Total parameters of model: {tot_params*1e-6:.2f} M")
 
         self.m_cfg = m_cfg
+
+    def get_parameters(self):
+        """Checks validity of the model created."""
+        in_shape = (self.modules["phinet"].input_shape)
+        x = torch.randn(1, *in_shape)
+        y = self.modules["phinet"](x)
+
+        c1 = c2 = y[1][2].shape[1]
+        sppf = SPPF(c1, c2) # 576, 576 
+        out_sppf = sppf(y[1][2])
+
+        neck_filters = [y[1][0].shape[1], y[1][1].shape[1], out_sppf.shape[1]]
+        up = [2, 2]
+        up[0] =  y[1][1].shape[2] / out_sppf.shape[2]
+        up[1] = y[1][0].shape[2] / (up[0] * out_sppf.shape[2])
+        temp = """The layers you selected are not valid. \
+            Please choose only layers between which the spatial resolution doubles every time. \
+            You can try changing the downsampling layers"""
+        
+        assert up == [2, 2], " ".join(temp.split())
+
+        neck = Yolov8Neck(filters=neck_filters, up=up) # [144, 288, 576]
+        out_neck = neck(y[1][0], y[1][1], out_sppf)
+
+        head_filters = (out_neck[0].shape[1], out_neck[1].shape[1], out_neck[2].shape[1])
+        head = DetectionHead(filters=head_filters) # (144, 288, 576)
+        out_head = head(out_neck)
+
+        return (c1, c2), neck_filters, up, head_filters
 
     def preprocess_batch(self, batch):
         """Preprocesses a batch of images by scaling and converting to float."""
