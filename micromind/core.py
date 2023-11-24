@@ -276,8 +276,8 @@ class MicroMind(ABC):
 
         Returns
         ---------
-           Optimizer and learning rate scheduler
-           (not implemented yet). : Tuple[torch.optim.Adam, None]
+           Optimizer and learning rate scheduler.
+            : Union[Tuple[torch.optim.Adam, None], torch.optim.Adam]
 
         """
         assert self.hparams.opt in [
@@ -536,7 +536,20 @@ class MicroMind(ABC):
 
     @torch.no_grad()
     def test(self, datasets: Dict = {}, metrics: List[Metric] = []) -> None:
-        """Runs the test steps."""
+        """Runs the test steps.
+
+        Arguments
+        ---------
+        datasets : Dict
+            Dictionary with the test DataLoader. Should be present in the key
+            `test`.
+        metrics : List[Metric]
+            List of metrics to compute during test step.
+
+        Returns
+        -------
+        Metrics computed on test set. : Dict[torch.Tensor]
+        """
         assert "test" in datasets, "Test dataloader was not specified."
         self.modules.eval()
 
@@ -574,4 +587,4 @@ class MicroMind(ABC):
 
         logger.info(s_out)
 
-        return None
+        return test_metrics

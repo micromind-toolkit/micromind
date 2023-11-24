@@ -14,19 +14,37 @@ import torch
 import torch.nn as nn
 
 from .utils.helpers import get_logger
+import micromind as mm
 
 logger = get_logger()
 
 
 @torch.no_grad()
 def convert_to_onnx(
-    net: nn.Module,
+    net: Union[nn.Module, mm.MicroMind],
     save_path: Union[Path, str] = "model.onnx",
     simplify: bool = False,
     replace_forward: bool = False,
 ):
     """Converts nn.Module to onnx and saves it to save_path.
-    Optionally simplifies it."""
+    Optionally simplifies it. This function is internally used from `mm.MicroMind`.
+
+    Arguments
+    ---------
+    net : Union[nn.Module, mm.MicroMind]
+        PyTorch module to be exported.
+    save_path : Union[Path, str]
+        Output path for the ONNX model.
+    simplify : bool
+        `True` if you want to simplify the model. Defaults to False.
+    replace_forward : bool
+        Used if you want to replace the forward method. It is need if you are calling
+        this function on a `mm.MicroMind`. Defaults to False.
+
+    Returns
+    -------
+    The path of the ONNX model. : Path
+    """
     save_path = Path(save_path)
     os.makedirs(save_path.parent, exist_ok=True)
     x = torch.zeros([1] + list(net.input_shape))
@@ -65,9 +83,26 @@ def convert_to_onnx(
 
 @torch.no_grad()
 def convert_to_openvino(
-    net: nn.Module, save_path: Path, replace_forward: bool = False
+    net: Union[nn.Module, mm.MicroMind], save_path: Path, replace_forward: bool = False
 ) -> str:
-    """Converts nn.Module to OpenVINO."""
+    """Converts model to OpenVINO. Uses ONNX in the process and converts networks
+    from channel-first to channel-last (for optimized inference).
+
+    Arguments
+    ---------
+    net : nn.Module
+        PyTorch module to be exported.
+    save_path : Union[Path, str]
+        Output path for the OpenVINO model.
+    replace_forward : bool
+        Used if you want to replace the forward method. It is need if you are calling
+        this function on a `mm.MicroMind`. Defaults to False.
+
+    Returns
+    -------
+    The path of the XML model. : str
+
+    """
     try:
         import os
 
@@ -125,12 +160,27 @@ def convert_to_openvino(
 
 @torch.no_grad()
 def convert_to_tflite(
-    net: nn.Module,
-    save_path: Path,
+    net: Union[nn.Module, mm.MicroMind],
+    save_path: Union[Path, str],
     batch_quant: torch.Tensor = None,
     replace_forward: bool = False,
 ) -> None:
-    """Converts nn.Module to tf_lite, optionally quantizes it."""
+    """Converts nn.Module to tf_lite, optionally quantizes it.
+
+    Arguments
+    ---------
+    net : nn.Module
+        PyTorch module to be exported.
+    save_path : Union[Path, str]
+        Output path for the OpenVINO model.
+    batch_quant : torch.Tensor
+        Optional batch for quantization. When passed, it is used to create the
+        statistics of the quantized activations.
+    replace_forward : bool
+        Used if you want to replace the forward method. It is need if you are calling
+        this function on a `mm.MicroMind`. Defaults to False.
+
+    """
     try:
         import os
 
