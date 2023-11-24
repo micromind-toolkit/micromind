@@ -15,6 +15,7 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 import torch
 from accelerate import Accelerator
 from tqdm import tqdm
+import warnings
 
 from .utils.helpers import get_logger
 
@@ -321,6 +322,13 @@ class MicroMind(ABC):
             if ckpt is not None:
                 accelerate_path, self.start_epoch = ckpt
                 self.accelerator.load_state(accelerate_path)
+        else:
+            tmp = """
+                You are not passing a checkpointer to the training function, \
+                thus no status will be saved. If this is not the intended behaviour \
+                please check https://micromind-toolkit.github.io/docs/").
+            """
+            warnings.warn(" ".join(tmp.split()))
 
     def init_devices(self):
         """Initializes the data pipeline and modules for DDP and accelerated inference.
