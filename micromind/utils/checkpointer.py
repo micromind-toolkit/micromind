@@ -88,6 +88,9 @@ class Checkpointer:
         self.save_dir = os.path.join(self.root_dir, "save")
         self.last_dir = "default"
 
+        # if true, does not write on disk
+        self.debug = False
+
     def recover_state(self):
         """Recovers last corrected state of the training. If found, returns
         the accelerate dump folder (for recovery) and the last epoch logged.
@@ -185,15 +188,21 @@ class Checkpointer:
             + "; "
         )
         s_out += " - ".join([f"{k2}: {v2:.4f}" for k2, v2 in metrics.items()]) + ".\n"
-        self.fstream.write(s_out)
+        if not self.debug:
+            self.fstream.write(s_out)
         logger.info(s_out)
 
-        mind.accelerator.save_state(os.path.join(current_folder, "accelerate_dump"))
-        self.dump_modules(mind.modules, current_folder)
-        self.dump_status(status_dict, current_folder)
+        if not self.debug:
+            mind.accelerator.save_state(os.path.join(current_folder, "accelerate_dump"))
+            self.dump_modules(mind.modules, current_folder)
+            self.dump_status(status_dict, current_folder)
 
         # remove previous last dir after saving the current version
-        if os.path.exists(self.last_dir) and self.last_dir != self.check_paths:
+        if (
+            os.path.exists(self.last_dir)
+            and self.last_dir != self.check_paths
+            and not self.debug
+        ):
             shutil.rmtree(self.last_dir)
 
         self.last_dir = current_folder
@@ -203,11 +212,12 @@ class Checkpointer:
             if metrics[self.key] <= self.bests:
                 to_remove = self.check_paths
 
-                mind.accelerator.save_state(
-                    os.path.join(current_folder, "accelerate_dump")
-                )
-                self.dump_modules(mind.modules, current_folder)
-                self.dump_status(status_dict, current_folder)
+                if not self.debug:
+                    mind.accelerator.save_state(
+                        os.path.join(current_folder, "accelerate_dump")
+                    )
+                    self.dump_modules(mind.modules, current_folder)
+                    self.dump_status(status_dict, current_folder)
 
                 self.bests = metrics[self.key]
                 self.check_paths = current_folder
@@ -219,11 +229,12 @@ class Checkpointer:
             if metrics[self.key] >= self.bests:
                 to_remove = self.check_paths
 
-                mind.accelerator.save_state(
-                    os.path.join(current_folder, "accelerate_dump")
-                )
-                self.dump_modules(mind.modules, current_folder)
-                self.dump_status(status_dict, current_folder)
+                if not self.debug:
+                    mind.accelerator.save_state(
+                        os.path.join(current_folder, "accelerate_dump")
+                    )
+                    self.dump_modules(mind.modules, current_folder)
+                    self.dump_status(status_dict, current_folder)
 
                 self.bests = metrics[self.key]
                 self.check_paths = current_folder
@@ -231,7 +242,7 @@ class Checkpointer:
                     f"Generated better checkpoint at epoch {mind.current_epoch}."
                 )
 
-        if to_remove is not None and to_remove != "":
+        if to_remove is not None and to_remove != "" and not self.debug:
             logger.info(f"Deleting {to_remove}.")
             if os.path.exists(to_remove):
                 shutil.rmtree(to_remove)

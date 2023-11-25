@@ -5,7 +5,6 @@ multi-gpu and FP16 training with HF Accelerate and much more.
 Authors:
     - Francesco Paissan, 2023
 """
-import shutil
 from abc import ABC, abstractmethod
 from argparse import Namespace
 from dataclasses import dataclass
@@ -307,6 +306,9 @@ class MicroMind(ABC):
         This function gets executed at the beginning of every training.
         """
 
+        # pass debug status to checkpointer
+        self.checkpointer.debug = self.hparams.debug
+
         init_opt = self.configure_optimizers()
         if isinstance(init_opt, list) or isinstance(init_opt, tuple):
             self.opt, self.lr_sched = init_opt
@@ -365,9 +367,7 @@ class MicroMind(ABC):
 
     def on_train_end(self):
         """Runs at the end of each training. Cleans up before exiting."""
-        if self.hparams.debug:
-            logger.info(f"Removed temporary folder {self.experiment_folder}.")
-            shutil.rmtree(self.experiment_folder)
+        pass
 
     def eval(self):
         self.modules.eval()
