@@ -100,8 +100,7 @@ class YOLO(mm.MicroMind):
             out_neck[1].shape[1],
             out_neck[2].shape[1],
         )
-        head = DetectionHead(filters=head_filters)
-        out_head = head(out_neck)
+        # head = DetectionHead(filters=head_filters)
 
         return (c1, c2), neck_filters, up, head_filters
 
