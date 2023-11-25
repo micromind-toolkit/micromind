@@ -39,15 +39,7 @@ copy_paste: 1.0  # (float) segment copy-paste (probability)
 
 # # DATASET --------------------------------------------------------------------------------------------------------------
 
-# Ultralytics YOLO 🚀, AGPL-3.0 license
-# COCO8 dataset (first 8 images from COCO train2017) by Ultralytics
-# Example usage: yolo train data=coco8.yaml
-# parent
-# ├── ultralytics
-# └── datasets
-#     └── coco8  ← downloads here (1 MB)
-
-path: datasets/coco  # dataset root dir
+path: /home/e3da/data/coco  # dataset root dir
 train: train2017.txt  # train images (relative to 'path') 118287 images
 val: val2017.txt  # val images (relative to 'path') 5000 images
 test: test-dev2017.txt  # 20288 of 40670 images, submit to https://competitions.codalab.org/competitions/20794
@@ -143,7 +135,7 @@ download: |
 
   # Download labels
   segments = True  # segment or box labels
-  dir = Path(yaml['path'])  # dataset root dir
+  dir = Path(data_cfg['path'])  # dataset root dir
   url = 'https://github.com/ultralytics/yolov5/releases/download/v1.0/'
   urls = [url + ('coco2017labels-segments.zip' if segments else 'coco2017labels.zip')]  # labels
   download(urls, dir=dir.parent)

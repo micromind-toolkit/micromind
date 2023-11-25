@@ -1,4 +1,5 @@
 from typing import Dict
+import os
 
 from torch.utils.data import DataLoader
 from ultralytics.data import build_yolo_dataset
@@ -18,10 +19,14 @@ def create_loaders(m_cfg: Dict, data_cfg: Dict, batch_size: int):
         Batch size for the training process.
 
     """
+    if "download" in data_cfg and not os.path.exists(data_cfg["path"]):
+        # download data if it's not there
+        exec(data_cfg["download"])
+
     mode = "train"
     train_set = build_yolo_dataset(
         m_cfg,
-        "datasets/coco8/images/train",
+        data_cfg["train"],
         batch_size,
         data_cfg,
         mode=mode,
@@ -39,7 +44,7 @@ def create_loaders(m_cfg: Dict, data_cfg: Dict, batch_size: int):
     mode = "val"
     val_set = build_yolo_dataset(
         m_cfg,
-        "datasets/coco8/images/val",
+        data_cfg["val"],
         batch_size,
         data_cfg,
         mode=mode,

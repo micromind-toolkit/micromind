@@ -15,6 +15,8 @@ import torch
 from prepare_data import create_loaders
 from torchinfo import summary
 from ultralytics.utils.ops import scale_boxes, xywh2xyxy
+from huggingface_hub import hf_hub_download
+
 from yolo_loss import Loss
 
 import micromind as mm
@@ -26,17 +28,26 @@ from micromind.utils.yolo import (
     mean_average_precision,
     postprocess,
 )
+import sys
 
 
 class YOLO(mm.MicroMind):
     def __init__(self, m_cfg, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        REPO_ID = "micromind/ImageNet"
+        FILENAME = "v5/state_dict.pth.tar"
+        
+        model_path = hf_hub_download(repo_id=REPO_ID, filename=FILENAME)
+        args = Path(FILENAME).parent.joinpath("args.yaml")
+        with open(args, "r") as f:
+            dat = yaml.safe_load(f)
+
         input_shape = (3, 672, 672)
-        alpha = 3
-        num_layers = 7
-        beta = 1
-        t_zero = 6
+        alpha = dat["alpha"]
+        num_layers = dat["num_layers"]
+        beta = dat["beta"]
+        t_zero = dat["t_zero"]
         divisor = 8
         downsampling_layers = [4, 5, 7]
         return_layers = [5, 6, 7]
@@ -53,6 +64,9 @@ class YOLO(mm.MicroMind):
             downsampling_layers=downsampling_layers,
             return_layers=return_layers,
         )
+
+        # load ImageNet checkpoint
+        self.modules["phinet"].load_state_dict(torch.load(model_path), strict=False)
 
         sppf_ch, neck_filters, up, head_filters = self.get_parameters()
 
@@ -137,7 +151,7 @@ class YOLO(mm.MicroMind):
         return lossi_sum
 
     def configure_optimizers(self):
-        opt = torch.optim.Adam(self.modules.parameters(), lr=1e-3)
+        opt = torch.optim.Adam(self.modules.parameters(), lr=1e-2, beta1=0.937, weight_decay=0.0005)
         sched = torch.optim.lr_scheduler.ReduceLROnPlateau(
             opt,
             "min",
@@ -180,7 +194,9 @@ if __name__ == "__main__":
     batch_size = 8
     hparams = parse_arguments()
 
-    m_cfg, data_cfg = load_config("cfg/coco8.yaml")
+    dset = input("Enter dataset configuration file path [Press Enter for COCO]: ")
+    if dset == '': dset = "cfg/coco.yaml"
+    m_cfg, data_cfg = load_config(dset)
     train_loader, val_loader = create_loaders(m_cfg, data_cfg, batch_size)
 
     exp_folder = mm.utils.checkpointer.create_experiment_folder(
