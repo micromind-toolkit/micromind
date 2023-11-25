@@ -1,3 +1,16 @@
+"""
+YOLO training.
+
+Authors:
+    - Matteo Beltrami, 2023
+    - Francesco Paissan, 2023
+
+This code allows you to train an object detection model with the YOLOv8 neck and loss.
+
+To run this script, you can start it with:
+    python train.py
+"""
+
 import torch
 from prepare_data import create_loaders
 from torchinfo import summary
