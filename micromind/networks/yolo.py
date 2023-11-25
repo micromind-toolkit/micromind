@@ -349,7 +349,7 @@ class Darknet(nn.Module):
 class Yolov8Neck(nn.Module):
     """Implements YOLOv8's neck"""
 
-    def __init__(self, filters=[256, 512, 768], d=1):
+    def __init__(self, filters=[256, 512, 768], up=[2, 2], d=1):
         """Defines the structure of a YOLOv8 neck.
 
         Arguments
@@ -362,7 +362,8 @@ class Yolov8Neck(nn.Module):
             Depth multiple of the Darknet.
         """
         super().__init__()
-        self.up = Upsample(2, mode="nearest")
+        self.up1 = Upsample(up[0], mode="nearest")
+        self.up2 = Upsample(up[1], mode="nearest")
         self.n1 = C2f(
             c1=int(filters[1] + filters[2]),
             c2=int(filters[1]),
@@ -406,10 +407,10 @@ class Yolov8Neck(nn.Module):
         -------
             Three intermediate representations with different resolutions : list
         """
-        x = self.up(p5)
+        x = self.up1(p5)
         x = torch.cat((x, p4), dim=1)
         x = self.n1(x)
-        h1 = self.up(x)
+        h1 = self.up2(x)
         h1 = torch.cat((h1, p3), dim=1)
         head_1 = self.n2(h1)
         h2 = self.n3(head_1)
