@@ -17,59 +17,20 @@ import time
 from pathlib import Path
 
 import torch
-import torch.nn as nn
 import torchvision
 
-from micromind.core import MicroMind
-from micromind.networks.phinet import PhiNet
-from micromind.networks.yolo import SPPF, DetectionHead, Yolov8Neck
 from micromind.utils.yolo import (
     draw_bounding_boxes_and_save,
     postprocess,
     preprocess,
 )
+from train import YOLO
 
 
-class Detect(nn.Module):
-    def __init__(self, back, sppf, neck, head):
-        super().__init__()
-        self.backbone = back
-        self.sppf = sppf
-        self.neck = neck
-        self.head = head
+class Inference(YOLO):
+    def __init__(self):
+        super().__init__(m_cfg={})
 
-    def forward(self, x):
-        backbone = self.backbone(x)[1]
-        backbone[-1] = self.sppf(backbone[-1])
-        neck = self.neck(*backbone)
-        head = self.head(neck)
-        return head
-
-
-class ObjectDetectionInference(MicroMind):
-    """Implements an object detectin network through MicroMind"""
-
-    def __init__(self, backbone, sppf, neck, head):
-        """Defines the structure of the network.
-
-        Arguments
-        ---------
-        backbone : nn.Module
-            Backbone of the network.
-        sppf : nn.Module
-            SPPF block of the network.
-        neck : nn.Module
-            Neck of the network.
-        head : nn.Module
-            Detection head of the network.
-        """
-        super().__init__()
-        self.modules["backbone"] = backbone
-        self.modules["sppf"] = sppf
-        self.modules["neck"] = neck
-        self.modules["head"] = head
-
-    @torch.no_grad()
     def forward(self, x):
         """Executes the detection network.
 
@@ -82,16 +43,11 @@ class ObjectDetectionInference(MicroMind):
         -------
             Output of the detection network : torch.Tensor
         """
-        backbone = self.modules["backbone"](x)[1]
+        backbone = self.modules["phinet"](x)[1]
         backbone[-1] = self.modules["sppf"](backbone[-1])
         neck = self.modules["neck"](*backbone)
         head = self.modules["head"](neck)
         return head
-
-    def compute_loss(self):
-        """Since we only want to get the output of the network,
-        we are not interested in calculating the loss."""
-        pass
 
 
 if __name__ == "__main__":
@@ -114,32 +70,10 @@ if __name__ == "__main__":
             sys.exit(1)
 
         pre_processed_image = preprocess(image)
-        dict_ = torch.load(weights_file)
 
-        phinet = PhiNet(
-            input_shape=(3, 672, 672),
-            alpha=3,
-            num_layers=7,
-            beta=1,
-            t_zero=6,
-            include_top=False,
-            compatibility=False,
-            divisor=8,
-            downsampling_layers=[4, 5, 7],
-            return_layers=[5, 6, 7],
-        )
-        sppf = SPPF(576, 576)
-        neck = Yolov8Neck([144, 288, 576])
-        head = DetectionHead(80, filters=(144, 288, 576))
-
-        phinet.load_state_dict(dict_["phinet"], strict=True)
-        sppf.load_state_dict(dict_["sppf"], strict=True)
-        neck.load_state_dict(dict_["neck"], strict=True)
-        head.load_state_dict(dict_["head"], strict=True)
-        print(f"Imported checkpoint {weights_file}")
-
-        model = ObjectDetectionInference(phinet, sppf, neck, head)
+        model = Inference()
         model.eval()
+        model.load_modules(weights_file)
 
         st = time.time()
 

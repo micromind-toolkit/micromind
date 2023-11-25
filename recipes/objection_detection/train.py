@@ -16,7 +16,8 @@ from prepare_data import create_loaders
 from torchinfo import summary
 from ultralytics.utils.ops import scale_boxes, xywh2xyxy
 from huggingface_hub import hf_hub_download
-
+from pathlib import Path
+import yaml
 from yolo_loss import Loss
 
 import micromind as mm
@@ -28,7 +29,6 @@ from micromind.utils.yolo import (
     mean_average_precision,
     postprocess,
 )
-import sys
 
 
 class YOLO(mm.MicroMind):
@@ -37,10 +37,11 @@ class YOLO(mm.MicroMind):
 
         REPO_ID = "micromind/ImageNet"
         FILENAME = "v5/state_dict.pth.tar"
-        
+
         model_path = hf_hub_download(repo_id=REPO_ID, filename=FILENAME)
         args = Path(FILENAME).parent.joinpath("args.yaml")
-        with open(args, "r") as f:
+        args_path = hf_hub_download(repo_id=REPO_ID, filename=str(args))
+        with open(args_path, "r") as f:
             dat = yaml.safe_load(f)
 
         input_shape = (3, 672, 672)
@@ -102,7 +103,8 @@ class YOLO(mm.MicroMind):
         up[1] = y[1][0].shape[2] / (up[0] * out_sppf.shape[2])
         temp = """The layers you selected are not valid. \
             Please choose only layers between which the spatial resolution \
-            doubles every time. You can try changing the downsampling layers"""
+            doubles every time. Eventually, you can achieve this by \
+            changing the downsampling layers."""
 
         assert up == [2, 2], " ".join(temp.split())
 
@@ -151,7 +153,7 @@ class YOLO(mm.MicroMind):
         return lossi_sum
 
     def configure_optimizers(self):
-        opt = torch.optim.Adam(self.modules.parameters(), lr=1e-2, beta1=0.937, weight_decay=0.0005)
+        opt = torch.optim.Adam(self.modules.parameters(), lr=1e-2, weight_decay=0.0005)
         sched = torch.optim.lr_scheduler.ReduceLROnPlateau(
             opt,
             "min",
@@ -194,8 +196,9 @@ if __name__ == "__main__":
     batch_size = 8
     hparams = parse_arguments()
 
-    dset = input("Enter dataset configuration file path [Press Enter for COCO]: ")
-    if dset == '': dset = "cfg/coco.yaml"
+    # dset = input("Enter dataset configuration file path [Press Enter for COCO]: ")
+    # if dset == '': dset = "cfg/coco.yaml"
+    dset = "cfg/coco8.yaml"
     m_cfg, data_cfg = load_config(dset)
     train_loader, val_loader = create_loaders(m_cfg, data_cfg, batch_size)
 
@@ -207,10 +210,10 @@ if __name__ == "__main__":
 
     yolo_mind = YOLO(m_cfg, hparams=hparams)
 
-    mAP = mm.Metric("mAP", yolo_mind.mAP, eval_only=True, eval_period=1)
+    mAP = mm.Metric("mAP", yolo_mind.mAP, eval_only=False, eval_period=1)
 
     yolo_mind.train(
-        epochs=20,
+        epochs=200,
         datasets={"train": train_loader, "val": val_loader},
         metrics=[mAP],
         checkpointer=checkpointer,

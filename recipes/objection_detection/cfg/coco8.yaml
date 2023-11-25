@@ -30,10 +30,10 @@ translate: 0.  # (float) image translation (+/- fraction)
 scale: 0.  # (float) image scale (+/- gain)
 shear: 0.0  # (float) image shear (+/- deg)
 perspective: 0.0  # (float) image perspective (+/- fraction), range 0-0.001
-flipud: 1.0  # (float) image flip up-down (probability)
-fliplr: 1.0  # (float) image flip left-right (probability)
-mosaic: 1.0  # (float) image mosaic (probability)
-mixup: 1.0  # (float) image mixup (probability)
+flipud: 0.5  # (float) image flip up-down (probability)
+fliplr: 0.5 # (float) image flip left-right (probability)
+mosaic: 0.7  # (float) image mosaic (probability)
+mixup: 0.7  # (float) image mixup (probability)
 copy_paste: 1.0  # (float) segment copy-paste (probability)
 
 
@@ -49,7 +49,7 @@ copy_paste: 1.0  # (float) segment copy-paste (probability)
 
 
 # Train/val/test sets as 1) dir: path/to/imgs, 2) file: path/to/imgs.txt, or 3) list: [path/to/imgs1, path/to/imgs2, ..]
-path: /home/e3da/data/coco8  # dataset root dir
+path: /mnt/data/coco8  # dataset root dir
 train: images/train  # train images (relative to 'path') 4 images
 val: images/val  # val images (relative to 'path') 4 images
 test:  # test images (optional)
