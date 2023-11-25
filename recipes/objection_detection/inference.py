@@ -72,8 +72,9 @@ if __name__ == "__main__":
         pre_processed_image = preprocess(image)
 
         model = Inference()
-        model.eval()
         model.load_modules(weights_file)
+        print(f"Pretrained model loaded from {weights_file}.")
+        model.eval()
 
         st = time.time()
 
