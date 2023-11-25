@@ -5,15 +5,16 @@ Authors:
     - Matteo Beltrami, 2023
     - Francesco Paissan, 2023
 """
-import types
-from pathlib import Path
-import yaml
-import cv2
-from collections import defaultdict
 import time
+import types
+from collections import defaultdict
+from pathlib import Path
+
+import cv2
 import numpy as np
 import torch
 import torchvision
+import yaml
 
 
 def get_variant_multiples(variant):
@@ -420,8 +421,6 @@ def non_max_suppression(
         prediction, (list, tuple)
     ):  # YOLOv8 model in validation model, output = (inference_out, loss_out)
         prediction = prediction[0]  # select only inference output
-
-    device = prediction.device
 
     bs = prediction.shape[0]  # batch size
     nc = nc or (prediction.shape[1] - 4)  # number of classes

@@ -5,26 +5,28 @@ Authors:
     - Matteo Beltrami, 2023
     - Francesco Paissan, 2023
 
-This code allows you to launch an object detection inference using the yolov8 model.
-To launch this script, pass as arguments the path of the image on which to perform
-the inference and the configuration of the model to use
-(available options are "n", "s", "m", "l", "x").
+This code allows you to launch an object detection inference using a YOLO MicroMind.
+
+To run this script, you should pass the checkpoint with the weights and the path to
+an image, following this example:
+    python inference.py model.ckpt cat.png
 """
 
 import sys
+import time
 from pathlib import Path
+
 import torch
 import torch.nn as nn
-import time
 import torchvision
 
-from micromind.networks.yolov8 import SPPF, Yolov8Neck, DetectionHead
-from micromind.networks.phinet import PhiNet
 from micromind.core import MicroMind
-from micromind.utils.yolo_helpers import (
-    preprocess,
-    postprocess,
+from micromind.networks.phinet import PhiNet
+from micromind.networks.yolo import SPPF, DetectionHead, Yolov8Neck
+from micromind.utils.yolo import (
     draw_bounding_boxes_and_save,
+    postprocess,
+    preprocess,
 )
 
 
@@ -87,31 +89,18 @@ class ObjectDetectionInference(MicroMind):
         return head
 
     def compute_loss(self):
-        """Since we only want to get the output of the network, we are not interested in calculating the loss."""
+        """Since we only want to get the output of the network,
+        we are not interested in calculating the loss."""
         pass
 
 
 if __name__ == "__main__":
     assert len(sys.argv) > 1
-    if len(sys.argv) <= 2:
-        print("Falling back on yolov8l model. Configuration was not passed.")
-        print(
-            "If you want to change configuration, "
-            + "give as argument one valid option between {n, s, m, l, x}."
-        )
-        print(
-            "If you want to get the model weights file, "
-            + "launch load_params.py with the desired configuration."
-        )
-        conf = "l"
-    else:
-        conf = str(sys.argv[2])
 
-    # weights_file = f"yolov8{conf}.pt"
-    weights_file = "./results/exp/save/epoch_16_val_loss_46.9538.ckpt"
+    weights_file = sys.argv[1]
     output_folder_path = Path("./outputs_yolov8")
     output_folder_path.mkdir(parents=True, exist_ok=True)
-    img_paths = [sys.argv[1]]
+    img_paths = [sys.argv[2]]
     for img_path in img_paths:
         image = torchvision.io.read_image(img_path)
         out_paths = [
@@ -150,9 +139,6 @@ if __name__ == "__main__":
         print(f"Imported checkpoint {weights_file}")
 
         model = ObjectDetectionInference(phinet, sppf, neck, head)
-        # model.load_modules(weights_file)
-        # model.modules.eval()
-        # model.modules.float()
         model.eval()
 
         st = time.time()

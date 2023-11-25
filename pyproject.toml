@@ -21,6 +21,8 @@ classifiers = [
 keywords = ["feed", "reader", "tutorial"]
 dependencies = [
     "torch",
+    "torchvision",
+    "torchaudio",
     "torchinfo",
     "huggingface_hub",
     "accelerate==0.23.0",

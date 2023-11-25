@@ -10,10 +10,10 @@ Authors:
 from typing import List
 
 import torch
+import torch.ao.nn.quantized as nnq
 import torch.nn as nn
 import torch.nn.functional as F
 from torchinfo import summary
-import torch.ao.nn.quantized as nnq
 
 
 def _make_divisible(v, divisor=8, min_value=None):
@@ -708,8 +708,9 @@ class PhiNet(nn.Module):
         ret = []
         for i, layers in enumerate(self._layers):
             x = layers(x)
-            if i in self.return_layers:
-                ret.append(x)
+            if self.return_layers is not None:
+                if i in self.return_layers:
+                    ret.append(x)
 
         if self.classify:
             x = self.classifier(x)

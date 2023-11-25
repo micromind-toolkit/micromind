@@ -8,8 +8,8 @@ import torch
 
 
 def test_onnx():
-    from micromind.networks import PhiNet
     from micromind.convert import convert_to_onnx
+    from micromind.networks import PhiNet
 
     save_path = "temp.onnx"
 
@@ -29,8 +29,8 @@ def test_onnx():
 
 
 def test_openvino():
-    from micromind.networks import PhiNet
     from micromind.convert import convert_to_openvino
+    from micromind.networks import PhiNet
 
     save_dir = "vino"
 
@@ -45,8 +45,8 @@ def test_openvino():
 
 
 def test_tflite():
-    from micromind.networks import PhiNet
     from micromind.convert import convert_to_tflite
+    from micromind.networks import PhiNet
 
     save_path = "tflite"
 
