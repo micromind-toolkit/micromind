@@ -130,8 +130,10 @@ class Checkpointer:
                 return accelerate_path, epoch
             except Exception as e:
                 logger.info(
-                    f"Tried to recover checkpoint {oldest_name}, \
-                    but it appears corrupted."
+                    " ".join(
+                        f"Tried to recover checkpoint {oldest_name}, \
+                    but it appears corrupted.".split()
+                    )
                 )
                 logger.debug(str(e))
         return

@@ -6,9 +6,9 @@ from yolo_loss import Loss
 
 import micromind as mm
 from micromind.networks import PhiNet
-from micromind.networks.yolov8 import SPPF, DetectionHead, Yolov8Neck
+from micromind.networks.yolo import SPPF, DetectionHead, Yolov8Neck
 from micromind.utils.parse import parse_arguments
-from micromind.utils.yolo_helpers import (
+from micromind.utils.yolo import (
     load_config,
     mean_average_precision,
     postprocess,
