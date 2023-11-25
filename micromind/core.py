@@ -489,7 +489,8 @@ class MicroMind(ABC):
                         {"val_loss": loss_epoch / (idx + 1)}
                     )
 
-                self.lr_sched.step(val_metrics["val_loss"])
+                if hasattr(self, "lr_sched"):
+                    self.lr_sched.step(val_metrics["val_loss"])
 
                 if e >= 1 and self.debug:
                     break
