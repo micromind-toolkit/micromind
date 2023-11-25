@@ -1,7 +1,7 @@
 from typing import Dict
 import os
 
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, ConcatDataset
 from ultralytics.data import build_yolo_dataset
 
 
@@ -24,6 +24,20 @@ def create_loaders(m_cfg: Dict, data_cfg: Dict, batch_size: int):
         exec(data_cfg["download"])
 
     mode = "train"
+    if isinstance(data_cfg["train"], list):
+        train_set = []
+        for p in data_cfg["train"]:
+            train_set.append(
+                build_yolo_dataset(
+                    m_cfg,
+                    p,
+                    batch_size,
+                    data_cfg,
+                    mode=mode,
+                    rect=mode == "val",
+                )
+            )
+        train_set = ConcatDataset(train_set)
     train_set = build_yolo_dataset(
         m_cfg,
         data_cfg["train"],
@@ -38,6 +52,8 @@ def create_loaders(m_cfg: Dict, data_cfg: Dict, batch_size: int):
         batch_size,
         shuffle=True,
         num_workers=16,
+        persistent_workers=True,
+        pin_memory=True,
         collate_fn=getattr(train_set, "collate_fn", None),
     )
 
@@ -56,6 +72,8 @@ def create_loaders(m_cfg: Dict, data_cfg: Dict, batch_size: int):
         batch_size,
         shuffle=False,
         num_workers=16,
+        persistent_workers=True,
+        pin_memory=True,
         collate_fn=getattr(val_set, "collate_fn", None),
     )
 

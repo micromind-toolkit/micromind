@@ -48,8 +48,22 @@ def load_config(file_path):
     with open(file_path, "r") as file:
         config = yaml.safe_load(file)
         path = Path(Path.cwd() / config["path"]).resolve()
-        train = Path(path / config["train"]) if "train" in config else None
-        val = Path(path / config["val"]) if "val" in config else None
+        if "train" in config:
+            if not isinstance(config["train"], list):
+                train = Path(path / config["train"])
+            else:
+                train = [Path(path / p) for p in config["train"]]
+        else:
+            train = None
+
+        if "val" in config:
+            if not isinstance(config["val"], list):
+                val = Path(path / config["val"])
+            else:
+                val = [Path(path / p) for p in config["val"]]
+        else:
+            val = None
+        # val = Path(path / config["val"]) if "val" in config else None
         if ("test" not in config) or (config["test"] is None):
             test = None
         else:
@@ -57,8 +71,8 @@ def load_config(file_path):
 
         data_cfg = {
             "path": path,
-            "train": train.as_posix(),
-            "val": val.as_posix(),
+            "train": train,
+            "val": val,
             "test": test,
             "names": config["names"],
             "download": config.get("download"),

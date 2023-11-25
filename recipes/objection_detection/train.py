@@ -193,12 +193,12 @@ class YOLO(mm.MicroMind):
 
 
 if __name__ == "__main__":
-    batch_size = 8
+    batch_size = 16
     hparams = parse_arguments()
 
     # dset = input("Enter dataset configuration file path [Press Enter for COCO]: ")
     # if dset == '': dset = "cfg/coco.yaml"
-    dset = "cfg/coco8.yaml"
+    dset = "cfg/coco.yaml"
     m_cfg, data_cfg = load_config(dset)
     train_loader, val_loader = create_loaders(m_cfg, data_cfg, batch_size)
 
@@ -210,7 +210,7 @@ if __name__ == "__main__":
 
     yolo_mind = YOLO(m_cfg, hparams=hparams)
 
-    mAP = mm.Metric("mAP", yolo_mind.mAP, eval_only=False, eval_period=1)
+    mAP = mm.Metric("mAP", yolo_mind.mAP, eval_only=True, eval_period=1)
 
     yolo_mind.train(
         epochs=200,

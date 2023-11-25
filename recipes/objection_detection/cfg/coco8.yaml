@@ -30,10 +30,10 @@ translate: 0.  # (float) image translation (+/- fraction)
 scale: 0.  # (float) image scale (+/- gain)
 shear: 0.0  # (float) image shear (+/- deg)
 perspective: 0.0  # (float) image perspective (+/- fraction), range 0-0.001
-flipud: 0.5  # (float) image flip up-down (probability)
-fliplr: 0.5 # (float) image flip left-right (probability)
-mosaic: 0.7  # (float) image mosaic (probability)
-mixup: 0.7  # (float) image mixup (probability)
+flipud: 1.0  # (float) image flip up-down (probability)
+fliplr: 1.0  # (float) image flip left-right (probability)
+mosaic: 1.0  # (float) image mosaic (probability)
+mixup: 1.0  # (float) image mixup (probability)
 copy_paste: 1.0  # (float) segment copy-paste (probability)
 
 
