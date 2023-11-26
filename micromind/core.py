@@ -441,6 +441,9 @@ class MicroMind(ABC):
 
                     self.accelerator.backward(loss)
                     self.opt.step()
+                    if hasattr(self, "lr_sched"):
+                        # ok for cos_lr
+                        self.lr_sched.step()
 
                     for m in self.metrics:
                         if (
@@ -488,9 +491,6 @@ class MicroMind(ABC):
                     val_metrics = train_metrics.update(
                         {"val_loss": loss_epoch / (idx + 1)}
                     )
-
-                if hasattr(self, "lr_sched"):
-                    self.lr_sched.step(val_metrics["val_loss"])
 
                 if e >= 1 and self.debug:
                     break

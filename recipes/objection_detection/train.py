@@ -36,7 +36,7 @@ class YOLO(mm.MicroMind):
         super().__init__(*args, **kwargs)
 
         REPO_ID = "micromind/ImageNet"
-        FILENAME = "v5/state_dict.pth.tar"
+        FILENAME = "v1/state_dict.pth.tar"
 
         model_path = hf_hub_download(repo_id=REPO_ID, filename=FILENAME)
         args = Path(FILENAME).parent.joinpath("args.yaml")
@@ -50,8 +50,8 @@ class YOLO(mm.MicroMind):
         beta = dat["beta"]
         t_zero = dat["t_zero"]
         divisor = 8
-        downsampling_layers = [4, 5, 7]
-        return_layers = [5, 6, 7]
+        downsampling_layers = [5, 7]
+        return_layers = [4, 6, 7]
 
         self.modules["phinet"] = PhiNet(
             input_shape=input_shape,
@@ -154,14 +154,17 @@ class YOLO(mm.MicroMind):
 
     def configure_optimizers(self):
         opt = torch.optim.Adam(self.modules.parameters(), lr=1e-2, weight_decay=0.0005)
-        sched = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            opt,
-            "min",
-            factor=0.2,
-            patience=50,
-            threshold=10,
-            min_lr=0,
-            verbose=True,
+        # sched = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        # opt,
+        # "min",
+        # factor=0.2,
+        # patience=2,
+        # threshold=5,
+        # min_lr=1e-5,
+        # verbose=True,
+        # )
+        sched = torch.optim.lr_scheduler.CosineAnnealingLR(
+            opt, T_max=5000, eta_min=1e-7
         )
         return opt, sched
 
@@ -193,7 +196,7 @@ class YOLO(mm.MicroMind):
 
 
 if __name__ == "__main__":
-    batch_size = 16
+    batch_size = 8
     hparams = parse_arguments()
 
     # dset = input("Enter dataset configuration file path [Press Enter for COCO]: ")
