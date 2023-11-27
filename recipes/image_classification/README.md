@@ -12,12 +12,12 @@ To reproduce our results, you can follow these steps:
 
 The experiment's configuration is stored inside the files in the `cfg` folder. They can be overridden simply from the command line by providing a new value. For example, if you want to start a training on CIFAR-10, you just need to execute the following command:
 ```
-python train cfg/phinet.py
+python train.py cfg/phinet.py
 ```
 
 For CIFAR-100 instead, you can use:
 ```
-python train cfg/phinet.py --dataset torch/cifar100 --data_dir data/cifar100
+python train.py cfg/phinet.py --dataset torch/cifar100 --data_dir data/cifar100
 ```
 
 The script will also save an ONNX model at the end of the training. To export the checkpoint in a different format, please read [our documentation](micromind-toolkit.github.io/docs/).
