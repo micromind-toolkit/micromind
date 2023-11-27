@@ -99,11 +99,11 @@ class ImageClassification(mm.MicroMind):
         return self.criterion(pred[0], pred[1])
 
     def configure_optimizers(self):
-        opt = torch.optim.Adam(self.modules.parameters(), lr=1e-2, weight_decay=0.0005)
-        sched = torch.optim.lr_scheduler.CosineAnnealingLR(
-            opt, T_max=5000, eta_min=1e-7
-        )
-        return opt, sched
+        opt = torch.optim.Adam(self.modules.parameters(), lr=3e-4, weight_decay=0.0005)
+        # sched = torch.optim.lr_scheduler.CosineAnnealingLR(
+            # opt, T_max=5000, eta_min=1e-7
+        # )
+        return opt
 
 
 def top_k_accuracy( k=1):
@@ -121,9 +121,13 @@ def top_k_accuracy( k=1):
             Top-K accuracy.
     """
     def acc(pred, batch):
+        if pred[1].ndim == 2:
+            target = pred[1].argmax(1)
+        else:
+            target = pred[1]
         _, indices = torch.topk(pred[0], k, dim=1)
-        correct = torch.sum(indices == pred[1].view(-1, 1))
-        accuracy = correct.item() / pred[1].size(0)
+        correct = torch.sum(indices == target.view(-1, 1))
+        accuracy = correct.item() / target.size(0)
         
         return torch.Tensor([accuracy]).to(pred[0].device)
 
@@ -144,13 +148,13 @@ if __name__ == "__main__":
 
     mind = ImageClassification(hparams=hparams)
 
-    top1 = mm.Metric("top1_acc", top_k_accuracy(k=1))
-    top5 = mm.Metric("top5_acc", top_k_accuracy(k=5))
+    top1 = mm.Metric("top1_acc", top_k_accuracy(k=1), eval_only=True)
+    top5 = mm.Metric("top5_acc", top_k_accuracy(k=5), eval_only=True)
 
     mind.train(
         epochs=100,
         datasets={"train": train_loader, "val": val_loader},
-        metrics=[top1, top5],
+        metrics=[top5, top1],
         checkpointer=checkpointer,
         debug=hparams.debug,
     )
