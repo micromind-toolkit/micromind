@@ -108,4 +108,3 @@ if __name__ == "__main__":
 
     print("Saving exported model to model.onnx...")
     mind.export("model.onnx", "onnx", (3, 32, 32))
-
