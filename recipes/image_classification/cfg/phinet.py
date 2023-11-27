@@ -15,6 +15,8 @@ divisor = 8
 downsampling_layers = [5, 7]
 return_layers = None
 
+ckpt_pretrained = ""
+
 # Basic training loop
 epochs = 50
 
@@ -75,7 +77,7 @@ mixup_off_epoch = 0
 mixup_prob = 1.0
 mixup_switch_prob = 0.5
 no_aug = False
-num_classes = 1000
+num_classes = 100
 ratio = [0.75, 1.3333333333333333]
 recount = 1
 recovery_interval = 0

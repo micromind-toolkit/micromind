@@ -33,8 +33,8 @@ class ImageClassification(mm.MicroMind):
     """Implements an image classification class. Provides support
     for timm augmentation and loss functions."""
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, hparams, *args, **kwargs):
+        super().__init__(hparams, *args, **kwargs)
 
         self.modules["classifier"] = PhiNet(
             input_shape=hparams.input_shape,
@@ -192,5 +192,3 @@ if __name__ == "__main__":
 
     mind.test(datasets={"test": val_loader}, metrics=[top1, top5])
 
-    print("Exporting this checkpoint in ONNX...")
-    mind.export("onnx_out", "onnx", (3, 32, 32))
