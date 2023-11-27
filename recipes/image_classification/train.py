@@ -193,6 +193,4 @@ if __name__ == "__main__":
     mind.test(datasets={"test": val_loader}, metrics=[top1, top5])
 
     print("Exporting this checkpoint in ONNX...")
-    mind.export(
-        "onnx_out", "onnx", (3, 32, 32)
-    )
+    mind.export("onnx_out", "onnx", (3, 32, 32))
