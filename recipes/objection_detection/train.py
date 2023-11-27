@@ -15,7 +15,6 @@ import torch
 from prepare_data import create_loaders
 from torchinfo import summary
 from ultralytics.utils.ops import scale_boxes, xywh2xyxy
-from huggingface_hub import hf_hub_download
 from pathlib import Path
 import yaml
 from yolo_loss import Loss
@@ -24,50 +23,34 @@ import micromind as mm
 from micromind.networks import PhiNet
 from micromind.networks.yolo import SPPF, DetectionHead, Yolov8Neck
 from micromind.utils.parse import parse_arguments
+from micromind.utils import parse_configuration
 from micromind.utils.yolo import (
     load_config,
     mean_average_precision,
     postprocess,
 )
+import sys
 
 
 class YOLO(mm.MicroMind):
     def __init__(self, m_cfg, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        REPO_ID = "micromind/ImageNet"
-        FILENAME = "v1/state_dict.pth.tar"
-
-        model_path = hf_hub_download(repo_id=REPO_ID, filename=FILENAME)
-        args = Path(FILENAME).parent.joinpath("args.yaml")
-        args_path = hf_hub_download(repo_id=REPO_ID, filename=str(args))
-        with open(args_path, "r") as f:
-            dat = yaml.safe_load(f)
-
-        input_shape = (3, 672, 672)
-        alpha = dat["alpha"]
-        num_layers = dat["num_layers"]
-        beta = dat["beta"]
-        t_zero = dat["t_zero"]
-        divisor = 8
-        downsampling_layers = [5, 7]
-        return_layers = [4, 6, 7]
-
         self.modules["phinet"] = PhiNet(
-            input_shape=input_shape,
-            alpha=alpha,
-            num_layers=num_layers,
-            beta=beta,
-            t_zero=t_zero,
+            input_shape=hparams.input_shape,
+            alpha=hparams.alpha,
+            num_layers=hparams.num_layers,
+            beta=hparams.beta,
+            t_zero=hparams.t_zero,
             include_top=False,
             compatibility=False,
-            divisor=divisor,
-            downsampling_layers=downsampling_layers,
-            return_layers=return_layers,
+            divisor=hparams.divisor,
+            downsampling_layers=hparams.downsampling_layers,
+            return_layers=hparams.return_layers,
         )
 
         # load ImageNet checkpoint
-        self.modules["phinet"].load_state_dict(torch.load(model_path), strict=False)
+        self.modules["phinet"].load_state_dict(torch.load(hparams.model_path), strict=False)
 
         sppf_ch, neck_filters, up, head_filters = self.get_parameters()
 
@@ -196,14 +179,11 @@ class YOLO(mm.MicroMind):
 
 
 if __name__ == "__main__":
-    batch_size = 8
-    hparams = parse_arguments()
+    assert len(sys.argv) > 1, "Please pass the configuration file to the script."
+    hparams = parse_configuration(sys.argv[1])
 
-    # dset = input("Enter dataset configuration file path [Press Enter for COCO]: ")
-    # if dset == '': dset = "cfg/coco.yaml"
-    dset = "cfg/coco.yaml"
-    m_cfg, data_cfg = load_config(dset)
-    train_loader, val_loader = create_loaders(m_cfg, data_cfg, batch_size)
+    m_cfg, data_cfg = load_config(hparams.data_cfg)
+    train_loader, val_loader = create_loaders(m_cfg, data_cfg, hparams.batch_size)
 
     exp_folder = mm.utils.checkpointer.create_experiment_folder(
         hparams.output_folder, hparams.experiment_name

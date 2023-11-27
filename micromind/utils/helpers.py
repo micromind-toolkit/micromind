@@ -10,10 +10,27 @@ import string
 import sys
 from pathlib import Path
 from typing import Dict, Tuple, Union
+from argparse import Namespace
 
 import torch
 from loguru import logger
+import micromind as mm
 
+
+def parse_configuration(cfg: Union[str, Path]):
+    with open(cfg, "r") as f:
+        conf = f.read()
+
+    global_vars = {}
+    local_vars = {}
+
+    exec(conf, global_vars, local_vars)
+    for key in mm.core.default_cfg:
+        if not key in local_vars:
+            local_vars[key] = mm.core.default_cfg[key]
+
+    return Namespace(**local_vars)
+    
 
 def get_value_from_key(s: str, key: str, cast=float) -> float:
     dat = s.split(f"{key}_")[-1]
