@@ -36,20 +36,32 @@ class ImageClassification(mm.MicroMind):
     def __init__(self, hparams, *args, **kwargs):
         super().__init__(hparams, *args, **kwargs)
 
-        self.modules["classifier"] = PhiNet(
-            input_shape=hparams.input_shape,
-            alpha=hparams.alpha,
-            num_layers=hparams.num_layers,
-            beta=hparams.beta,
-            t_zero=hparams.t_zero,
-            compatibility=False,
-            divisor=hparams.divisor,
-            downsampling_layers=hparams.downsampling_layers,
-            return_layers=hparams.return_layers,
-            # classification-specific
-            include_top=True,
-            num_classes=hparams.num_classes,
-        )
+        if hparams.model == "phinet":
+            self.modules["classifier"] = PhiNet(
+                input_shape=hparams.input_shape,
+                alpha=hparams.alpha,
+                num_layers=hparams.num_layers,
+                beta=hparams.beta,
+                t_zero=hparams.t_zero,
+                compatibility=False,
+                divisor=hparams.divisor,
+                downsampling_layers=hparams.downsampling_layers,
+                return_layers=hparams.return_layers,
+                # classification-specific
+                include_top=True,
+                num_classes=hparams.num_classes,
+            )
+        elif hparams.model == "xinet":
+            self.modules["classifier"] = XiNet(
+                input_shape=hparams.input_shape,
+                alpha=hparams.alpha,
+                compression=hparams.compression,
+                num_layers=hparams.num_layers,
+                return_layers=hparams.return_layers,
+                # classification-specific
+                include_top=True,
+                num_classes=hparams.num_classes,
+            )
 
         tot_params = 0
         for m in self.modules.values():
