@@ -14,6 +14,7 @@ Authors:
 """
 
 import sys
+import time
 import torch
 from train import ImageClassification
 from micromind.utils import parse_configuration
@@ -96,7 +97,9 @@ if __name__ == "__main__":
     )
 
     img = preprocess(img.float() / 255)
+    now = time.time()
     logits = mind((img[None],))
+    print("Inference took %.3f ms." % (time.time() - now) * 1e-3)
 
     print(
         "Model prediction: %d with probability: %.2f."
