@@ -1,3 +1,12 @@
+"""
+This code prepares the DataLoader compatible with HF accelerate and exploiting
+timm data augmentation.
+For compatibility, the prefetcher, JSDLoss and re_split options where disabled.
+
+Adapted by:
+    - Francesco Paissan, 2023
+
+"""
 import torch
 
 from timm.data import (
@@ -10,7 +19,16 @@ from argparse import Namespace
 
 
 def setup_mixup(args: Namespace):
-    # setup mixup / cutmix
+    """Setup of Mixup data augmentation based on input configuration.
+
+    Arguments
+    ---------
+    args : Namespace
+        Input configuration for the experiment.
+
+    Returns
+    -------
+    Mixup function and respective collate_fn. : Union[Callable, Callable]"""
     collate_fn = None
     mixup_fn = None
     mixup_active = args.mixup > 0 or args.cutmix > 0.0 or args.cutmix_minmax is not None
@@ -36,13 +54,8 @@ def create_loaders(args: Namespace):
 
     Arguments
     ---------
-    m_cfg : Dict
-        Contains information about the training process (e.g., data augmentation).
-    data_cfg : Dict
-        Contains details about the data configurations (e.g., image size, etc.).
-    batch_size : int
-        Batch size for the training process.
-
+    args : Namespace
+        Input configuration for the experiment.
     """
     # args.prefetcher = not args.no_prefetcher
     args.prefetcher = False

@@ -1,14 +1,16 @@
 """
-YOLO training.
+This code runs the image classification training loop. It tries to support as much
+as timm's functionalities as possible.
 
-Authors:
-    - Matteo Beltrami, 2023
+For compatibility the prefetcher, re_split and JSDLoss are disabled.
+
+To run the training script, use this command:
+    python train.py cfg/phinet.py
+
+You can change the configuration or override the parameters as you see fit.
+
+Adapted by:
     - Francesco Paissan, 2023
-
-This code allows you to train an object detection model with the YOLOv8 neck and loss.
-
-To run this script, you can start it with:
-    python train.py
 """
 
 import torch
@@ -28,6 +30,9 @@ import sys
 
 
 class ImageClassification(mm.MicroMind):
+    """Implements an image classification class. Provides support
+    for timm augmentation and loss functions."""
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -87,6 +92,17 @@ class ImageClassification(mm.MicroMind):
         return train_loss_fn
 
     def forward(self, batch):
+        """Computes forward step for image classifier.
+
+        Arguments
+        ---------
+        batch : List[torch.Tensor, torch.Tensor]
+            Batch containing the images and labels.
+
+        Returns
+        -------
+        Predicted class and augmented class. : Tuple[torch.Tensor, torch.Tensor]
+        """
         img, target = batch
         if not self.hparams.prefetcher:
             img, target = img.to(self.device), target.to(self.device)
@@ -96,16 +112,27 @@ class ImageClassification(mm.MicroMind):
         return (self.modules["classifier"](img), target)
 
     def compute_loss(self, pred, batch):
+        """Sets up the loss function and computes the criterion.
+
+        Arguments
+        ---------
+        pred : Tuple[torch.Tensor, torch.Tensor]
+            Predicted class and augmented class.
+        batch : List[torch.Tensor, torch.Tensor]
+            Same batch as input to the forward step.
+
+        Returns
+        -------
+        Cost function. : torch.Tensor
+        """
         self.criterion = self.setup_criterion()
 
         # taking it from pred because it might be augmented
         return self.criterion(pred[0], pred[1])
 
     def configure_optimizers(self):
+        """Configures the optimizes and, eventually the learning rate scheduler."""
         opt = torch.optim.Adam(self.modules.parameters(), lr=3e-4, weight_decay=0.0005)
-        # sched = torch.optim.lr_scheduler.CosineAnnealingLR(
-        # opt, T_max=5000, eta_min=1e-7
-        # )
         return opt
 
 
