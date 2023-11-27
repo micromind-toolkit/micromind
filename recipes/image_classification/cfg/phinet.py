@@ -6,6 +6,7 @@ Authors:
 """
 
 # Model configuration
+model = "phinet"
 input_shape = (3, 32, 32)
 alpha = 3
 num_layers = 7

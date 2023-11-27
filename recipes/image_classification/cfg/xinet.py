@@ -6,11 +6,12 @@ Authors:
 """
 
 # Model configuration
-input_shape = (3, 32, 32)
+model = "xinet"
+input_shape = (3, 128, 128)
 alpha = 1
 num_layers = 7
 return_layers = None
-compression = 4
+gamma = 4
 
 ckpt_pretrained = ""
 

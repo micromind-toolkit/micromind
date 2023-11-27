@@ -55,7 +55,7 @@ class ImageClassification(mm.MicroMind):
             self.modules["classifier"] = XiNet(
                 input_shape=hparams.input_shape,
                 alpha=hparams.alpha,
-                compression=hparams.compression,
+                gamma=hparams.gamma,
                 num_layers=hparams.num_layers,
                 return_layers=hparams.return_layers,
                 # classification-specific
