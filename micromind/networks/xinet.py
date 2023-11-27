@@ -7,7 +7,6 @@ Authors:
 """
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from typing import Union, Tuple, Optional, List
 
@@ -174,8 +173,8 @@ class XiConv(nn.Module):
         s = None
         # skip connection
         if isinstance(x, list):
-            s = F.adaptive_avg_pool2d(x[1], output_size=x[0].shape[2:])
-            # s = self.adaptive_pooling(x[1])
+            # s = F.adaptive_avg_pool2d(x[1], output_size=x[0].shape[2:])
+            s = self.adaptive_pooling(x[1])
             s = self.skip_conv(s)
             x = x[0]
 
@@ -237,7 +236,7 @@ class XiNet(nn.Module):
     -------
     .. doctest::
         >>> from micromind.networks import XiNet
-        >>> model = XiNet()
+        >>> model = XiNet((3, 224, 224))
     """
 
     def __init__(
@@ -313,7 +312,7 @@ class XiNet(nn.Module):
             XiConv(
                 int(num_filters[-2] * alpha),
                 int(num_filters[-1] * alpha),
-                kernel_size=2,
+                kernel_size=3,
                 stride=1,
                 skip_tensor_in=True,
                 skip_res=self.input_shape[1:] / (2**count_downsample),
@@ -321,12 +320,12 @@ class XiNet(nn.Module):
                 attention=False,
             )
         )
-        count_downsample += 1
+        # count_downsample += 1
         self._layers.append(
             XiConv(
                 int(num_filters[-1] * alpha),
                 int(num_filters[-1] * alpha),
-                kernel_size=2,
+                kernel_size=3,
                 stride=1,
                 skip_tensor_in=True,
                 skip_res=self.input_shape[1:] / (2**count_downsample),
@@ -386,4 +385,4 @@ class XiNet(nn.Module):
 if __name__ == "__main__":
     model = XiNet((3, 224, 224))
 
-    model(torch.randn(1, 3, 224, 244))
+    model(torch.randn(1, 3, 224, 224))
