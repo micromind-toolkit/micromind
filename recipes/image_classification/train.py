@@ -191,4 +191,3 @@ if __name__ == "__main__":
     )
 
     mind.test(datasets={"test": val_loader}, metrics=[top1, top5])
-

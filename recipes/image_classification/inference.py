@@ -21,7 +21,8 @@ import torchvision
 
 
 class ImageClassification(ImageClassification):
-    """Implements an image classification class for inference. """
+    """Implements an image classification class for inference."""
+
     def forward(self, batch):
         """Computes forward step for image classifier.
 
@@ -37,11 +38,11 @@ class ImageClassification(ImageClassification):
         return self.modules["classifier"](batch[0])
 
     def compute_loss(self, pred, batch):
-        """Ignoring because it's inference. """
+        """Ignoring because it's inference."""
         pass
 
     def configure_optimizers(self):
-        """Ignoring because it's inference. """
+        """Ignoring because it's inference."""
         pass
 
 
@@ -85,16 +86,22 @@ if __name__ == "__main__":
 
     # read, resize, and normalize image
     img = torchvision.io.read_image(sys.argv[2])
-    preprocess = torchvision.transforms.Compose([
-        torchvision.transforms.Resize(size=hparams.input_shape[1:]),
-        torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    ])
+    preprocess = torchvision.transforms.Compose(
+        [
+            torchvision.transforms.Resize(size=hparams.input_shape[1:]),
+            torchvision.transforms.Normalize(
+                mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+            ),
+        ]
+    )
 
     img = preprocess(img.float() / 255)
     logits = mind((img[None],))
 
-    print("Model prediction: %d with probability: %.2f." % (logits.argmax(1).item(), logits.softmax(1)[0, logits.argmax(1)].item()))
+    print(
+        "Model prediction: %d with probability: %.2f."
+        % (logits.argmax(1).item(), logits.softmax(1)[0, logits.argmax(1)].item())
+    )
 
     print("Saving exported model to model.onnx...")
     mind.export("model.onnx", "onnx", (3, 32, 32))
-
