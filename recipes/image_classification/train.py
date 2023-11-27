@@ -13,7 +13,7 @@ To run this script, you can start it with:
 
 import torch
 import torch.nn as nn
-from prepare_data import create_loaders
+from prepare_data import create_loaders, setup_mixup
 from torchinfo import summary
 from timm.loss import (
     BinaryCrossEntropy,
@@ -52,6 +52,8 @@ class ImageClassification(mm.MicroMind):
             temp = summary(m, verbose=0)
             tot_params += temp.total_params
 
+        self.mixup_fn, _ = setup_mixup(hparams)
+
         print(f"Total parameters of model: {tot_params * 1e-6:.2f} M")
 
     def setup_criterion(self):
@@ -82,12 +84,11 @@ class ImageClassification(mm.MicroMind):
         return train_loss_fn
 
     def forward(self, batch):
+        img, target = batch
         if not self.hparams.prefetcher:
-            img, target = input.cuda(), target.cuda()
-            if mixup_fn is not None:
-                img, target = mixup_fn(img, target)
-        else:
-            img, target = batch
+            img, target = img.to(self.device), target.to(self.device)
+            if self.mixup_fn is not None:
+                img, target = self.mixup_fn(img, target)
 
         return (self.modules["classifier"](img), target)
 
@@ -141,15 +142,20 @@ if __name__ == "__main__":
 
     checkpointer = mm.utils.checkpointer.Checkpointer(exp_folder, key="loss")
 
-    yolo_mind = ImageClassification(hparams=hparams)
+    mind = ImageClassification(hparams=hparams)
 
-    mAP = mm.Metric("top1_acc", top_k_accuracy(k=1))
-    mAP = mm.Metric("top5_acc", top_k_accuracy(k=5))
+    top1 = mm.Metric("top1_acc", top_k_accuracy(k=1))
+    top5 = mm.Metric("top5_acc", top_k_accuracy(k=5))
 
-    yolo_mind.train(
-        epochs=10,
+    mind.train(
+        epochs=100,
         datasets={"train": train_loader, "val": val_loader},
-        metrics=[mAP],
+        metrics=[top1, top5],
         checkpointer=checkpointer,
         debug=hparams.debug,
+    )
+
+    mind.test(
+        datasets={"test": val_loader},
+        metrics=[top1, top5]
     )
