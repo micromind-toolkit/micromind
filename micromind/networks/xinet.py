@@ -71,6 +71,7 @@ class XiConv(nn.Module):
     skip_k: Optional[int]
         Kernel for the broadcast skip connection.
     """
+
     def __init__(
         self,
         c_in: int,
@@ -83,7 +84,7 @@ class XiConv(nn.Module):
         gamma: Optional[float] = 4,
         attention: Optional[bool] = True,
         skip_tensor_in: Optional[bool] = True,
-        skip_res : Optional[List] = None,
+        skip_res: Optional[List] = None,
         skip_channels: Optional[int] = 1,
         pool: Optional[bool] = None,
         attention_k: Optional[int] = 3,
@@ -103,7 +104,9 @@ class XiConv(nn.Module):
 
         if skip_tensor_in:
             assert skip_res is not None, "Specifcy shape of skip tensor."
-            self.adaptive_pooling = nn.AdaptiveAvgPool2d((int(skip_res[0]), int(skip_res[1])))
+            self.adaptive_pooling = nn.AdaptiveAvgPool2d(
+                (int(skip_res[0]), int(skip_res[1]))
+            )
 
         if self.compression > 1:
             self.compression_conv = nn.Conv2d(
@@ -236,9 +239,10 @@ class XiNet(nn.Module):
         >>> from micromind.networks import XiNet
         >>> model = XiNet()
     """
+
     def __init__(
         self,
-        input_shape : List,
+        input_shape: List,
         alpha: float = 1.0,
         gamma: float = 4.0,
         num_layers: int = 5,
@@ -285,7 +289,7 @@ class XiNet(nn.Module):
                     stride=1,
                     pool=2,
                     skip_tensor_in=(i != 0),
-                    skip_res=self.input_shape[1:] / (2 ** count_downsample),
+                    skip_res=self.input_shape[1:] / (2**count_downsample),
                     skip_channels=skip_channels_num,
                     gamma=gamma,
                 )
@@ -298,7 +302,7 @@ class XiNet(nn.Module):
                     kernel_size=3,
                     stride=1,
                     skip_tensor_in=True,
-                    skip_res=self.input_shape[1:] / (2 ** count_downsample),
+                    skip_res=self.input_shape[1:] / (2**count_downsample),
                     skip_channels=skip_channels_num,
                     gamma=gamma,
                 )
@@ -312,7 +316,7 @@ class XiNet(nn.Module):
                 kernel_size=2,
                 stride=1,
                 skip_tensor_in=True,
-                skip_res=self.input_shape[1:] / (2 ** count_downsample),
+                skip_res=self.input_shape[1:] / (2**count_downsample),
                 skip_channels=skip_channels_num,
                 attention=False,
             )
@@ -325,7 +329,7 @@ class XiNet(nn.Module):
                 kernel_size=2,
                 stride=1,
                 skip_tensor_in=True,
-                skip_res=self.input_shape[1:] / (2 ** count_downsample),
+                skip_res=self.input_shape[1:] / (2**count_downsample),
                 skip_channels=skip_channels_num,
                 attention=False,
             )

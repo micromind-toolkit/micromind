@@ -24,7 +24,7 @@ from timm.loss import (
 )
 
 import micromind as mm
-from micromind.networks import PhiNet
+from micromind.networks import PhiNet, XiNet
 from micromind.utils import parse_configuration
 import sys
 
