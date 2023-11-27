@@ -86,4 +86,5 @@ smoothing = 0.1
 train_interpolation = "bilinear"
 train_split = "train"
 use_multi_epochs_loader = False
+val_split = "validation"
 vflip = 0.0
