@@ -3,7 +3,7 @@ This code prepares the DataLoader compatible with HF accelerate and exploiting
 timm data augmentation.
 For compatibility, the prefetcher, JSDLoss and re_split options where disabled.
 
-Adapted by:
+Authors:
     - Francesco Paissan, 2023
 
 """

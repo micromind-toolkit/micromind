@@ -9,7 +9,7 @@ To run the training script, use this command:
 
 You can change the configuration or override the parameters as you see fit.
 
-Adapted by:
+Authors:
     - Francesco Paissan, 2023
 """
 
