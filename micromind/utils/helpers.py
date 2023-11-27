@@ -15,6 +15,20 @@ from argparse import Namespace
 import torch
 from loguru import logger
 import micromind as mm
+import argparse
+
+
+def override_conf(hparams):
+    parser = argparse.ArgumentParser(description='MicroMind experiment configuration.')
+    for key, value in hparams.items():
+        parser.add_argument(f'--{key}', type=type(value), default=value)
+
+    args, extra_args = parser.parse_known_args()
+    for key, value in vars(args).items():
+        if value is not None:
+            hparams[key] = value
+
+    return Namespace(**hparams)
 
 
 def parse_configuration(cfg: Union[str, Path]):
@@ -29,7 +43,7 @@ def parse_configuration(cfg: Union[str, Path]):
         if not key in local_vars:
             local_vars[key] = mm.core.default_cfg[key]
 
-    return Namespace(**local_vars)
+    return override_conf(local_vars)
     
 
 def get_value_from_key(s: str, key: str, cast=float) -> float:
