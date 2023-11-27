@@ -5,7 +5,7 @@ as timm's functionalities as possible.
 For compatibility the prefetcher, re_split and JSDLoss are disabled.
 
 To run the training script, use this command:
-    python train.py cfg/phinet.py
+    python inference.py cfg/phinet.py IMG_PATH --ckpt_pretrained MODEL_PATH
 
 You can change the configuration or override the parameters as you see fit.
 
