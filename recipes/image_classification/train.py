@@ -17,7 +17,6 @@ from prepare_data import create_loaders, setup_mixup
 from torchinfo import summary
 from timm.loss import (
     BinaryCrossEntropy,
-    JsdCrossEntropy,
     LabelSmoothingCrossEntropy,
     SoftTargetCrossEntropy,
 )
@@ -44,7 +43,7 @@ class ImageClassification(mm.MicroMind):
             return_layers=hparams.return_layers,
             # classification-specific
             include_top=True,
-            num_classes=hparams.num_classes
+            num_classes=hparams.num_classes,
         )
 
         tot_params = 0
@@ -57,27 +56,31 @@ class ImageClassification(mm.MicroMind):
         print(f"Total parameters of model: {tot_params * 1e-6:.2f} M")
 
     def setup_criterion(self):
-        """ Setup of the loss function based on augmentation strategy. """
+        """Setup of the loss function based on augmentation strategy."""
         # setup loss function
-        if self.hparams.jsd_loss:
-            assert num_aug_splits > 1  # JSD only valid with aug splits set
-            train_loss_fn = JsdCrossEntropy(
-                num_splits=num_aug_splits, smoothing=self.hparams.smoothing
-            )
-        elif self.hparams.mixup > 0 or self.hparams.cutmix > 0.0 or self.hparams.cutmix_minmax is not None:
+        if (
+            self.hparams.mixup > 0
+            or self.hparams.cutmix > 0.0
+            or self.hparams.cutmix_minmax is not None
+        ):
             # smoothing is handled with mixup target transform which outputs sparse,
             # soft targets
             if self.hparams.bce_loss:
-                train_loss_fn = BinaryCrossEntropy(target_threshold=self.hparams.bce_target_thresh)
+                train_loss_fn = BinaryCrossEntropy(
+                    target_threshold=self.hparams.bce_target_thresh
+                )
             else:
                 train_loss_fn = SoftTargetCrossEntropy()
         elif self.hparams.smoothing:
             if self.hparams.bce_loss:
                 train_loss_fn = BinaryCrossEntropy(
-                    smoothing=self.hparams.smoothing, target_threshold=self.hparams.bce_target_thresh
+                    smoothing=self.hparams.smoothing,
+                    target_threshold=self.hparams.bce_target_thresh,
                 )
             else:
-                train_loss_fn = LabelSmoothingCrossEntropy(smoothing=self.hparams.smoothing)
+                train_loss_fn = LabelSmoothingCrossEntropy(
+                    smoothing=self.hparams.smoothing
+                )
         else:
             train_loss_fn = nn.CrossEntropyLoss()
 
@@ -101,12 +104,12 @@ class ImageClassification(mm.MicroMind):
     def configure_optimizers(self):
         opt = torch.optim.Adam(self.modules.parameters(), lr=3e-4, weight_decay=0.0005)
         # sched = torch.optim.lr_scheduler.CosineAnnealingLR(
-            # opt, T_max=5000, eta_min=1e-7
+        # opt, T_max=5000, eta_min=1e-7
         # )
         return opt
 
 
-def top_k_accuracy( k=1):
+def top_k_accuracy(k=1):
     """
     Computes the top-K accuracy.
 
@@ -120,6 +123,7 @@ def top_k_accuracy( k=1):
         accuracy : Callable
             Top-K accuracy.
     """
+
     def acc(pred, batch):
         if pred[1].ndim == 2:
             target = pred[1].argmax(1)
@@ -128,7 +132,7 @@ def top_k_accuracy( k=1):
         _, indices = torch.topk(pred[0], k, dim=1)
         correct = torch.sum(indices == target.view(-1, 1))
         accuracy = correct.item() / target.size(0)
-        
+
         return torch.Tensor([accuracy]).to(pred[0].device)
 
     return acc
@@ -159,7 +163,4 @@ if __name__ == "__main__":
         debug=hparams.debug,
     )
 
-    mind.test(
-        datasets={"test": val_loader},
-        metrics=[top1, top5]
-    )
+    mind.test(datasets={"test": val_loader}, metrics=[top1, top5])

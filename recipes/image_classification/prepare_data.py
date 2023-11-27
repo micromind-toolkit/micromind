@@ -1,18 +1,12 @@
-from typing import Dict
-import os
 import torch
 
 from timm.data import (
     AugMixDataset,
-    FastCollateMixup,
     Mixup,
     create_dataset,
-    create_loader,
-    resolve_data_config,
     create_transform,
 )
 from argparse import Namespace
-from torch.utils.data import DataLoader
 
 
 def setup_mixup(args: Namespace):
@@ -31,15 +25,10 @@ def setup_mixup(args: Namespace):
             label_smoothing=args.smoothing,
             num_classes=args.num_classes,
         )
-        if args.prefetcher:
-            assert (
-                not num_aug_splits
-            )  # collate conflict (need to support deinterleaving in collate mixup)
-            collate_fn = FastCollateMixup(**mixup_args)
-        else:
-            mixup_fn = Mixup(**mixup_args)
+        mixup_fn = Mixup(**mixup_args)
 
     return mixup_fn, collate_fn
+
 
 def create_loaders(args: Namespace):
     """Creates DataLoaders for dataset specified in the configuration file.
@@ -96,9 +85,6 @@ def create_loaders(args: Namespace):
     if args.no_aug or not train_interpolation:
         train_interpolation = args.interpolation
     re_num_splits = 0
-    # if args.re_split:
-        # # apply RE to second half of batch if no aug split otherwise line up with aug split
-        # re_num_splits = num_aug_splits or 2
     dataset_train.transform = create_transform(
         input_size=args.input_shape,
         is_training=True,
@@ -120,7 +106,6 @@ def create_loaders(args: Namespace):
         re_num_splits=re_num_splits,
         separate=num_aug_splits > 0,
     )
-
 
     dataset_eval.transform = create_transform(
         input_size=args.input_shape,
@@ -152,24 +137,20 @@ def create_loaders(args: Namespace):
     loader_args = dict(
         batch_size=args.batch_size,
         shuffle=True,
-        # num_workers=args.num_workers,
-        num_workers=4,
-        # sampler=sampler,
+        num_workers=args.num_workers,
         collate_fn=collate_fn,
-        # pin_memory=args.pin_memory,
-        pin_memory=True,
+        pin_memory=args.pin_memory,
         drop_last=True,
-        # worker_init_fn=partial(_worker_init, worker_seeding=worker_seeding),
-        # persistent_workers=args.persistent_workers
-        persistent_workers=True
+        persistent_workers=args.persistent_workers,
     )
     try:
         loader_train = loader_class(dataset_train, **loader_args)
+        loader_args["drop_last"] = False
         loader_eval = loader_class(dataset_eval, **loader_args)
-    except TypeError as e:
-        loader_args.pop('persistent_workers')  # only in Pytorch 1.7+
+    except TypeError:
+        loader_args.pop("persistent_workers")  # only in Pytorch 1.7+
         loader_train = loader_class(dataset_train, **loader_args)
+        loader_args["drop_last"] = False
         loader_eval = loader_class(dataset_eval, **loader_args)
 
     return loader_train, loader_eval
-
