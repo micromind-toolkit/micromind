@@ -18,7 +18,21 @@ import micromind as mm
 import argparse
 
 
-def override_conf(hparams):
+def override_conf(hparams : Dict):
+    """ Handles command line overrides. Takes as input a configuration
+    and defines all the keys as arguments. If passed from command line,
+    these arguments override the default configuration.
+
+    Arguments
+    ---------
+    hparams : Dict
+        Dictionary containing current configuration.
+
+    Returns
+    -------
+    Configuration agumented with overrides. : Namespace
+
+    """
     parser = argparse.ArgumentParser(description='MicroMind experiment configuration.')
     for key, value in hparams.items():
         parser.add_argument(f'--{key}', type=type(value), default=value)
@@ -32,13 +46,26 @@ def override_conf(hparams):
 
 
 def parse_configuration(cfg: Union[str, Path]):
+    """Parses default configuration and compares it with user defined.
+    It processes a user-defined python file that creates the configuration.
+    Additionally, it handles eventual overrides from command line.
+
+    Arguments
+    ---------
+    cfg : Union[str, Path]
+        Configuration file defined by the user
+
+    Returns
+    -------
+    Configuration Namespace. : argparse.Namespace
+
+    """
     with open(cfg, "r") as f:
         conf = f.read()
 
-    global_vars = {}
     local_vars = {}
 
-    exec(conf, global_vars, local_vars)
+    exec(conf, {}, local_vars)
     for key in mm.core.default_cfg:
         if not key in local_vars:
             local_vars[key] = mm.core.default_cfg[key]
@@ -46,38 +73,8 @@ def parse_configuration(cfg: Union[str, Path]):
     return override_conf(local_vars)
     
 
-def get_value_from_key(s: str, key: str, cast=float) -> float:
-    dat = s.split(f"{key}_")[-1]
-
-    if "ckpt" in dat:
-        dat = dat.split(".ckpt")[0]
-
-    return cast(dat)
-
-
-def select_and_load_checkpoint(path: Union[Path, str]) -> Tuple[Dict, str]:
-    checkpoints = os.listdir(path)
-    checkpoints = [os.path.join(path, c) for c in checkpoints]
-
-    dat = torch.load(checkpoints[0])
-    selected_key, selected_mode = dat["key"], dat["mode"]
-
-    values = [get_value_from_key(str(c), selected_key) for c in checkpoints]
-
-    best_key = min(values) if selected_mode == "min" else max(values)
-    best_checkpoint = checkpoints[values.index(best_key)]
-
-    return torch.load(best_checkpoint, map_location="cpu"), best_checkpoint
-
-
-def get_random_string(length=10):
-    letters = string.ascii_lowercase
-    result_str = "".join(random.choice(letters) for i in range(length))
-
-    return result_str
-
-
 def get_logger():
+    """ Default loguru logger config. It is called inside micromind's files. """
     fmt = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | \
             <level>{level: <8}</level> |  \
             <level>{message}</level>"
