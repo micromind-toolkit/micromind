@@ -153,18 +153,9 @@ class YOLO(mm.MicroMind):
         return lossi_sum
 
     def configure_optimizers(self):
-        opt = torch.optim.Adam(self.modules.parameters(), lr=1e-2, weight_decay=0.0005)
-        # sched = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        # opt,
-        # "min",
-        # factor=0.2,
-        # patience=2,
-        # threshold=5,
-        # min_lr=1e-5,
-        # verbose=True,
-        # )
+        opt = torch.optim.SGD(self.modules.parameters(), lr=1e-2, weight_decay=0.0005)
         sched = torch.optim.lr_scheduler.CosineAnnealingLR(
-            opt, T_max=5000, eta_min=1e-7
+            opt, T_max=14000, eta_min=1e-3
         )
         return opt, sched
 
