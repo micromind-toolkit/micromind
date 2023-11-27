@@ -2,10 +2,11 @@ from huggingface_hub import hf_hub_download
 from pathlib import Path
 import yaml
 
+# Data configuration
 batch_size = 8
+data_cfg="cfg/data/coco8.yaml"
 
-data_cfg="cfg/coco8.yaml"
-
+# Architecture definition
 REPO_ID = "micromind/ImageNet"
 FILENAME = "v1/state_dict.pth.tar"
 
