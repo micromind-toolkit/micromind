@@ -36,39 +36,41 @@ class XiConv(nn.Module):
         Number of input channels.
     c_out: int
         Number of output channels.
-    kernel_size: Union[int, Tuple] = 3
+    kernel_size: Union[int, Tuple]
         Kernel size for the main convolution.
-    stride: Union[int, Tuple] = 1
+    stride: Union[int, Tuple]
         Stride for the main convolution.
-    padding: Optional[Union[int, Tuple]] = None
+    padding: Optional[Union[int, Tuple]]
         Padding that is applied in the main convolution.
-    groups: Optional[int] = 1
+    groups: Optional[int]
         Number of groups for the main convolution.
-    act: Optional[bool] = True
+    act: Optional[bool]
         When True, uses SiLU activation function after
         the main convolution.
-    gamma: Optional[float] = 4
+    gamma: Optional[float]
         Compression factor for the convolutional block.
-    attention: Optional[bool] = True
+    attention: Optional[bool]
         When True, uses attention.
-    skip_tensor_in: Optional[bool] =True
+    skip_tensor_in: Optional[bool]
         When True, defines broadcasting skip connection block.
-    skip_channels: Optional[int] = 1
+    skip_res : Optional[List]
+        Spatial resolution of the skip connection, such that
+        average pooling is statically defined.
+    skip_channels: Optional[int]
         Number of channels for the input block.
-    pool: Optional[bool] = None
+    pool: Optional[bool]
         When True, applies pooling after the main convolution.
-    attention_k: Optional[int] = 3
+    attention_k: Optional[int]
         Kernel for the attention module.
-    attention_lite: Optional[bool] = True
+    attention_lite: Optional[bool]
         When True, uses efficient attention implementation.
-    batchnorm: Optional[bool] = True
+    batchnorm: Optional[bool]
         When True, uses batch normalization inside the ConvBlock.
-    dropout_rate: Optional[int] = 0
+    dropout_rate: Optional[int]
         Dropout probability.
-    skip_k: Optional[int] = 1
+    skip_k: Optional[int]
         Kernel for the broadcast skip connection.
     """
-
     def __init__(
         self,
         c_in: int,
@@ -81,6 +83,7 @@ class XiConv(nn.Module):
         gamma: Optional[float] = 4,
         attention: Optional[bool] = True,
         skip_tensor_in: Optional[bool] = True,
+        skip_res : Optional[List] = None,
         skip_channels: Optional[int] = 1,
         pool: Optional[bool] = None,
         attention_k: Optional[int] = 3,
@@ -97,6 +100,10 @@ class XiConv(nn.Module):
         self.pool = pool
         self.batchnorm = batchnorm
         self.dropout_rate = dropout_rate
+
+        if skip_tensor_in:
+            assert skip_res is not None, "Specifcy shape of skip tensor."
+            self.adaptive_pooling = nn.AdaptiveAvgPool2d((int(skip_res[0]), int(skip_res[1])))
 
         if self.compression > 1:
             self.compression_conv = nn.Conv2d(
@@ -165,6 +172,7 @@ class XiConv(nn.Module):
         # skip connection
         if isinstance(x, list):
             s = F.adaptive_avg_pool2d(x[1], output_size=x[0].shape[2:])
+            # s = self.adaptive_pooling(x[1])
             s = self.skip_conv(s)
             x = x[0]
 
@@ -204,14 +212,14 @@ class XiNet(nn.Module):
 
     Arguments
     ---------
+    input_shape : List
+        Shape of the input tensor.
     alpha: float
         Width multiplier.
     gamma : float
         Compression factor.
     num_layers : int = 5
         Number of convolutional blocks.
-    in_channels : int = 3
-        Number of input channels
     num_classes : int
         Number of classes. It is used only when include_top is True.
     include_top : Optional[bool]
@@ -228,13 +236,12 @@ class XiNet(nn.Module):
         >>> from micromind.networks import XiNet
         >>> model = XiNet()
     """
-
     def __init__(
         self,
+        input_shape : List,
         alpha: float = 1.0,
         gamma: float = 4.0,
         num_layers: int = 5,
-        in_channels: int = 3,
         num_classes=1000,
         include_top=False,
         base_filters: int = 16,
@@ -243,12 +250,14 @@ class XiNet(nn.Module):
         super().__init__()
 
         self._layers = nn.ModuleList([])
+        self.input_shape = torch.Tensor(input_shape)
         self.include_top = include_top
         self.return_layers = return_layers
+        count_downsample = 0
 
         self.conv1 = nn.Sequential(
             nn.Conv2d(
-                in_channels,
+                input_shape[0],
                 int(base_filters * alpha),
                 7,
                 padding=7 // 2,
@@ -258,6 +267,7 @@ class XiNet(nn.Module):
             nn.BatchNorm2d(int(base_filters * alpha)),
             nn.SiLU(),
         )
+        count_downsample += 1
 
         num_filters = [
             int(2 ** (base_filters**0.5 + i)) for i in range(0, num_layers)
@@ -275,10 +285,12 @@ class XiNet(nn.Module):
                     stride=1,
                     pool=2,
                     skip_tensor_in=(i != 0),
+                    skip_res=self.input_shape[1:] / (2 ** count_downsample),
                     skip_channels=skip_channels_num,
                     gamma=gamma,
                 )
             )
+            count_downsample += 1
             self._layers.append(
                 XiConv(
                     int(num_filters[i + 1] * alpha),
@@ -286,6 +298,7 @@ class XiNet(nn.Module):
                     kernel_size=3,
                     stride=1,
                     skip_tensor_in=True,
+                    skip_res=self.input_shape[1:] / (2 ** count_downsample),
                     skip_channels=skip_channels_num,
                     gamma=gamma,
                 )
@@ -299,10 +312,12 @@ class XiNet(nn.Module):
                 kernel_size=2,
                 stride=1,
                 skip_tensor_in=True,
+                skip_res=self.input_shape[1:] / (2 ** count_downsample),
                 skip_channels=skip_channels_num,
                 attention=False,
             )
         )
+        count_downsample += 1
         self._layers.append(
             XiConv(
                 int(num_filters[-1] * alpha),
@@ -310,6 +325,7 @@ class XiNet(nn.Module):
                 kernel_size=2,
                 stride=1,
                 skip_tensor_in=True,
+                skip_res=self.input_shape[1:] / (2 ** count_downsample),
                 skip_channels=skip_channels_num,
                 attention=False,
             )
@@ -320,6 +336,7 @@ class XiNet(nn.Module):
             for i in self.return_layers:
                 print(f"Layer {i} - {self._layers[i].__class__}")
 
+        self.input_shape = input_shape
         if self.include_top:
             self.classifier = nn.Sequential(
                 nn.AdaptiveAvgPool2d((1, 1)),
@@ -349,8 +366,9 @@ class XiNet(nn.Module):
             else:
                 x = layer([x, skip])
 
-            if layer_id in self.return_layers:
-                ret.append(x)
+            if self.return_layers is not None:
+                if layer_id in self.return_layers:
+                    ret.append(x)
 
         if self.include_top:
             x = self.classifier(x)
@@ -359,3 +377,9 @@ class XiNet(nn.Module):
             return x, ret
 
         return x
+
+
+if __name__ == "__main__":
+    model = XiNet((3, 224, 224))
+
+    model(torch.randn(1, 3, 224, 244))
