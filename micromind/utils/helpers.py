@@ -4,22 +4,18 @@ micromind helper functions.
 Authors:
     - Francesco Paissan, 2023
 """
-import os
-import random
-import string
 import sys
 from pathlib import Path
-from typing import Dict, Tuple, Union
+from typing import Dict, Union
 from argparse import Namespace
 
-import torch
 from loguru import logger
 import micromind as mm
 import argparse
 
 
-def override_conf(hparams : Dict):
-    """ Handles command line overrides. Takes as input a configuration
+def override_conf(hparams: Dict):
+    """Handles command line overrides. Takes as input a configuration
     and defines all the keys as arguments. If passed from command line,
     these arguments override the default configuration.
 
@@ -33,9 +29,9 @@ def override_conf(hparams : Dict):
     Configuration agumented with overrides. : Namespace
 
     """
-    parser = argparse.ArgumentParser(description='MicroMind experiment configuration.')
+    parser = argparse.ArgumentParser(description="MicroMind experiment configuration.")
     for key, value in hparams.items():
-        parser.add_argument(f'--{key}', type=type(value), default=value)
+        parser.add_argument(f"--{key}", type=type(value), default=value)
 
     args, extra_args = parser.parse_known_args()
     for key, value in vars(args).items():
@@ -67,14 +63,14 @@ def parse_configuration(cfg: Union[str, Path]):
 
     exec(conf, {}, local_vars)
     for key in mm.core.default_cfg:
-        if not key in local_vars:
+        if key not in local_vars:
             local_vars[key] = mm.core.default_cfg[key]
 
     return override_conf(local_vars)
-    
+
 
 def get_logger():
-    """ Default loguru logger config. It is called inside micromind's files. """
+    """Default loguru logger config. It is called inside micromind's files."""
     fmt = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | \
             <level>{level: <8}</level> |  \
             <level>{message}</level>"

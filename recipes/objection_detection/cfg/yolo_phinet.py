@@ -4,7 +4,7 @@ import yaml
 
 # Data configuration
 batch_size = 8
-data_cfg="cfg/data/coco8.yaml"
+data_cfg = "cfg/data/coco8.yaml"
 
 # Architecture definition
 REPO_ID = "micromind/ImageNet"

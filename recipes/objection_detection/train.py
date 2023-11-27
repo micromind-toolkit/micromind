@@ -15,14 +15,11 @@ import torch
 from prepare_data import create_loaders
 from torchinfo import summary
 from ultralytics.utils.ops import scale_boxes, xywh2xyxy
-from pathlib import Path
-import yaml
 from yolo_loss import Loss
 
 import micromind as mm
 from micromind.networks import PhiNet
 from micromind.networks.yolo import SPPF, DetectionHead, Yolov8Neck
-from micromind.utils.parse import parse_arguments
 from micromind.utils import parse_configuration
 from micromind.utils.yolo import (
     load_config,
@@ -50,7 +47,9 @@ class YOLO(mm.MicroMind):
         )
 
         # load ImageNet checkpoint
-        self.modules["phinet"].load_state_dict(torch.load(hparams.model_path), strict=False)
+        self.modules["phinet"].load_state_dict(
+            torch.load(hparams.model_path), strict=False
+        )
 
         sppf_ch, neck_filters, up, head_filters = self.get_parameters()
 
