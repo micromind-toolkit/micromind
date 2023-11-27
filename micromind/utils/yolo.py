@@ -315,7 +315,6 @@ def preprocess(im, imgsz=640, model_stride=32, model_pt=True):
     return im
 
 
-# Post Processing functions
 def box_area(box):
     """Calculate the area of bounding boxes.
 
@@ -914,7 +913,9 @@ def mean_average_precision(post_predictions, batch, batch_bboxes, iou_threshold=
         gt = torch.cat((bboxes, torch.ones((num_obj, 1)), classes), dim=1)
 
         for class_id in range(80):
-            ap = average_precision(post_predictions[batch_el], gt, class_id)
+            ap = average_precision(
+                post_predictions[batch_el], gt, class_id, iou_threshold
+            )
             ap_sum += ap
 
         div = torch.unique(gt[:, -1]).size(0)
