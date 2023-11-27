@@ -99,7 +99,7 @@ if __name__ == "__main__":
     img = preprocess(img.float() / 255)
     now = time.time()
     logits = mind((img[None],))
-    print("Inference took %.3f ms." % (time.time() - now) * 1e-3)
+    print("Inference took %.5f ms." % ((time.time() - now) * 1e-3))
 
     print(
         "Model prediction: %d with probability: %.2f."
@@ -108,3 +108,4 @@ if __name__ == "__main__":
 
     print("Saving exported model to model.onnx...")
     mind.export("model.onnx", "onnx", (3, 32, 32))
+
