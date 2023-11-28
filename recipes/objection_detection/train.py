@@ -27,10 +27,11 @@ from micromind.utils.yolo import (
     postprocess,
 )
 import sys
+import os
 
 
 class YOLO(mm.MicroMind):
-    def __init__(self, m_cfg, *args, **kwargs):
+    def __init__(self, m_cfg, hparams, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.modules["phinet"] = PhiNet(
@@ -44,11 +45,6 @@ class YOLO(mm.MicroMind):
             divisor=hparams.divisor,
             downsampling_layers=hparams.downsampling_layers,
             return_layers=hparams.return_layers,
-        )
-
-        # load ImageNet checkpoint
-        self.modules["phinet"].load_state_dict(
-            torch.load(hparams.model_path), strict=False
         )
 
         sppf_ch, neck_filters, up, head_filters = self.get_parameters()
@@ -168,11 +164,31 @@ class YOLO(mm.MicroMind):
         return torch.Tensor([mmAP])
 
 
+def replace_datafolder(hparams, data_cfg):
+    """Replaces the data root folder, if told to do so from the configuration. """
+    data_cfg["path"] = str(data_cfg["path"])
+    data_cfg["path"] = data_cfg["path"][:-1] if data_cfg["path"][-1] == "/" else data_cfg["path"]
+    for key in ["train", "val"]:
+        if hasattr(hparams, "data_dir"):
+            if hparams.data_dir != data_cfg["path"]:
+                data_cfg[key] = str(data_cfg[key]).replace(data_cfg["path"], "")
+                data_cfg[key] = data_cfg[key][1:] if data_cfg[key][0] == "/" else data_cfg[key]
+                data_cfg[key] = os.path.join(hparams.data_dir, data_cfg[key])
+
+    data_cfg["path"] = hparams.data_dir
+
+    return data_cfg
+
+
 if __name__ == "__main__":
     assert len(sys.argv) > 1, "Please pass the configuration file to the script."
     hparams = parse_configuration(sys.argv[1])
 
     m_cfg, data_cfg = load_config(hparams.data_cfg)
+
+    # check if specified path for images is different, correct it in case
+    data_cfg = replace_datafolder(hparams, data_cfg)
+
     train_loader, val_loader = create_loaders(m_cfg, data_cfg, hparams.batch_size)
 
     exp_folder = mm.utils.checkpointer.create_experiment_folder(
