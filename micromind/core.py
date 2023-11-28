@@ -204,8 +204,8 @@ class MicroMind(ABC):
 
         Arguments
         ---------
-            input_shape : Tuple
-                Input shape of the forward step.
+        input_shape : Tuple
+            Input shape of the forward step.
 
         """
         self.input_shape = input_shape
@@ -215,8 +215,8 @@ class MicroMind(ABC):
 
         Arguments
         ---------
-            checkpoint_path : Union[Path, str]
-                Path to the checkpoint where the modules are stored.
+        checkpoint_path : Union[Path, str]
+            Path to the checkpoint where the modules are stored.
 
         """
         dat = torch.load(checkpoint_path)

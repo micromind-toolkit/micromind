@@ -31,30 +31,29 @@ class Upsample:
 
 
 class Conv(nn.Module):
-    """Implements YOLOv8's convolutional block"""
+    """Implements YOLOv8's convolutional block
+
+    Arguments
+    ---------
+    c1 : int
+        Input channels of the convolutional block.
+    c2 : int
+        Output channels of the convolutional block.
+    kernel_size : int
+        Kernel size for the convolutional block.
+    stride : int
+        Stride for the convolutional block.
+    padding : int
+        Padding for the convolutional block.
+    dilation : int
+        Dilation for the convolutional block.
+    groups : int
+        Groups for the convolutional block.
+    """
 
     def __init__(
         self, c1, c2, kernel_size=1, stride=1, padding=None, dilation=1, groups=1
     ):
-        """Defines the structure of a YOLOv8 convolutional block.
-
-        Arguments
-        ---------
-        c1 : int
-            Input channels of the convolutional block.
-        c2 : int
-            Output channels of the convolutional block.
-        kernel_size : int
-            Kernel size for the convolutional block.
-        stride : int
-            Stride for the convolutional block.
-        padding : int
-            Padding for the convolutional block.
-        dilation : int
-            Dilation for the convolutional block.
-        groups : int
-            Groups for the convolutional block.
-        """
         super().__init__()
         self.conv = nn.Conv2d(
             c1,
@@ -88,7 +87,24 @@ class Conv(nn.Module):
 
 
 class Bottleneck(nn.Module):
-    """Implements YOLOv8's bottleneck block"""
+    """Implements YOLOv8's bottleneck block.
+
+    Arguments
+    ---------
+    c1 : int
+        Input channels of the bottleneck block.
+    c2 : int
+        Output channels of the bottleneck block.
+    shortcut : bool
+        Decides whether to perform a shortcut in the bottleneck block.
+    groups : int
+        Groups for the bottleneck block.
+    kernels : list
+        Kernel size for the bottleneck block.
+    channel_factor : float
+        Decides the number of channels of the intermediate result
+        between the two convolutional blocks.
+    """
 
     def __init__(
         self,
@@ -99,24 +115,6 @@ class Bottleneck(nn.Module):
         kernels: list = (3, 3),
         channel_factor=0.5,
     ):
-        """Defines the structure of a YOLOv8 bottleneck block.
-
-        Arguments
-        ---------
-        c1 : int
-            Input channels of the bottleneck block.
-        c2 : int
-            Output channels of the bottleneck block.
-        shortcut : bool
-            Decides whether to perform a shortcut in the bottleneck block.
-        groups : int
-            Groups for the bottleneck block.
-        kernels : list
-            Kernel size for the bottleneck block.
-        channel_factor : float
-            Decides the number of channels of the intermediate result
-            between the two convolutional blocks.
-        """
         super().__init__()
         c_ = int(c2 * channel_factor)
         self.cv1 = Conv(c1, c_, kernel_size=kernels[0], stride=1, padding=None)
@@ -144,26 +142,25 @@ class Bottleneck(nn.Module):
 
 
 class C2f(nn.Module):
-    """Implements YOLOv8's C2f block"""
+    """Implements YOLOv8's C2f block.
+
+    Arguments
+    ---------
+    c1 : int
+        Input channels of the C2f block.
+    c2 : int
+        Output channels of the C2f block.
+    n : int
+        Number of bottleck blocks executed in the C2f block.
+    shortcut : bool
+        Decides whether to perform a shortcut in the bottleneck blocks.
+    groups : int
+        Groups for the C2f block.
+    e : float
+        Factor for cancatenating intermeidate results.
+    """
 
     def __init__(self, c1, c2, n=1, shortcut=False, groups=1, e=0.5):
-        """Defines the structure of a YOLOv8 bottleneck block.
-
-        Arguments
-        ---------
-        c1 : int
-            Input channels of the C2f block.
-        c2 : int
-            Output channels of the C2f block.
-        n : int
-            Number of bottleck blocks executed in the C2f block.
-        shortcut : bool
-            Decides whether to perform a shortcut in the bottleneck blocks.
-        groups : int
-            Groups for the C2f block.
-        e : float
-            Factor for cancatenating intermeidate results.
-        """
         super().__init__()
         self.c = int(c2 * e)
         self.cv1 = Conv(
@@ -208,20 +205,19 @@ class C2f(nn.Module):
 
 
 class SPPF(nn.Module):
-    """Implements YOLOv8's SPPF block"""
+    """Implements YOLOv8's SPPF block.
+
+    Arguments
+    ---------
+    c1 : int
+        Input channels of the SPPF block.
+    c2 : int
+        Output channels of the SPPF block.
+    k : int
+        Kernel size for the SPPF block Maxpooling operations
+    """
 
     def __init__(self, c1, c2, k=5):
-        """Defines the structure of a YOLOv8 SPPF block.
-
-        Arguments
-        ---------
-        c1 : int
-            Input channels of the SPPF block.
-        c2 : int
-            Output channels of the SPPF block.
-        k : int
-            Kernel size for the SPPF block Maxpooling operations
-        """
         super().__init__()
         c_ = c1 // 2
         self.cv1 = Conv(c1, c_, 1, 1, padding=None)
@@ -252,16 +248,15 @@ class SPPF(nn.Module):
 
 
 class DFL(nn.Module):
-    """Implements YOLOv8's DFL block"""
+    """Implements YOLOv8's DFL block.
+
+    Arguments
+    ---------
+    c1 : int
+        Input channels of the DFL block.
+    """
 
     def __init__(self, c1=16):
-        """Defines the structure of a YOLOv8 DFL block.
-
-        Arguments
-        ---------
-        c1 : int
-            Input channels of the DFL block.
-        """
         super().__init__()
         self.conv = nn.Conv2d(c1, 1, kernel_size=1, bias=False)
         weight = torch.arange(c1).reshape(1, c1, 1, 1).float()
@@ -291,20 +286,19 @@ class DFL(nn.Module):
 
 
 class Darknet(nn.Module):
-    """Implements YOLOv8's convolutional backbone"""
+    """Implements YOLOv8's convolutional backbone.
+
+    Arguments
+    ---------
+    w : float
+        Width multiple of the Darknet.
+    r : float
+        Ratio multiple of the Darknet.
+    d : float
+        Depth multiple of the Darknet.
+    """
 
     def __init__(self, w, r, d):
-        """Defines the structure of a YOLOv8 convolutional backbone.
-
-        Arguments
-        ---------
-        w : float
-            Width multiple of the Darknet.
-        r : float
-            Ratio multiple of the Darknet.
-        d : float
-            Depth multiple of the Darknet.
-        """
         super().__init__()
         self.b1 = nn.Sequential(
             Conv(c1=3, c2=int(64 * w), kernel_size=3, stride=2, padding=1),
@@ -347,20 +341,19 @@ class Darknet(nn.Module):
 
 
 class Yolov8Neck(nn.Module):
-    """Implements YOLOv8's neck"""
+    """Implements YOLOv8's neck.
+
+    Arguments
+    ---------
+    w : float
+        Width multiple of the Darknet.
+    r : float
+        Ratio multiple of the Darknet.
+    d : float
+        Depth multiple of the Darknet.
+    """
 
     def __init__(self, filters=[256, 512, 768], up=[2, 2], d=1):
-        """Defines the structure of a YOLOv8 neck.
-
-        Arguments
-        ---------
-        w : float
-            Width multiple of the Darknet.
-        r : float
-            Ratio multiple of the Darknet.
-        d : float
-            Depth multiple of the Darknet.
-        """
         super().__init__()
         self.up1 = Upsample(up[0], mode="nearest")
         self.up2 = Upsample(up[1], mode="nearest")
@@ -423,18 +416,17 @@ class Yolov8Neck(nn.Module):
 
 
 class DetectionHead(nn.Module):
-    """Implements YOLOv8's detection head"""
+    """Implements YOLOv8's detection head.
+
+    Arguments
+    ---------
+    nc : int
+        Number of classes to predict.
+    filters : tuple
+        Number of channels of the three inputs of the detection head.
+    """
 
     def __init__(self, nc=80, filters=()):
-        """Defines the structure of a YOLOv8 detection head.
-
-        Arguments
-        ---------
-        nc : int
-            Number of classes to predict.
-        filters : tuple
-            Number of channels of the three inputs of the detection head.
-        """
         super().__init__()
         self.reg_max = 16
         self.nc = nc
@@ -488,22 +480,21 @@ class DetectionHead(nn.Module):
 
 
 class YOLOv8(nn.Module):
-    """Implements YOLOv8 network"""
+    """Implements YOLOv8 network.
+
+    Arguments
+    ---------
+    w : float
+        Width multiple of the Darknet.
+    r : float
+        Ratio multiple of the Darknet.
+    d : float
+        Depth multiple of the Darknet.
+    num_classes : int
+        Number of classes to predict.
+    """
 
     def __init__(self, w, r, d, num_classes=80):
-        """Defines the structure of a YOLOv8 neck.
-
-        Arguments
-        ---------
-        w : float
-            Width multiple of the Darknet.
-        r : float
-            Ratio multiple of the Darknet.
-        d : float
-            Depth multiple of the Darknet.
-        num_classes : int
-            Number of classes to predict.
-        """
         super().__init__()
         self.net = Darknet(w, r, d)
         self.fpn = Yolov8Neck(w, r, d)

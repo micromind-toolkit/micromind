@@ -64,6 +64,7 @@ class Checkpointer:
     Example
     -------
     .. doctest::
+
         >>> from micromind.utils.checkpointer import Checkpointer
         >>> from micromind.utils.checkpointer import create_experiment_folder
         >>> exp_folder = create_experiment_folder("/tmp", "test_mm")

@@ -235,6 +235,7 @@ class XiNet(nn.Module):
     Example
     -------
     .. doctest::
+
         >>> from micromind.networks import XiNet
         >>> model = XiNet((3, 224, 224))
     """

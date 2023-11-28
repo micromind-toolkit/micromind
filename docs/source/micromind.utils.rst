@@ -20,10 +20,10 @@ micromind.utils.helpers module
    :undoc-members:
    :show-inheritance:
 
-micromind.utils.parse module
-----------------------------
+micromind.utils.yolo module
+---------------------------
 
-.. automodule:: micromind.utils.parse
+.. automodule:: micromind.utils.yolo
    :members:
    :undoc-members:
    :show-inheritance:
