@@ -1,3 +1,12 @@
+"""
+Wrapper for the YOLO loss, from the ultralytics implementation.
+For a reference on the parameters, please refer to https://shorturl.at/gkrAO
+
+
+Authors:
+    - Matteo Beltrami, 2023
+    - Francesco Paissan, 2023
+"""
 import torch
 import torch.nn as nn
 from ultralytics.utils.loss import BboxLoss, v8DetectionLoss

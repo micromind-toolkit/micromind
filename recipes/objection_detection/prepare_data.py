@@ -1,3 +1,11 @@
+"""
+Data preparation script for YOLO training. Parses ultralytics yaml files
+and, if needed, downloads them on disk.
+
+Authors:
+    - Matteo Beltrami, 2023
+    - Francesco Paissan, 2023
+"""
 from typing import Dict
 import os
 
