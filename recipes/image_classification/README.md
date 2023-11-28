@@ -37,7 +37,7 @@ The script will also save an ONNX model at the end of the training. To export th
 #### Referencing PhiNet
 If you use PhiNet or `micromind`, please cite our work:
 ```
-@article{10.1145/3510832,
+@article{Paissan_2022_TECS,
 	author = {Paissan, Francesco and Ancilotto, Alberto and Farella, Elisabetta},
 	title = {PhiNets: A Scalable Backbone for Low-Power AI at the Edge},
 	year = {2022},
@@ -46,5 +46,18 @@ If you use PhiNet or `micromind`, please cite our work:
 	url = {https://doi.org/10.1145/3510832},
 	doi = {10.1145/3510832},
 	journal = {ACM Trans. Embed. Comput. Syst.},
+}
+```
+
+#### Referencing XiNet
+If you use XiNet or `micromind`, please cite our work:
+```
+@InProceedings{Ancilotto_2023_ICCV,
+    author    = {Ancilotto, Alberto and Paissan, Francesco and Farella, Elisabetta},
+    title     = {XiNet: Efficient Neural Networks for tinyML},
+    booktitle = {Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)},
+    month     = {October},
+    year      = {2023},
+    pages     = {16968-16977}
 }
 ```
