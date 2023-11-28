@@ -33,19 +33,19 @@ class Inference(YOLO):
     def __init__(self, hparams):
         super().__init__(hparams=hparams, m_cfg={})
 
-    def forward(self, x):
+    def forward(self, batch):
         """Executes the detection network.
 
         Arguments
         ---------
-        x : torch.Tensor
+        bacth : List[torch.Tensor]
             Input to the detection network.
 
         Returns
         -------
             Output of the detection network : torch.Tensor
         """
-        backbone = self.modules["phinet"](x)[1]
+        backbone = self.modules["phinet"](batch[0])[1]
         backbone[-1] = self.modules["sppf"](backbone[-1])
         neck = self.modules["neck"](*backbone)
         head = self.modules["head"](neck)
@@ -80,13 +80,18 @@ if __name__ == "__main__":
         pre_processed_image = preprocess(image)
 
         model = Inference(hparams)
-        model.load_modules(hparams.ckpt_pretrained)
-        print(f"Pretrained model loaded from {hparams.ckpt_pretrained}.")
+        # Load pretrained if passed.
+        if hparams.ckpt_pretrained != "":
+            model.load_modules(hparams.ckpt_pretrained)
+            print(f"Pretrained model loaded from {hparams.ckpt_pretrained}.")
+        else:
+            print("Running inference with no weights.")
+
         model.eval()
 
         with torch.no_grad():
             st = time.time()
-            predictions = model(pre_processed_image)
+            predictions = model((pre_processed_image, None))
             print(f"Inference took {int(round(((time.time() - st) * 1000)))}ms")
             post_predictions = postprocess(
                 preds=predictions[0], img=pre_processed_image, orig_imgs=image
@@ -99,3 +104,5 @@ if __name__ == "__main__":
             all_predictions=post_predictions,
             class_labels=class_labels,
         )
+        # Exporting onnx model.
+        model.export("model.onnx", "onnx", hparams.input_shape)
