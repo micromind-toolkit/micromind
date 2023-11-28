@@ -11,3 +11,21 @@ micromind.networks.phinet module
    :members:
    :undoc-members:
    :show-inheritance:
+
+
+micromind.networks.xinet module
+-------------------------------
+
+.. automodule:: micromind.networks.xinet
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+
+micromind.networks.yolo module
+------------------------------
+
+.. automodule:: micromind.networks.yolo
+   :members:
+   :undoc-members:
+   :show-inheritance:

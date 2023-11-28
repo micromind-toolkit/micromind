@@ -5,21 +5,20 @@ multi-gpu and FP16 training with HF Accelerate and much more.
 Authors:
     - Francesco Paissan, 2023
 """
-from typing import Dict, Union, Tuple, Callable, List
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from argparse import Namespace
+from dataclasses import dataclass
 from pathlib import Path
-from loguru import logger
-from tqdm import tqdm
-import shutil
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
-from accelerate import Accelerator
 import torch
-import os
+from accelerate import Accelerator
+from tqdm import tqdm
+import warnings
 
-from .utils.helpers import select_and_load_checkpoint, get_random_string
-from .utils.checkpointer import Checkpointer
+from .utils.helpers import get_logger
+
+logger = get_logger()
 
 # This is used ONLY if you are not using argparse to get the hparams
 default_cfg = {
@@ -82,27 +81,35 @@ class Metric:
         0.5
     """
 
-    def __init__(self, name: str, fn: Callable, reduction="mean"):
+    def __init__(
+        self,
+        name: str,
+        fn: Callable,
+        reduction: Optional[str] = "mean",
+        eval_only: Optional[bool] = False,
+        eval_period: Optional[int] = 1,
+    ):
         self.name = name
         self.fn = fn
         self.reduction = reduction
+        self.eval_only = eval_only
+        self.eval_period = eval_period
+
         self.history = {s: [] for s in [Stage.train, Stage.val, Stage.test]}
 
     def __call__(self, pred, batch, stage, device="cpu"):
-        if pred.device != device:
-            pred = pred.to(device)
         dat = self.fn(pred, batch)
         if dat.ndim == 0:
             dat = dat.unsqueeze(0)
 
-        self.history[stage].append(self.fn(pred, batch))
+        self.history[stage].append(dat)
 
     def reduce(self, stage, clear=False):
         """
         Compute and return the metric for a given prediction and batch data.
 
         Arguments
-        -------
+        ---------
             pred : torch.Tensor
                 The model's prediction.
             batch : torch.Tensor
@@ -114,23 +121,13 @@ class Metric:
         """
 
         if self.reduction == "mean":
-            if clear or (
-                self.history[stage][-1].shape[0] != self.history[stage][0].shape[0]
-            ):
-                tmp = torch.stack(self.history[stage][:-1]).mean()
-            else:
-                tmp = torch.stack(self.history[stage]).mean()
+            tmp = torch.cat(self.history[stage], dim=0).mean()
         elif self.reduction == "sum":
-            if (
-                clear
-                or self.history[stage][-1].shape[0] != self.history[stage][0].shape[0]
-            ):
-                tmp = torch.stack(self.history[stage][:-1]).sum()
-            else:
-                tmp = torch.stack(self.history[stage]).sum()
+            tmp = torch.cat(self.history[stage], dim=0).sum()
 
         if clear:
             self.history[stage] = []
+
         return tmp.item()
 
 
@@ -158,8 +155,10 @@ class MicroMind(ABC):
         self.hparams = hparams
         self.input_shape = None
 
-        self.device = "cpu"  # used just to init the models
         self.accelerator = Accelerator()
+        self.device = self.accelerator.device
+
+        self.current_epoch = 0
 
     @abstractmethod
     def forward(self, batch):
@@ -205,8 +204,8 @@ class MicroMind(ABC):
 
         Arguments
         ---------
-            input_shape : Tuple
-                Input shape of the forward step.
+        input_shape : Tuple
+            Input shape of the forward step.
 
         """
         self.input_shape = input_shape
@@ -216,8 +215,8 @@ class MicroMind(ABC):
 
         Arguments
         ---------
-            checkpoint_path : Union[Path, str]
-                Path to the checkpoint where the modules are stored.
+        checkpoint_path : Union[Path, str]
+            Path to the checkpoint where the modules are stored.
 
         """
         dat = torch.load(checkpoint_path)
@@ -229,8 +228,6 @@ class MicroMind(ABC):
             modules_keys.remove(k)
 
         if len(modules_keys) != 0:
-            print(modules_keys)
-            breakpoint()
             logger.info(f"Couldn't find a state_dict for modules {modules_keys}.")
 
     def export(
@@ -276,11 +273,12 @@ class MicroMind(ABC):
         """Configures and defines the optimizer for the task. Defaults to adam
         with lr=0.001; It can be overwritten by either passing arguments from the
         command line, or by overwriting this entire method.
+        Scheduler step is called every optimization step.
 
         Returns
-        ---------
-           Optimizer and learning rate scheduler
-           (not implemented yet). : Tuple[torch.optim.Adam, None]
+        -------
+        Optimizer and learning rate scheduler.
+            : Union[Tuple[torch.optim.Adam, None], torch.optim.Adam]
 
         """
         assert self.hparams.opt in [
@@ -291,7 +289,8 @@ class MicroMind(ABC):
             opt = torch.optim.Adam(self.modules.parameters(), self.hparams.lr)
         elif self.hparams.opt == "sgd":
             opt = torch.optim.SGD(self.modules.parameters(), self.hparams.lr)
-        return opt, None  # None is for learning rate sched
+
+        return opt
 
     def __call__(self, *x, **xv):
         """Just forwards everything to the forward method."""
@@ -303,74 +302,79 @@ class MicroMind(ABC):
 
         This function gets executed at the beginning of every training.
         """
-        self.experiment_folder = os.path.join(
-            self.hparams.output_folder, self.hparams.experiment_name
-        )
-        if self.hparams.debug:
-            self.experiment_folder = "tmp_" + get_random_string()
-            logger.info(f"Created temporary folder for debug {self.experiment_folder}.")
 
-        save_dir = os.path.join(self.experiment_folder, "save")
-        if os.path.exists(save_dir):
-            if len(os.listdir(save_dir)) != 0:
-                # select which checkpoint and load it.
-                checkpoint, path = select_and_load_checkpoint(save_dir)
-                self.opt = checkpoint["optimizer"]
-                self.lr_sched = checkpoint["lr_scheduler"]
-                self.start_epoch = checkpoint["epoch"] + 1
+        # pass debug status to checkpointer
+        self.checkpointer.debug = self.hparams.debug
 
-                self.load_modules(path)
-
-                if self.accelerator.is_local_main_process:
-                    self.checkpointer = Checkpointer(
-                        checkpoint["key"],
-                        mode=checkpoint["mode"],
-                        checkpoint_path=self.experiment_folder,
-                    )
-
-                    logger.info(f"Loaded existing checkpoint from {path}.")
-            else:
-                self.opt, self.lr_sched = self.configure_optimizers()
-                self.start_epoch = 0
-
-                self.checkpointer = Checkpointer(
-                    "val_loss", checkpoint_path=self.experiment_folder
-                )
+        init_opt = self.configure_optimizers()
+        if isinstance(init_opt, list) or isinstance(init_opt, tuple):
+            self.opt, self.lr_sched = init_opt
         else:
-            os.makedirs(self.experiment_folder, exist_ok=True)
+            self.opt = init_opt
 
-            self.opt, self.lr_sched = self.configure_optimizers()
-            self.start_epoch = 0
+        self.init_devices()
 
-            self.checkpointer = Checkpointer(
-                "val_loss", checkpoint_path=self.experiment_folder
-            )
+        self.start_epoch = 0
+        if self.checkpointer is not None:
+            # recover state
+            ckpt = self.checkpointer.recover_state()
+            if ckpt is not None:
+                accelerate_path, self.start_epoch = ckpt
+                self.accelerator.load_state(accelerate_path)
+        else:
+            tmp = """
+                You are not passing a checkpointer to the training function, \
+                thus no status will be saved. If this is not the intended behaviour \
+                please check https://micromind-toolkit.github.io/docs/").
+            """
+            warnings.warn(" ".join(tmp.split()))
 
-        self.accelerator = Accelerator()
-        self.device = self.accelerator.device
-        self.modules.to(self.device)
-        print("Set device to ", self.device)
+    def init_devices(self):
+        """Initializes the data pipeline and modules for DDP and accelerated inference.
+        To control the device selection, use `accelerate config`."""
 
-        convert = [self.modules, self.opt, self.lr_sched] + list(self.datasets.values())
+        convert = [self.modules]
+        if hasattr(self, "opt"):
+            convert += [self.opt]
+
+        if hasattr(self, "lr_sched"):
+            convert += [self.lr_sched]
+
+        if hasattr(self, "datasets"):
+            # if the datasets are store here, prepare them for DDP
+            convert += list(self.datasets.values())
+
         accelerated = self.accelerator.prepare(convert)
-        self.modules, self.opt, self.lr_sched = accelerated[:3]
-        for i, key in enumerate(self.datasets):
-            self.datasets[key] = accelerated[-(i + 1)]
+        self.modules = accelerated[0]
+        self.accelerator.register_for_checkpointing(self.modules)
+
+        if hasattr(self, "opt"):
+            self.opt = accelerated[1]
+            self.accelerator.register_for_checkpointing(self.opt)
+
+        if hasattr(self, "lr_sched"):
+            self.lr_sched = accelerated[2]
+            self.accelerator.register_for_checkpointing(self.lr_sched)
+
+        if hasattr(self, "datasets"):
+            for i, key in enumerate(list(self.datasets.keys())[::-1]):
+                self.datasets[key] = accelerated[-(i + 1)]
+
+        self.modules.to(self.device)
 
     def on_train_end(self):
         """Runs at the end of each training. Cleans up before exiting."""
-        if self.hparams.debug:
-            logger.info(f"Removed temporary folder {self.experiment_folder}.")
-            shutil.rmtree(self.experiment_folder)
+        pass
 
-        if self.accelerator.is_local_main_process:
-            self.checkpointer.close()
+    def eval(self):
+        self.modules.eval()
 
     def train(
         self,
         epochs: int = 1,
         datasets: Dict = {},
         metrics: List[Metric] = [],
+        checkpointer=None,  # fix type hints
         debug: bool = False,
     ) -> None:
         """
@@ -396,6 +400,7 @@ class MicroMind(ABC):
         """
         self.datasets = datasets
         self.metrics = metrics
+        self.checkpointer = checkpointer
         assert "train" in self.datasets, "Training dataloader was not specified."
         assert epochs > 0, "You must specify at least one epoch."
 
@@ -405,11 +410,12 @@ class MicroMind(ABC):
 
         if self.accelerator.is_local_main_process:
             logger.info(
-                f"Starting from epoch {self.start_epoch}."
+                f"Starting from epoch {self.start_epoch + 1}."
                 + f" Training is scheduled for {epochs} epochs."
             )
         with self.accelerator.autocast():
-            for e in range(self.start_epoch, epochs):
+            for e in range(self.start_epoch + 1, epochs + 1):
+                self.current_epoch = e
                 pbar = tqdm(
                     self.datasets["train"],
                     unit="batches",
@@ -418,7 +424,7 @@ class MicroMind(ABC):
                     disable=not self.accelerator.is_local_main_process,
                 )
                 loss_epoch = 0
-                pbar.set_description(f"Running epoch {e + 1}/{epochs}")
+                pbar.set_description(f"Running epoch {self.current_epoch}/{epochs}")
                 self.modules.train()
                 for idx, batch in enumerate(pbar):
                     if isinstance(batch, list):
@@ -428,20 +434,29 @@ class MicroMind(ABC):
 
                     model_out = self(batch)
                     loss = self.compute_loss(model_out, batch)
+                    loss_epoch += loss.item()
 
                     self.accelerator.backward(loss)
                     self.opt.step()
+                    if hasattr(self, "lr_sched"):
+                        # ok for cos_lr
+                        self.lr_sched.step()
 
                     for m in self.metrics:
-                        m(model_out, batch, Stage.train, self.device)
+                        if (
+                            self.current_epoch + 1
+                        ) % m.eval_period == 0 and not m.eval_only:
+                            m(model_out, batch, Stage.train, self.device)
 
-                    running_train = {
-                        "train_" + m.name: m.reduce(Stage.train) for m in self.metrics
-                    }
+                    running_train = {}
+                    for m in self.metrics:
+                        if (
+                            self.current_epoch + 1
+                        ) % m.eval_period == 0 and not m.eval_only:
+                            running_train["train_" + m.name] = m.reduce(Stage.train)
 
                     running_train.update({"train_loss": loss_epoch / (idx + 1)})
 
-                    loss_epoch += loss.item()
                     pbar.set_postfix(**running_train)
 
                     if self.debug and idx > 10:
@@ -449,20 +464,25 @@ class MicroMind(ABC):
 
                 pbar.close()
 
-                train_metrics = {
-                    "train_" + m.name: m.reduce(Stage.train, True) for m in self.metrics
-                }
+                train_metrics = {}
+                for m in self.metrics:
+                    if (
+                        self.current_epoch + 1
+                    ) % m.eval_period == 0 and not m.eval_only:
+                        train_metrics["train_" + m.name] = m.reduce(Stage.train, True)
+
                 train_metrics.update({"train_loss": loss_epoch / (idx + 1)})
 
                 if "val" in datasets:
                     val_metrics = self.validate()
-                    if self.accelerator.is_local_main_process:
+                    if (
+                        self.accelerator.is_local_main_process
+                        and self.checkpointer is not None
+                    ):
                         self.checkpointer(
                             self,
-                            e,
                             train_metrics,
                             val_metrics,
-                            lambda x: self.accelerator.unwrap_model(x),
                         )
                 else:
                     val_metrics = train_metrics.update(
@@ -500,7 +520,8 @@ class MicroMind(ABC):
                 model_out = self(batch)
                 loss = self.compute_loss(model_out, batch)
                 for m in self.metrics:
-                    m(model_out, batch, Stage.val, self.device)
+                    if (self.current_epoch + 1) % m.eval_period == 0:
+                        m(model_out, batch, Stage.val, self.device)
 
                 loss_epoch += loss.item()
                 pbar.set_postfix(loss=loss_epoch / (idx + 1))
@@ -508,7 +529,11 @@ class MicroMind(ABC):
                 if self.debug and idx > 10:
                     break
 
-        val_metrics = {"val_" + m.name: m.reduce(Stage.val, True) for m in self.metrics}
+        val_metrics = {}
+        for m in self.metrics:
+            if (self.current_epoch + 1) % m.eval_period == 0:
+                val_metrics["val_" + m.name] = m.reduce(Stage.val, True)
+
         val_metrics.update({"val_loss": loss_epoch / (idx + 1)})
 
         pbar.close()
@@ -516,13 +541,26 @@ class MicroMind(ABC):
         return val_metrics
 
     @torch.no_grad()
-    def test(self, datasets: Dict = {}) -> None:
-        """Runs the test steps."""
-        assert "test" in self.datasets, "Test dataloader was not specified."
+    def test(self, datasets: Dict = {}, metrics: List[Metric] = []) -> None:
+        """Runs the test steps.
+
+        Arguments
+        ---------
+        datasets : Dict
+            Dictionary with the test DataLoader. Should be present in the key
+            `test`.
+        metrics : List[Metric]
+            List of metrics to compute during test step.
+
+        Returns
+        -------
+        Metrics computed on test set. : Dict[torch.Tensor]
+        """
+        assert "test" in datasets, "Test dataloader was not specified."
         self.modules.eval()
 
         pbar = tqdm(
-            self.datasets["test"],
+            datasets["test"],
             unit="batches",
             ascii=True,
             dynamic_ncols=True,
@@ -534,11 +572,10 @@ class MicroMind(ABC):
             for idx, batch in enumerate(pbar):
                 if isinstance(batch, list):
                     batch = [b.to(self.device) for b in batch]
-                self.opt.zero_grad()
 
                 model_out = self(batch)
                 loss = self.compute_loss(model_out, batch)
-                for m in self.metrics:
+                for m in metrics:
                     m(model_out, batch, Stage.test, self.device)
 
                 loss_epoch += loss.item()
@@ -546,9 +583,7 @@ class MicroMind(ABC):
 
         pbar.close()
 
-        test_metrics = {
-            "test_" + m.name: m.reduce(Stage.test, True) for m in self.metrics
-        }
+        test_metrics = {"test_" + m.name: m.reduce(Stage.test, True) for m in metrics}
         test_metrics.update({"test_loss": loss_epoch / (idx + 1)})
         s_out = (
             "Testing "
@@ -558,4 +593,4 @@ class MicroMind(ABC):
 
         logger.info(s_out)
 
-        return None
+        return test_metrics

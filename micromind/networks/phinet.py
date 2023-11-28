@@ -10,10 +10,10 @@ Authors:
 from typing import List
 
 import torch
+import torch.ao.nn.quantized as nnq
 import torch.nn as nn
 import torch.nn.functional as F
 from torchinfo import summary
-import torch.ao.nn.quantized as nnq
 
 
 def _make_divisible(v, divisor=8, min_value=None):
@@ -23,6 +23,19 @@ def _make_divisible(v, divisor=8, min_value=None):
 
     It ensures that all layers have a channel number that is divisible by divisor.
 
+    Arguments
+    ---------
+    v : int
+        The original number of channels.
+    divisor : int, optional
+        The divisor to ensure divisibility (default is 8).
+    min_value : int or None, optional
+        The minimum value for the divisible channels (default is None).
+
+    Returns
+    -------
+    int
+        The adjusted number of channels.
     """
     if min_value is None:
         min_value = divisor
@@ -34,7 +47,20 @@ def _make_divisible(v, divisor=8, min_value=None):
 
 
 def correct_pad(input_shape, kernel_size):
-    """Returns a tuple for zero-padding for 2D convolution with downsampling"""
+    """Returns a tuple for zero-padding for 2D convolution with downsampling.
+
+    Arguments
+    ---------
+    input_shape : tuple or list
+        Shape of the input tensor (height, width).
+    kernel_size : int or tuple
+        Size of the convolution kernel.
+
+    Returns
+    -------
+    tuple
+        A tuple representing the zero-padding in the format (left, right, top, bottom).
+    """
     if isinstance(kernel_size, int):
         kernel_size = (kernel_size, kernel_size)
 
@@ -54,38 +80,91 @@ def correct_pad(input_shape, kernel_size):
 
 
 def preprocess_input(x, **kwargs):
-    """Normalise channels between [-1, 1]"""
+    """Normalize input channels between [-1, 1].
+
+    Arguments
+    ---------
+    x : torch.Tensor
+        Input tensor to be preprocessed.
+
+    Returns
+    -------
+    torch.Tensor
+        Normalized tensor with values between [-1, 1].
+    """
 
     return (x / 128.0) - 1
 
 
 def get_xpansion_factor(t_zero, beta, block_id, num_blocks):
-    """Compute expansion factor based on the formula from the paper"""
+    """Compute the expansion factor based on the formula from the paper.
+
+    Arguments
+    ---------
+    t_zero : float
+        The base expansion factor.
+    beta : float
+        The shape factor.
+    block_id : int
+        The identifier of the current block.
+    num_blocks : int
+        The total number of blocks.
+
+    Returns
+    -------
+    float
+        The computed expansion factor.
+    """
     return (t_zero * beta) * block_id / num_blocks + t_zero * (
         num_blocks - block_id
     ) / num_blocks
 
 
 class ReLUMax(torch.nn.Module):
+    """Implements ReLUMax.
+
+    Arguments
+    ---------
+    max_value : float
+        The maximum value for the clamp operation.
+
+    """
+
     def __init__(self, max):
         super(ReLUMax, self).__init__()
         self.max = max
 
     def forward(self, x):
+        """Forward pass of ReLUMax.
+
+        Arguments
+        ---------
+        x : torch.Tensor
+            Input tensor.
+
+        Returns
+        -------
+        torch.Tensor
+            Output tensor after applying ReLU with max value.
+        """
         return torch.clamp(x, min=0, max=self.max)
 
 
 class SEBlock(torch.nn.Module):
-    """Implements squeeze-and-excitation block"""
+    """Implements squeeze-and-excitation block.
+
+    Arguments
+    ---------
+    in_channels : int
+        Input number of channels.
+    out_channels : int
+        Output number of channels.
+    h_swish : bool, optional
+        Whether to use the h_swish (default is True).
+
+    """
 
     def __init__(self, in_channels, out_channels, h_swish=True):
-        """Constructor of SEBlock
-
-        Args:
-            in_channels ([int]): [Input number of channels]
-            out_channels ([int]): [Output number of channels]
-            h_swish (bool, optional): [Whether to use the h_swish]. Defaults to True.
-        """
         super(SEBlock, self).__init__()
 
         self.se_conv = nn.Conv2d(
@@ -110,13 +189,17 @@ class SEBlock(torch.nn.Module):
         self.mult = nnq.FloatFunctional()
 
     def forward(self, x):
-        """Executes SE Block
+        """Executes the squeeze-and-excitation block.
 
-        Args:
-            x ([Tensor]): [input tensor]
+        Arguments
+        ---------
+        x : torch.Tensor
+            Input tensor.
 
-        Returns:
-            [Tensor]: [output of squeeze-and-excitation block]
+        Returns
+        -------
+        torch.Tensor
+            Output of the squeeze-and-excitation block.
         """
 
         inp = x
@@ -130,6 +213,29 @@ class SEBlock(torch.nn.Module):
 
 
 class DepthwiseConv2d(torch.nn.Conv2d):
+    """Depthwise 2D convolution layer.
+
+    Arguments
+    ---------
+    in_channels : int
+        Number of input channels.
+    depth_multiplier : int, optional
+        The channel multiplier for the output channels (default is 1).
+    kernel_size : int or tuple, optional
+        Size of the convolution kernel (default is 3).
+    stride : int or tuple, optional
+        Stride of the convolution (default is 1).
+    padding : int or tuple, optional
+        Zero-padding added to both sides of the input (default is 0).
+    dilation : int or tuple, optional
+        Spacing between kernel elements (default is 1).
+    bias : bool, optional
+        If True, adds a learnable bias to the output (default is False).
+    padding_mode : str, optional
+        'zeros' or 'circular'. Padding mode for convolution (default is 'zeros').
+
+    """
+
     def __init__(
         self,
         in_channels,
@@ -156,7 +262,32 @@ class DepthwiseConv2d(torch.nn.Conv2d):
 
 
 class SeparableConv2d(torch.nn.Module):
-    """Implements SeparableConv2d"""
+    """Implements SeparableConv2d.
+
+    Arguments
+    ---------
+    in_channels : int
+        Input number of channels.
+    out_channels : int
+        Output number of channels.
+    activation : function, optional
+        Activation function to apply (default is torch.nn.functional.relu).
+    kernel_size : int, optional
+        Kernel size (default is 3).
+    stride : int, optional
+        Stride for convolution (default is 1).
+    padding : int, optional
+        Padding for convolution (default is 0).
+    dilation : int, optional
+        Dilation factor for convolution (default is 1).
+    bias : bool, optional
+        If True, adds a learnable bias to the output (default is True).
+    padding_mode : str, optional
+        Padding mode for convolution (default is 'zeros').
+    depth_multiplier : int, optional
+        Depth multiplier (default is 1).
+
+    """
 
     def __init__(
         self,
@@ -171,19 +302,6 @@ class SeparableConv2d(torch.nn.Module):
         padding_mode="zeros",
         depth_multiplier=1,
     ):
-        """Constructor of SeparableConv2d
-
-        Args:
-            in_channels ([int]): [Input number of channels]
-            out_channels ([int]): [Output number of channels]
-            kernel_size (int, optional): [Kernel size]. Defaults to 3.
-            stride (int, optional): [Stride for conv]. Defaults to 1.
-            padding (int, optional): [Padding for conv]. Defaults to 0.
-            dilation (int, optional): []. Defaults to 1.
-            bias (bool, optional): []. Defaults to True.
-            padding_mode (str, optional): []. Defaults to 'zeros'.
-            depth_multiplier (int, optional): [Depth multiplier]. Defaults to 1.
-        """
         super().__init__()
 
         self._layers = torch.nn.ModuleList()
@@ -220,13 +338,17 @@ class SeparableConv2d(torch.nn.Module):
         self._layers.append(activation)
 
     def forward(self, x):
-        """Executes SeparableConv2d block
+        """Executes the SeparableConv2d block.
 
-        Args:
-            x ([Tensor]): [Input tensor]
+        Arguments
+        ---------
+        x : torch.Tensor
+            Input tensor.
 
-        Returns:
-            [Tensor]: [Output of convolution]
+        Returns
+        -------
+        torch.Tensor
+            Output of the convolution.
         """
         for layer in self._layers:
             x = layer(x)
@@ -235,7 +357,30 @@ class SeparableConv2d(torch.nn.Module):
 
 
 class PhiNetConvBlock(nn.Module):
-    """Implements PhiNet's convolutional block"""
+    """Implements PhiNet's convolutional block.
+
+    Arguments
+    ---------
+    in_shape : tuple
+        Input shape of the conv block.
+    expansion : float
+        Expansion coefficient for this convolutional block.
+    stride: int
+        Stride for the conv block.
+    filters : int
+        Output channels of the convolutional block.
+    block_id : int
+        ID of the convolutional block.
+    has_se : bool
+        Whether to include use Squeeze and Excite or not.
+    res : bool
+        Whether to use the residual connection or not.
+    h_swish : bool
+        Whether to use HSwish or not.
+    k_size : int
+        Kernel size for the depthwise convolution.
+
+    """
 
     def __init__(
         self,
@@ -251,30 +396,6 @@ class PhiNetConvBlock(nn.Module):
         dp_rate=0.05,
         divisor=1,
     ):
-        """Defines the structure of a PhiNet convolutional block.
-
-        Arguments
-        -------
-        in_shape : tuple
-            Input shape of the conv block.
-        expansion : float
-            Expansion coefficient for this convolutional block.
-        stride: int
-            Stride for the conv block.
-        filters : int
-            Output channels of the convolutional block.
-        block_id : int
-            ID of the convolutional block.
-        has_se : bool
-            Whether to include use Squeeze and Excite or not.
-        res : bool
-            Whether to use the residual connection or not.
-        h_swish : bool
-            Whether to use HSwish or not.
-        k_size : int
-            Kernel size for the depthwise convolution.
-
-        """
         super(PhiNetConvBlock, self).__init__()
 
         self.param_count = 0
@@ -380,14 +501,17 @@ class PhiNetConvBlock(nn.Module):
             self.op = nnq.FloatFunctional()
 
     def forward(self, x):
-        """Executes PhiNet convolutional block
+        """Executes the PhiNet convolutional block.
 
-        Arguments:
-            x : torch.Tensor
-                Input to the convolutional block.
+        Arguments
+        ---------
+        x : torch.Tensor
+            Input to the convolutional block.
 
-        Returns:
-            Ouput of the convolutional block : torch.Tensor
+        Returns
+        -------
+        torch.Tensor
+            Output of the convolutional block.
         """
 
         if self.skip_conn:
@@ -403,6 +527,30 @@ class PhiNetConvBlock(nn.Module):
 
 
 class PhiNet(nn.Module):
+    """
+    This class implements the PhiNet architecture.
+
+    Arguments
+    ---------
+    input_shape : tuple
+        Input resolution as (C, H, W).
+    num_layers : int
+        Number of convolutional blocks.
+    alpha: float
+        Width multiplier for PhiNet architecture.
+    beta : float
+        Shape factor of PhiNet.
+    t_zero : float
+        Base expansion factor for PhiNet.
+    include_top : bool
+        Whether to include classification head or not.
+    num_classes : int
+        Number of classes for the classification head.
+    compatibility : bool
+        `True` to maximise compatibility among embedded platforms (changes network).
+
+    """
+
     def get_complexity(self):
         """Returns MAC and number of parameters of initialized architecture.
 
@@ -480,35 +628,15 @@ class PhiNet(nn.Module):
         h_swish: bool = True,  # S1
         squeeze_excite: bool = True,  # S1
         divisor: int = 1,
+        return_layers=None,
     ) -> None:
-        """This class implements the PhiNet architecture.
-
-        Arguments
-        -------
-        input_shape : tuple
-            Input resolution as (C, H, W).
-        num_layers : int
-            Number of convolutional blocks.
-        alpha: float
-            Width multiplier for PhiNet architecture.
-        beta : float
-            Shape factor of PhiNet.
-        t_zero : float
-            Base expansion factor for PhiNet.
-        include_top : bool
-            Whether to include classification head or not.
-        num_classes : int
-            Number of classes for the classification head.
-        compatibility : bool
-            `True` to maximise compatibility among embedded platforms (changes network).
-
-        """
         super(PhiNet, self).__init__()
         self.alpha = alpha
         self.beta = beta
         self.t_zero = t_zero
         self.num_layers = num_layers
         self.num_classes = num_classes
+        self.return_layers = return_layers
 
         if compatibility:  # disables operations hard for some platforms
             h_swish = False
@@ -686,22 +814,33 @@ class PhiNet(nn.Module):
                 ),
             )
 
+        if self.return_layers is not None:
+            print(f"PhiNet configured to return layers {self.return_layers}:")
+            for i in self.return_layers:
+                print(f"Layer {i} - {self._layers[i].__class__}")
+
     def forward(self, x):
         """Executes PhiNet network
 
         Arguments
         -------
-            x : torch.Tensor
-                Network input.
+        x : torch.Tensor
+            Network input.
 
         Returns
         ------
             Logits if `include_top=True`, otherwise embeddings : torch.Tensor
         """
-        for layers in self._layers:
+        ret = []
+        for i, layers in enumerate(self._layers):
             x = layers(x)
+            if self.return_layers is not None:
+                if i in self.return_layers:
+                    ret.append(x)
 
         if self.classify:
             x = self.classifier(x)
 
+        if self.return_layers is not None:
+            return x, ret
         return x
