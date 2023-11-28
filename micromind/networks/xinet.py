@@ -381,8 +381,3 @@ class XiNet(nn.Module):
 
         return x
 
-
-if __name__ == "__main__":
-    model = XiNet((3, 224, 224))
-
-    model(torch.randn(1, 3, 224, 224))
