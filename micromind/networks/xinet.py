@@ -380,4 +380,3 @@ class XiNet(nn.Module):
             return x, ret
 
         return x
-
