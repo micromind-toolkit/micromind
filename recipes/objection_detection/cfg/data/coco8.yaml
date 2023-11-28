@@ -1,5 +1,11 @@
-# Default training settings and hyperparameters for medium-augmentation COCO training
-
+########
+# Data configuration file for COCO8 trainings.
+# Based on the ultralytics data conf.
+#
+# Adapted by:
+# - Matteo Beltrami, 2023
+# - Francesco Paissan, 2023
+########
 task: detect  # (str) YOLO task, i.e. detect, segment, classify, pose
 mode: train  # (str) YOLO mode, i.e. train, val, predict, export, track, benchmark
 
@@ -22,30 +28,19 @@ box: 7.5  # (float) box loss gain
 cls: 0.5  # (float) cls loss gain (scale with pixels)
 dfl: 1.5  # (float) dfl loss gain
 
-hsv_h: 0.  # (float) image HSV-Hue augmentation (fraction)
-hsv_s: 0.  # (float) image HSV-Saturation augmentation (fraction)
-hsv_v: 0.  # (float) image HSV-Value augmentation (fraction)
+hsv_h: 0.015  # (float) image HSV-Hue augmentation (fraction)
+hsv_s: 0.7  # (float) image HSV-Saturation augmentation (fraction)
+hsv_v: 0.4  # (float) image HSV-Value augmentation (fraction)
 degrees: 0.0  # (float) image rotation (+/- deg)
-translate: 0.  # (float) image translation (+/- fraction)
-scale: 0.  # (float) image scale (+/- gain)
+translate: 0.1  # (float) image translation (+/- fraction)
+scale: 0.5  # (float) image scale (+/- gain)
 shear: 0.0  # (float) image shear (+/- deg)
 perspective: 0.0  # (float) image perspective (+/- fraction), range 0-0.001
-flipud: 1.0  # (float) image flip up-down (probability)
-fliplr: 1.0  # (float) image flip left-right (probability)
+flipud: 0.0  # (float) image flip up-down (probability)
+fliplr: 0.5  # (float) image flip left-right (probability)
 mosaic: 1.0  # (float) image mosaic (probability)
-mixup: 1.0  # (float) image mixup (probability)
-copy_paste: 1.0  # (float) segment copy-paste (probability)
-
-
-# # DATASET --------------------------------------------------------------------------------------------------------------
-
-# Ultralytics YOLO 🚀, AGPL-3.0 license
-# COCO8 dataset (first 8 images from COCO train2017) by Ultralytics
-# Example usage: yolo train data=coco8.yaml
-# parent
-# ├── ultralytics
-# └── datasets
-#     └── coco8  ← downloads here (1 MB)
+mixup: 0.0  # (float) image mixup (probability)
+copy_paste: 0.0  # (float) segment copy-paste (probability)
 
 
 # Train/val/test sets as 1) dir: path/to/imgs, 2) file: path/to/imgs.txt, or 3) list: [path/to/imgs1, path/to/imgs2, ..]
@@ -136,7 +131,6 @@ names:
   77: teddy bear
   78: hair drier
   79: toothbrush
-
 
 # Download script/URL (optional)
 download: |

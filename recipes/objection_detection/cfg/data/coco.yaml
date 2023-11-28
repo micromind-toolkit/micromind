@@ -1,5 +1,11 @@
-# Default training settings and hyperparameters for medium-augmentation COCO training
-
+########
+# Data configuration file for COCO8 trainings.
+# Based on the ultralytics data conf.
+#
+# Adapted by:
+# - Matteo Beltrami, 2023
+# - Francesco Paissan, 2023
+########
 task: detect  # (str) YOLO task, i.e. detect, segment, classify, pose
 mode: train  # (str) YOLO mode, i.e. train, val, predict, export, track, benchmark
 
@@ -37,8 +43,7 @@ mixup: 0.0  # (float) image mixup (probability)
 copy_paste: 0.0  # (float) segment copy-paste (probability)
 
 
-# # DATASET --------------------------------------------------------------------------------------------------------------
-
+# Dataset location
 path: /mnt/data/coco  # dataset root dir
 train: train2017.txt  # train images (relative to 'path') 118287 images
 val: val2017.txt  # val images (relative to 'path') 5000 images
