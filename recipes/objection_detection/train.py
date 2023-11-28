@@ -32,6 +32,7 @@ import os
 
 class YOLO(mm.MicroMind):
     def __init__(self, m_cfg, hparams, *args, **kwargs):
+        """Initializes the YOLO model."""
         super().__init__(*args, **kwargs)
 
         self.modules["phinet"] = PhiNet(
@@ -94,7 +95,6 @@ class YOLO(mm.MicroMind):
             out_neck[1].shape[1],
             out_neck[2].shape[1],
         )
-        # head = DetectionHead(filters=head_filters)
 
         return (c1, c2), neck_filters, up, head_filters
 
@@ -111,6 +111,7 @@ class YOLO(mm.MicroMind):
         return preprocessed_batch
 
     def forward(self, batch):
+        """Runs the forward method by calling every module."""
         preprocessed_batch = self.preprocess_batch(batch)
         backbone = self.modules["phinet"](preprocessed_batch["img"].to(self.device))[1]
         backbone[-1] = self.modules["sppf"](backbone[-1])
@@ -120,6 +121,7 @@ class YOLO(mm.MicroMind):
         return head
 
     def compute_loss(self, pred, batch):
+        """Computes the loss."""
         self.criterion = Loss(self.m_cfg, self.modules["head"], self.device)
         preprocessed_batch = self.preprocess_batch(batch)
 
@@ -131,6 +133,7 @@ class YOLO(mm.MicroMind):
         return lossi_sum
 
     def configure_optimizers(self):
+        """Configures the optimizer and the scheduler."""
         opt = torch.optim.SGD(self.modules.parameters(), lr=1e-2, weight_decay=0.0005)
         sched = torch.optim.lr_scheduler.CosineAnnealingLR(
             opt, T_max=14000, eta_min=1e-3
@@ -139,6 +142,21 @@ class YOLO(mm.MicroMind):
 
     @torch.no_grad()
     def mAP(self, pred, batch):
+        """Compute the mean average precision (mAP) for a batch of predictions.
+
+        Arguments
+        ---------
+        pred : torch.Tensor
+            Model predictions for the batch.
+        batch : dict
+            A dictionary containing batch information, including bounding boxes,
+            classes and shapes.
+
+        Returns
+        -------
+        torch.Tensor
+            A tensor containing the computed mean average precision (mAP) for the batch.
+        """
         preprocessed_batch = self.preprocess_batch(batch)
         post_predictions = postprocess(
             preds=pred[0], img=preprocessed_batch, orig_imgs=batch
