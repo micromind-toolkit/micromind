@@ -535,7 +535,7 @@ class MicroMind(ABC):
         val_metrics = {}
         for m in self.metrics:
             if (self.current_epoch + 1) % m.eval_period == 0:
-                val_metrics = {"val_" + m.name: m.reduce(Stage.val, True)}
+                val_metrics["val_" + m.name] = m.reduce(Stage.val, True)
 
         val_metrics.update({"val_loss": loss_epoch / (idx + 1)})
 
