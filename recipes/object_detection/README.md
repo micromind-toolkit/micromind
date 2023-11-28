@@ -1,8 +1,11 @@
-## Image classification
+## Object Detection using YOLO
 
-**Disclaimer**: we will shortly releease HuggingFace checkpoints for ImageNet, CIFAR-100, and CIFAR-10 for both PhiNet and XiNet.
+**Disclaimer**: we will shortly releease HuggingFace checkpoints for COCO and VOC for both PhiNet and XiNet.
 
-This image classification recipe uses the PyTorch image models library (`timm`) to augment the data. It supports most data augmentation strategies, and datasets of the original implementation. However, it is implemented using `micromind` and thus, it exploits all the exportability and functionalities of the library.
+In an attempt to showcase the simplicity of the YOLO object detection pipeline, we propose our implementation
+free of the many abstraction layers of current state-of-the-art implementations. In fact, our implementation targets having not more than two abstraction layers, so that changes and improvements are transparent and reproducibile.
+
+This recipe uses some components from state-of-the-art object detection pipelines (via ultralytics), and supports distributed training.
 
 To reproduce our results, you can follow these steps:
 
@@ -12,27 +15,19 @@ To reproduce our results, you can follow these steps:
 
 ### Training
 
-The experiment's configuration is stored inside the files in the `cfg` folder. They can be overridden simply from the command line by providing a new value. For example, if you want to start a training on CIFAR-10, you just need to execute the following command:
+The experiment's configuration is stored inside the files in the `cfg` folder. They can be overridden simply from the command line by providing a new value. To start a training on COCO using YOLOPhiNet, you can use:
 ```
-python train.py cfg/phinet.py
-```
-
-For CIFAR-100 instead, you can use:
-```
-python train.py cfg/phinet.py --dataset torch/cifar100 --data_dir data/cifar100
+python train.py cfg/yolo_phinet.py
 ```
 
 ### Inference
 In order to export the model and/or run an inference using PyTorch, you can pass an image and the path to a pretrained model to the inference script.
 For this, you can use this command:
 ```
-python inference.py cfg/phinet.py IMG_PATH --ckpt_pretrained MODEL_PATH
+python inference.py cfg/yolo_phinet.py IMG_PATH --ckpt_pretrained MODEL_PATH
 ```
 
 This will print the predicted output, and save an ONNX model in `model.onnx`.
-
-
-The script will also save an ONNX model at the end of the training. To export the checkpoint in a different format, please read [our documentation](https://micromind-toolkit.github.io/docs/).
 
 #### Referencing PhiNet
 If you use PhiNet or `micromind`, please cite our work:

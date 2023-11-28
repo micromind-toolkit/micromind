@@ -6,15 +6,12 @@ Authors:
 """
 
 # Model configuration
-model = "phinet"
-input_shape = (3, 32, 32)
-alpha = 3
+model = "xinet"
+input_shape = (3, 128, 128)
+alpha = 1
 num_layers = 7
-beta = 1
-t_zero = 5
-divisor = 8
-downsampling_layers = [5, 7]
 return_layers = None
+gamma = 4
 
 ckpt_pretrained = ""
 

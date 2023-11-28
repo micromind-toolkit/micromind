@@ -1,7 +1,9 @@
-# Release 0.0.5
+# Release 0.2.0
 
-1. Improved unit tests;
-2. Extended CI to multiple python versions (including 3.8 compatibility);
-3. Updated LICENSE to Apache 2.0;
-4. Minor fixes to image classification recipes;
-5. Added guide to contribution in the documentation;
+1. Added metrics;
+2. Improved checkpointing logic;
+3. Added XiNet (https://shorturl.at/mtHT0);
+4. dded image classification recipe;
+5. Added object detection recipe;
+6. Added object detection recipe;
+7. New parse configuration that exploits python files for config;

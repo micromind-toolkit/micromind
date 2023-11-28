@@ -24,7 +24,7 @@ from timm.loss import (
 )
 
 import micromind as mm
-from micromind.networks import PhiNet
+from micromind.networks import PhiNet, XiNet
 from micromind.utils import parse_configuration
 import sys
 
@@ -36,20 +36,32 @@ class ImageClassification(mm.MicroMind):
     def __init__(self, hparams, *args, **kwargs):
         super().__init__(hparams, *args, **kwargs)
 
-        self.modules["classifier"] = PhiNet(
-            input_shape=hparams.input_shape,
-            alpha=hparams.alpha,
-            num_layers=hparams.num_layers,
-            beta=hparams.beta,
-            t_zero=hparams.t_zero,
-            compatibility=False,
-            divisor=hparams.divisor,
-            downsampling_layers=hparams.downsampling_layers,
-            return_layers=hparams.return_layers,
-            # classification-specific
-            include_top=True,
-            num_classes=hparams.num_classes,
-        )
+        if hparams.model == "phinet":
+            self.modules["classifier"] = PhiNet(
+                input_shape=hparams.input_shape,
+                alpha=hparams.alpha,
+                num_layers=hparams.num_layers,
+                beta=hparams.beta,
+                t_zero=hparams.t_zero,
+                compatibility=False,
+                divisor=hparams.divisor,
+                downsampling_layers=hparams.downsampling_layers,
+                return_layers=hparams.return_layers,
+                # classification-specific
+                include_top=True,
+                num_classes=hparams.num_classes,
+            )
+        elif hparams.model == "xinet":
+            self.modules["classifier"] = XiNet(
+                input_shape=hparams.input_shape,
+                alpha=hparams.alpha,
+                gamma=hparams.gamma,
+                num_layers=hparams.num_layers,
+                return_layers=hparams.return_layers,
+                # classification-specific
+                include_top=True,
+                num_classes=hparams.num_classes,
+            )
 
         tot_params = 0
         for m in self.modules.values():
@@ -175,7 +187,9 @@ if __name__ == "__main__":
         hparams.output_folder, hparams.experiment_name
     )
 
-    checkpointer = mm.utils.checkpointer.Checkpointer(exp_folder, key="loss")
+    checkpointer = mm.utils.checkpointer.Checkpointer(
+        exp_folder, hparams=hparams, key="loss"
+    )
 
     mind = ImageClassification(hparams=hparams)
 
@@ -183,7 +197,7 @@ if __name__ == "__main__":
     top5 = mm.Metric("top5_acc", top_k_accuracy(k=5), eval_only=True)
 
     mind.train(
-        epochs=100,
+        epochs=hparams.epochs,
         datasets={"train": train_loader, "val": val_loader},
         metrics=[top5, top1],
         checkpointer=checkpointer,

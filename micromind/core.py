@@ -109,7 +109,7 @@ class Metric:
         Compute and return the metric for a given prediction and batch data.
 
         Arguments
-        -------
+        ---------
             pred : torch.Tensor
                 The model's prediction.
             batch : torch.Tensor
@@ -204,8 +204,8 @@ class MicroMind(ABC):
 
         Arguments
         ---------
-            input_shape : Tuple
-                Input shape of the forward step.
+        input_shape : Tuple
+            Input shape of the forward step.
 
         """
         self.input_shape = input_shape
@@ -215,8 +215,8 @@ class MicroMind(ABC):
 
         Arguments
         ---------
-            checkpoint_path : Union[Path, str]
-                Path to the checkpoint where the modules are stored.
+        checkpoint_path : Union[Path, str]
+            Path to the checkpoint where the modules are stored.
 
         """
         dat = torch.load(checkpoint_path)
@@ -273,10 +273,11 @@ class MicroMind(ABC):
         """Configures and defines the optimizer for the task. Defaults to adam
         with lr=0.001; It can be overwritten by either passing arguments from the
         command line, or by overwriting this entire method.
+        Scheduler step is called every optimization step.
 
         Returns
-        ---------
-           Optimizer and learning rate scheduler.
+        -------
+        Optimizer and learning rate scheduler.
             : Union[Tuple[torch.optim.Adam, None], torch.optim.Adam]
 
         """
@@ -289,11 +290,7 @@ class MicroMind(ABC):
         elif self.hparams.opt == "sgd":
             opt = torch.optim.SGD(self.modules.parameters(), self.hparams.lr)
 
-        sched = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            opt, "min", factor=0.1, patience=10, threshold=5
-        )
-
-        return opt, sched
+        return opt
 
     def __call__(self, *x, **xv):
         """Just forwards everything to the forward method."""
@@ -535,7 +532,7 @@ class MicroMind(ABC):
         val_metrics = {}
         for m in self.metrics:
             if (self.current_epoch + 1) % m.eval_period == 0:
-                val_metrics = {"val_" + m.name: m.reduce(Stage.val, True)}
+                val_metrics["val_" + m.name] = m.reduce(Stage.val, True)
 
         val_metrics.update({"val_loss": loss_epoch / (idx + 1)})
 
