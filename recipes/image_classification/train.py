@@ -187,7 +187,9 @@ if __name__ == "__main__":
         hparams.output_folder, hparams.experiment_name
     )
 
-    checkpointer = mm.utils.checkpointer.Checkpointer(exp_folder, key="loss")
+    checkpointer = mm.utils.checkpointer.Checkpointer(
+        exp_folder, hparams=hparams, key="loss"
+    )
 
     mind = ImageClassification(hparams=hparams)
 
@@ -195,7 +197,7 @@ if __name__ == "__main__":
     top5 = mm.Metric("top5_acc", top_k_accuracy(k=5), eval_only=True)
 
     mind.train(
-        epochs=100,
+        epochs=hparams.epochs,
         datasets={"train": train_loader, "val": val_loader},
         metrics=[top5, top1],
         checkpointer=checkpointer,

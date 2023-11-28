@@ -199,7 +199,9 @@ if __name__ == "__main__":
         hparams.output_folder, hparams.experiment_name
     )
 
-    checkpointer = mm.utils.checkpointer.Checkpointer(exp_folder, key="loss")
+    checkpointer = mm.utils.checkpointer.Checkpointer(
+        exp_folder, hparams=hparams, key="loss"
+    )
 
     yolo_mind = YOLO(m_cfg, hparams=hparams)
 

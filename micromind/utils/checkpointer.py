@@ -10,6 +10,8 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional, Union
+from argparse import Namespace
+import warnings
 
 import torch
 import yaml
@@ -73,6 +75,7 @@ class Checkpointer:
         experiment_folder: Union[str, Path],
         key: Optional[str] = "loss",
         mode: Optional[str] = "min",
+        hparams: Optional[Namespace] = None,
     ) -> None:
         assert experiment_folder != "", "You should pass a valid experiment folder."
         assert os.path.exists(
@@ -87,6 +90,17 @@ class Checkpointer:
         self.root_dir = experiment_folder
         self.save_dir = os.path.join(self.root_dir, "save")
         self.last_dir = "default"
+
+        # dump hparams to yaml when passed
+        if hparams is not None and os.path.exists(self.root_dir):
+            with open(os.path.join(self.root_dir, "args.yaml"), "w") as args_f:
+                args_f.write(yaml.safe_dump(vars(hparams)))
+        else:
+            warnings.warn(
+                "You did not specify the configuration to the checkpointer, \
+                so it won't be saved. You can pass one using the hparams \
+                argument. Ignore this if you are in debug mode."
+            )
 
         # if true, does not write on disk
         self.debug = False
