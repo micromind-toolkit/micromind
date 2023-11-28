@@ -1,6 +1,6 @@
 ## Image classification
 
-*Disclaimer*: HuggingFace checkpoints on the way for ImageNet, CIFAR-100, and CIFAR-10.
+**Disclaimer**: we will shortly releease HuggingFace checkpoints for ImageNet, CIFAR-100, and CIFAR-10 for both PhiNet and XiNet.
 
 This image classification recipe uses the PyTorch image models library (`timm`) to augment the data. It supports most data augmentation strategies, and datasets of the original implementation. However, it is implemented using `micromind` and thus, it exploits all the exportability and functionalities of the library.
 
@@ -32,7 +32,7 @@ python inference.py cfg/phinet.py IMG_PATH --ckpt_pretrained MODEL_PATH
 This will print the predicted output, and save an ONNX model in `model.onnx`.
 
 
-The script will also save an ONNX model at the end of the training. To export the checkpoint in a different format, please read [our documentation](micromind-toolkit.github.io/docs/).
+The script will also save an ONNX model at the end of the training. To export the checkpoint in a different format, please read [our documentation](https://micromind-toolkit.github.io/docs/).
 
 #### Referencing PhiNet
 If you use PhiNet or `micromind`, please cite our work:
