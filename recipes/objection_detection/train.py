@@ -165,14 +165,18 @@ class YOLO(mm.MicroMind):
 
 
 def replace_datafolder(hparams, data_cfg):
-    """Replaces the data root folder, if told to do so from the configuration. """
+    """Replaces the data root folder, if told to do so from the configuration."""
     data_cfg["path"] = str(data_cfg["path"])
-    data_cfg["path"] = data_cfg["path"][:-1] if data_cfg["path"][-1] == "/" else data_cfg["path"]
+    data_cfg["path"] = (
+        data_cfg["path"][:-1] if data_cfg["path"][-1] == "/" else data_cfg["path"]
+    )
     for key in ["train", "val"]:
         if hasattr(hparams, "data_dir"):
             if hparams.data_dir != data_cfg["path"]:
                 data_cfg[key] = str(data_cfg[key]).replace(data_cfg["path"], "")
-                data_cfg[key] = data_cfg[key][1:] if data_cfg[key][0] == "/" else data_cfg[key]
+                data_cfg[key] = (
+                    data_cfg[key][1:] if data_cfg[key][0] == "/" else data_cfg[key]
+                )
                 data_cfg[key] = os.path.join(hparams.data_dir, data_cfg[key])
 
     data_cfg["path"] = hparams.data_dir

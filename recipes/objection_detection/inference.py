@@ -53,8 +53,12 @@ class Inference(YOLO):
 
 
 if __name__ == "__main__":
-    assert len(sys.argv) > 2, ' '.join("Something went wrong when launching the script. \
-            Please check the arguments.".split(" "))
+    assert len(sys.argv) > 2, " ".join(
+        "Something went wrong when launching the script. \
+            Please check the arguments.".split(
+            " "
+        )
+    )
 
     hparams = parse_configuration(sys.argv[1])
 
@@ -82,7 +86,7 @@ if __name__ == "__main__":
 
         with torch.no_grad():
             st = time.time()
-            predictions = model(pre_processed_image) 
+            predictions = model(pre_processed_image)
             print(f"Inference took {int(round(((time.time() - st) * 1000)))}ms")
             post_predictions = postprocess(
                 preds=predictions[0], img=pre_processed_image, orig_imgs=image
