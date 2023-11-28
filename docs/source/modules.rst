@@ -6,10 +6,3 @@ micromind
 
    micromind
 
-recipes
-=======
-
-.. toctree::
-   :maxdepth: 4
-
-   recipes
