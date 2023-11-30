@@ -351,11 +351,11 @@ class MicroMind(ABC):
         self.accelerator.register_for_checkpointing(self.modules)
 
         if hasattr(self, "opt"):
-            self.opt = accelerated[1]
+            self.opt = accelerated[len(self.modules)]
             self.accelerator.register_for_checkpointing(self.opt)
 
         if hasattr(self, "lr_sched"):
-            self.lr_sched = accelerated[2]
+            self.lr_sched = accelerated[1 + len(self.modules)]
             self.accelerator.register_for_checkpointing(self.lr_sched)
 
         if hasattr(self, "datasets"):
