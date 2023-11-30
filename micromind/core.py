@@ -333,7 +333,8 @@ class MicroMind(ABC):
         """Initializes the data pipeline and modules for DDP and accelerated inference.
         To control the device selection, use `accelerate config`."""
 
-        convert = [self.modules]
+        # pass each module through DDP independently
+        convert = list(self.modules.values())
         if hasattr(self, "opt"):
             convert += [self.opt]
 
@@ -345,10 +346,9 @@ class MicroMind(ABC):
             convert += list(self.datasets.values())
 
         accelerated = self.accelerator.prepare(*convert)
-        print(accelerated)
-        print(len(accelerated))
-        exit(0)
-        self.modules = accelerated[0]
+        for idx, key in enumerate(self.modules):
+            print(accelerated[idx])
+            self.modules[key] = accelerated[idx]
         self.accelerator.register_for_checkpointing(self.modules)
 
         if hasattr(self, "opt"):
