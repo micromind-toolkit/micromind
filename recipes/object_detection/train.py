@@ -53,7 +53,7 @@ class YOLO(mm.MicroMind):
 
         self.modules["sppf"] = SPPF(*sppf_ch)
         self.modules["neck"] = Yolov8Neck(filters=neck_filters, up=up)
-        self.modules["head"] = DetectionHead(filters=head_filters, training=True)
+        self.modules["head"] = DetectionHead(filters=head_filters)
 
         self.criterion = Loss(self.m_cfg, self.modules["head"], self.device)
 
@@ -177,7 +177,7 @@ class YOLO(mm.MicroMind):
                         batch["ori_shape"][i],
                     )
                 )
-        batch_bboxes = torch.stack(batch_bboxes)
+        batch_bboxes = torch.stack(batch_bboxes).to(self.device)
         mmAP = mean_average_precision(post_predictions, batch, batch_bboxes)
 
         return torch.Tensor([mmAP])

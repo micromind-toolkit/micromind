@@ -426,7 +426,7 @@ class DetectionHead(nn.Module):
         Number of channels of the three inputs of the detection head.
     """
 
-    def __init__(self, nc=80, filters=(), training=False):
+    def __init__(self, nc=80, filters=()):
         super().__init__()
         self.reg_max = 16
         self.nc = nc
@@ -447,8 +447,7 @@ class DetectionHead(nn.Module):
             for x in filters
         )
 
-        if not self.training:
-            self.dfl = DFL(self.reg_max)
+        self.dfl = DFL(self.reg_max)
 
     def forward(self, x):
         """Executes YOLOv8 detection head.
@@ -467,7 +466,7 @@ class DetectionHead(nn.Module):
             b = self.cv3[i](x[i])
             x[i] = torch.cat((a, b), dim=1)
 
-        # this is needed for DDP
+        # this is needed for DDP, automatically set with .eval() and .train()
         if not self.training:
             self.anchors, self.strides = (
                 xl.transpose(0, 1) for xl in make_anchors(x, self.stride, 0.5)
