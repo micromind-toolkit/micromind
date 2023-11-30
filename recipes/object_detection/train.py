@@ -54,6 +54,17 @@ class YOLO(mm.MicroMind):
         self.modules["neck"] = Yolov8Neck(filters=neck_filters, up=up)
         self.modules["head"] = DetectionHead(filters=head_filters)
 
+        # TODO: check shapes between:
+        # output shape of phinet[0] and output shape phinet[1][2].
+        # Shouldn't they be the same? Are we miss-using a layer?
+        x = torch.randn((1, 3, 672, 672))
+        out_phi = self.modules["phinet"](x)
+        out_phi[1][-1] = self.modules["sppf"](out_phi[1][-1])
+        out_neck = self.modules["neck"](*out_phi[1])
+        breakpoint()
+        out_head = self.modules["head"](out_neck[0])
+        print(out_head.shape)
+        breakpoint()
         tot_params = 0
         for m in self.modules.values():
             temp = summary(m, verbose=0)

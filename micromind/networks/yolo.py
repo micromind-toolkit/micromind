@@ -432,7 +432,8 @@ class DetectionHead(nn.Module):
         self.nc = nc
         self.nl = len(filters)
         self.no = nc + self.reg_max * 4
-        self.stride = torch.tensor([8.0, 16.0, 32.0], dtype=torch.float16)
+        self.stride = torch.tensor([8.0], dtype=torch.float16)
+        # self.stride = torch.tensor([8.0, 16.0, 32.0], dtype=torch.float16)
         c2, c3 = max((16, filters[0] // 4, self.reg_max * 4)), max(
             filters[0], min(self.nc, 104)
         )  # channels

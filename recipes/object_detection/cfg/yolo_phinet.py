@@ -8,7 +8,7 @@ Authors:
 # Data configuration
 batch_size = 8
 data_cfg = "cfg/data/coco.yaml"
-data_dir = "data/coco8"
+data_dir = "data/coco"
 
 # Model configuration
 input_shape = (3, 672, 672)
