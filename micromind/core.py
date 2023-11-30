@@ -347,7 +347,6 @@ class MicroMind(ABC):
 
         accelerated = self.accelerator.prepare(*convert)
         for idx, key in enumerate(self.modules):
-            print(accelerated[idx])
             self.modules[key] = accelerated[idx]
         self.accelerator.register_for_checkpointing(self.modules)
 
