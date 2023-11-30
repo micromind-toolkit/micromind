@@ -344,7 +344,10 @@ class MicroMind(ABC):
             # if the datasets are store here, prepare them for DDP
             convert += list(self.datasets.values())
 
-        accelerated = self.accelerator.prepare(convert)
+        accelerated = self.accelerator.prepare(*convert)
+        print(accelerated)
+        print(len(accelerated))
+        exit(0)
         self.modules = accelerated[0]
         self.accelerator.register_for_checkpointing(self.modules)
 
