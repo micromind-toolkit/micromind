@@ -34,6 +34,7 @@ class YOLO(mm.MicroMind):
     def __init__(self, m_cfg, hparams, *args, **kwargs):
         """Initializes the YOLO model."""
         super().__init__(*args, **kwargs)
+        self.m_cfg = m_cfg
 
         self.modules["phinet"] = PhiNet(
             input_shape=hparams.input_shape,
@@ -52,7 +53,9 @@ class YOLO(mm.MicroMind):
 
         self.modules["sppf"] = SPPF(*sppf_ch)
         self.modules["neck"] = Yolov8Neck(filters=neck_filters, up=up)
-        self.modules["head"] = DetectionHead(filters=head_filters)
+        self.modules["head"] = DetectionHead(filters=head_filters, training=True)
+
+        self.criterion = Loss(self.m_cfg, self.modules["head"], self.device)
 
         tot_params = 0
         for m in self.modules.values():
@@ -60,8 +63,6 @@ class YOLO(mm.MicroMind):
             tot_params += temp.total_params
 
         print(f"Total parameters of model: {tot_params * 1e-6:.2f} M")
-
-        self.m_cfg = m_cfg
 
     def get_parameters(self):
         """
@@ -72,9 +73,9 @@ class YOLO(mm.MicroMind):
         x = torch.randn(1, *in_shape)
         y = self.modules["phinet"](x)
 
-        c1 = c2 = y[1][2].shape[1]
+        c1 = c2 = y[0].shape[1]
         sppf = SPPF(c1, c2)
-        out_sppf = sppf(y[1][2])
+        out_sppf = sppf(y[0])
 
         neck_filters = [y[1][0].shape[1], y[1][1].shape[1], out_sppf.shape[1]]
         up = [2, 2]
@@ -113,20 +114,20 @@ class YOLO(mm.MicroMind):
     def forward(self, batch):
         """Runs the forward method by calling every module."""
         preprocessed_batch = self.preprocess_batch(batch)
-        backbone = self.modules["phinet"](preprocessed_batch["img"].to(self.device))[1]
-        backbone[-1] = self.modules["sppf"](backbone[-1])
-        neck = self.modules["neck"](*backbone)
+        backbone = self.modules["phinet"](preprocessed_batch["img"].to(self.device))
+        neck_input = backbone[1]
+        neck_input.append(self.modules["sppf"](backbone[0]))
+        neck = self.modules["neck"](*neck_input)
         head = self.modules["head"](neck)
 
         return head
 
     def compute_loss(self, pred, batch):
         """Computes the loss."""
-        self.criterion = Loss(self.m_cfg, self.modules["head"], self.device)
         preprocessed_batch = self.preprocess_batch(batch)
 
         lossi_sum, lossi = self.criterion(
-            pred[1],
+            pred,
             preprocessed_batch,
         )
 

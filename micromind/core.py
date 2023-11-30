@@ -10,6 +10,7 @@ from argparse import Namespace
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple, Union
+from accelerate import DistributedDataParallelKwargs
 
 import torch
 from accelerate import Accelerator
@@ -155,7 +156,8 @@ class MicroMind(ABC):
         self.hparams = hparams
         self.input_shape = None
 
-        self.accelerator = Accelerator()
+        ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
+        self.accelerator = Accelerator(ddp_kwargs)
         self.device = self.accelerator.device
 
         self.current_epoch = 0
@@ -437,10 +439,10 @@ class MicroMind(ABC):
                     model_out = self(batch)
                     loss = self.compute_loss(model_out, batch)
 
-                loss_epoch += loss.item()
-
                 self.accelerator.backward(loss)
                 self.opt.step()
+
+                loss_epoch += loss.item()
                 if hasattr(self, "lr_sched"):
                     # ok for cos_lr
                     self.lr_sched.step()
