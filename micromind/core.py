@@ -225,7 +225,12 @@ class MicroMind(ABC):
 
         modules_keys = list(self.modules.keys())
         for k in self.modules:
-            self.modules[k].load_state_dict(dat[k])
+            try:
+                self.modules[k].load_state_dict(dat[k])
+            except: # maybe saved with DDP
+                self.modules[k] = torch.nn.DataParallel(self.modules[k])
+                self.modules[k].load_state_dict(dat[k])
+                self.modules[k] = self.modules[k].module
 
             modules_keys.remove(k)
 
