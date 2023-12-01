@@ -910,11 +910,16 @@ def mean_average_precision(post_predictions, batch, batch_bboxes, iou_threshold=
         num_obj = torch.sum(batch["batch_idx"] == batch_el).item()
         bboxes = batch_bboxes[batch["batch_idx"] == batch_el].to(batch["img"].device)
         classes = batch["cls"][batch["batch_idx"] == batch_el].to(batch["img"].device)
-        gt = torch.cat((bboxes, torch.ones((num_obj, 1)).to(batch["img"].device), classes), dim=1)
+        gt = torch.cat(
+            (bboxes, torch.ones((num_obj, 1)).to(batch["img"].device), classes), dim=1
+        )
 
         for class_id in range(80):
             ap = average_precision(
-                post_predictions[batch_el].to(batch["img"].device), gt, class_id, iou_threshold
+                post_predictions[batch_el].to(batch["img"].device),
+                gt,
+                class_id,
+                iou_threshold,
             )
             ap_sum += ap
 
