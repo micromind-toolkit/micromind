@@ -227,10 +227,21 @@ class MicroMind(ABC):
         for k in self.modules:
             try:
                 self.modules[k].load_state_dict(dat[k])
-            except: # maybe saved with DDP
+            except Exception as e:  # maybe saved with DDP
+                print(
+                    " ".join(
+                        f"Problem loading checkpoint... \
+                      maybe trained with DDP... \
+                      {type(e).__name__}".split(
+                            " "
+                        )
+                    )
+                )
                 self.modules[k] = torch.nn.DataParallel(self.modules[k])
                 self.modules[k].load_state_dict(dat[k])
                 self.modules[k] = self.modules[k].module
+
+            logger.info("Successfully loaded model from checkpoint.")
 
             modules_keys.remove(k)
 
