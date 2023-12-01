@@ -10,6 +10,7 @@ from argparse import Namespace
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple, Union
+from accelerate import DistributedDataParallelKwargs
 
 import torch
 from accelerate import Accelerator
@@ -155,7 +156,8 @@ class MicroMind(ABC):
         self.hparams = hparams
         self.input_shape = None
 
-        self.accelerator = Accelerator()
+        ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
+        self.accelerator = Accelerator(ddp_kwargs)
         self.device = self.accelerator.device
 
         self.current_epoch = 0
@@ -223,7 +225,23 @@ class MicroMind(ABC):
 
         modules_keys = list(self.modules.keys())
         for k in self.modules:
-            self.modules[k].load_state_dict(dat[k])
+            try:
+                self.modules[k].load_state_dict(dat[k])
+            except Exception as e:  # maybe saved with DDP
+                print(
+                    " ".join(
+                        f"Problem loading checkpoint... \
+                      maybe trained with DDP... \
+                      {type(e).__name__}".split(
+                            " "
+                        )
+                    )
+                )
+                self.modules[k] = torch.nn.DataParallel(self.modules[k])
+                self.modules[k].load_state_dict(dat[k])
+                self.modules[k] = self.modules[k].module
+
+            logger.info("Successfully loaded model from checkpoint.")
 
             modules_keys.remove(k)
 
@@ -333,7 +351,8 @@ class MicroMind(ABC):
         """Initializes the data pipeline and modules for DDP and accelerated inference.
         To control the device selection, use `accelerate config`."""
 
-        convert = [self.modules]
+        # pass each module through DDP independently
+        convert = list(self.modules.values())
         if hasattr(self, "opt"):
             convert += [self.opt]
 
@@ -345,18 +364,16 @@ class MicroMind(ABC):
             convert += list(self.datasets.values())
 
         accelerated = self.accelerator.prepare(*convert)
-        print(accelerated)
-        print(len(accelerated))
-        exit(0)
-        self.modules = accelerated[0]
+        for idx, key in enumerate(self.modules):
+            self.modules[key] = accelerated[idx]
         self.accelerator.register_for_checkpointing(self.modules)
 
         if hasattr(self, "opt"):
-            self.opt = accelerated[1]
+            self.opt = accelerated[len(self.modules)]
             self.accelerator.register_for_checkpointing(self.opt)
 
         if hasattr(self, "lr_sched"):
-            self.lr_sched = accelerated[2]
+            self.lr_sched = accelerated[1 + len(self.modules)]
             self.accelerator.register_for_checkpointing(self.lr_sched)
 
         if hasattr(self, "datasets"):
@@ -416,84 +433,81 @@ class MicroMind(ABC):
                 f"Starting from epoch {self.start_epoch + 1}."
                 + f" Training is scheduled for {epochs} epochs."
             )
-        with self.accelerator.autocast():
-            for e in range(self.start_epoch + 1, epochs + 1):
-                self.current_epoch = e
-                pbar = tqdm(
-                    self.datasets["train"],
-                    unit="batches",
-                    ascii=True,
-                    dynamic_ncols=True,
-                    disable=not self.accelerator.is_local_main_process,
-                )
-                loss_epoch = 0
-                pbar.set_description(f"Running epoch {self.current_epoch}/{epochs}")
-                self.modules.train()
-                for idx, batch in enumerate(pbar):
-                    if isinstance(batch, list):
-                        batch = [b.to(self.device) for b in batch]
+        for e in range(self.start_epoch + 1, epochs + 1):
+            self.current_epoch = e
+            pbar = tqdm(
+                self.datasets["train"],
+                unit="batches",
+                ascii=True,
+                dynamic_ncols=True,
+                disable=not self.accelerator.is_local_main_process,
+            )
+            loss_epoch = 0
+            pbar.set_description(f"Running epoch {self.current_epoch}/{epochs}")
+            self.modules.train()
+            for idx, batch in enumerate(pbar):
+                if isinstance(batch, list):
+                    batch = [b.to(self.device) for b in batch]
 
-                    self.opt.zero_grad()
+                self.opt.zero_grad()
 
+                with self.accelerator.autocast():
                     model_out = self(batch)
                     loss = self.compute_loss(model_out, batch)
-                    loss_epoch += loss.item()
 
-                    self.accelerator.backward(loss)
-                    self.opt.step()
-                    if hasattr(self, "lr_sched"):
-                        # ok for cos_lr
-                        self.lr_sched.step()
+                self.accelerator.backward(loss)
+                self.opt.step()
 
-                    for m in self.metrics:
-                        if (
-                            self.current_epoch + 1
-                        ) % m.eval_period == 0 and not m.eval_only:
-                            m(model_out, batch, Stage.train, self.device)
+                loss_epoch += loss.item()
+                if hasattr(self, "lr_sched"):
+                    # ok for cos_lr
+                    self.lr_sched.step()
 
-                    running_train = {}
-                    for m in self.metrics:
-                        if (
-                            self.current_epoch + 1
-                        ) % m.eval_period == 0 and not m.eval_only:
-                            running_train["train_" + m.name] = m.reduce(Stage.train)
-
-                    running_train.update({"train_loss": loss_epoch / (idx + 1)})
-
-                    pbar.set_postfix(**running_train)
-
-                    if self.debug and idx > 10:
-                        break
-
-                pbar.close()
-
-                train_metrics = {}
                 for m in self.metrics:
                     if (
                         self.current_epoch + 1
                     ) % m.eval_period == 0 and not m.eval_only:
-                        train_metrics["train_" + m.name] = m.reduce(Stage.train, True)
+                        m(model_out, batch, Stage.train, self.device)
 
-                train_metrics.update({"train_loss": loss_epoch / (idx + 1)})
-
-                if "val" in datasets:
-                    val_metrics = self.validate()
+                running_train = {}
+                for m in self.metrics:
                     if (
-                        self.accelerator.is_local_main_process
-                        and self.checkpointer is not None
-                    ):
-                        self.checkpointer(
-                            self,
-                            train_metrics,
-                            val_metrics,
-                        )
-                else:
-                    val_metrics = train_metrics.update(
-                        {"val_loss": loss_epoch / (idx + 1)}
-                    )
+                        self.current_epoch + 1
+                    ) % m.eval_period == 0 and not m.eval_only:
+                        running_train["train_" + m.name] = m.reduce(Stage.train)
 
-                if e >= 1 and self.debug:
+                running_train.update({"train_loss": loss_epoch / (idx + 1)})
+
+                pbar.set_postfix(**running_train)
+
+                if self.debug and idx > 10:
                     break
+
+            pbar.close()
+
+            train_metrics = {}
+            for m in self.metrics:
+                if (self.current_epoch + 1) % m.eval_period == 0 and not m.eval_only:
+                    train_metrics["train_" + m.name] = m.reduce(Stage.train, True)
+
+            train_metrics.update({"train_loss": loss_epoch / (idx + 1)})
+
+            if "val" in datasets:
+                val_metrics = self.validate()
+                if (
+                    self.accelerator.is_local_main_process
+                    and self.checkpointer is not None
+                ):
+                    self.checkpointer(
+                        self,
+                        train_metrics,
+                        val_metrics,
+                    )
+            else:
+                val_metrics = train_metrics.update({"val_loss": loss_epoch / (idx + 1)})
+
+            if e >= 1 and self.debug:
+                break
 
         self.on_train_end()
         return None

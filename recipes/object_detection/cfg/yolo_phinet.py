@@ -18,7 +18,9 @@ beta = 0.75
 t_zero = 5
 divisor = 8
 downsampling_layers = [5, 7]
-return_layers = [4, 6, 7]
+
+# just returning 2 intermediate layers (last is default)
+return_layers = [6, 8]
 
 # Placeholder for inference
 ckpt_pretrained = ""
