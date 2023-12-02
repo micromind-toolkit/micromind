@@ -229,15 +229,11 @@ class MicroMind(ABC):
             try:
                 self.modules[k].load_state_dict(dat[k])
             except Exception as e:  # maybe saved with DDP
-                print(
-                    " ".join(
-                        f"Problem loading checkpoint... \
-                      maybe trained with DDP... \
-                      {type(e).__name__}".split(
-                            " "
-                        )
-                    )
-                )
+                tmp = f""" There was a problem loading the checkpoint... \
+                    Maybe trained with DDP... trying to load it anyways. \
+                    """
+                warnings.warn(" ".join(tmp.split()))
+
                 self.modules[k] = torch.nn.DataParallel(self.modules[k])
                 self.modules[k].load_state_dict(dat[k])
                 self.modules[k] = self.modules[k].module
@@ -315,6 +311,11 @@ class MicroMind(ABC):
         """Just forwards everything to the forward method."""
         return self.forward(*x, **xv)
 
+    def add_forward_to_modules(self):
+        """Exports MicroMind forward function to its core ModuleList."""
+        bound_method = self.forward.__get__(self.modules, self.modules.__class__)
+        setattr(self.modules, "forward", bound_method)
+
     @torch.no_grad()
     def compute_params(self):
         """Computes the number of parameters for the modules inside `self.modules`.
@@ -346,11 +347,19 @@ class MicroMind(ABC):
         MAC count for self.modules. : Dict[int]
         """
         self.eval()
-        macs = {}
+        self.add_forward_to_modules()
+
         last_in = torch.zeros([1] + list(input_shape))
-        for k, m in self.modules.items():
-            macs[k] = summary(m, input_data=last_in, verbose=0).total_mult_adds
-            last_in = m(last_in)
+        try:
+            macs = summary(self.modules, input_data=last_in, verbose=0).total_mult_adds
+        except RuntimeError:
+            tmp = """
+                The way you defined the forward pass is preventing micromind \
+                from computing the number of multiply adds. This might be due \
+                to on-the-fly augmentations.
+            """
+            warnings.warn(" ".join(tmp.split()))
+            macs = None
 
         return macs
 

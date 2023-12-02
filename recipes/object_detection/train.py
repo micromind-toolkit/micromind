@@ -57,12 +57,8 @@ class YOLO(mm.MicroMind):
 
         self.criterion = Loss(self.m_cfg, self.modules["head"], self.device)
 
-        tot_params = 0
-        for m in self.modules.values():
-            temp = summary(m, verbose=0)
-            tot_params += temp.total_params
-
-        print(f"Total parameters of model: {tot_params * 1e-6:.2f} M")
+        print("Number of parameters for each module:")
+        print(self.compute_params())
 
     def get_parameters(self):
         """
