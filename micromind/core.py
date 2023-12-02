@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple, Union
 from accelerate import DistributedDataParallelKwargs
+from torchinfo import summary
 
 import torch
 from accelerate import Accelerator
@@ -313,6 +314,45 @@ class MicroMind(ABC):
     def __call__(self, *x, **xv):
         """Just forwards everything to the forward method."""
         return self.forward(*x, **xv)
+
+    @torch.no_grad()
+    def compute_params(self):
+        """Computes the number of parameters for the modules inside `self.modules`.
+        Returns a dictionary with the parameter count for each module.
+
+        Returns
+        -------
+        Parameter count for self.modules. : Dict[int]
+        """
+        self.eval()
+        params = {}
+        for k, m in self.modules.items():
+            params[k] = summary(m, verbose=0).total_params
+
+        return params
+
+    @torch.no_grad()
+    def compute_macs(self, input_shape: Union[List, Tuple]):
+        """Computes the number of multiply-add for the modules inside `self.modules`.
+        Returns a dictionary with the MAC count for each module.
+
+        Arguments
+        ---------
+        input_shape : Union[List, Tuple]
+            Needed for MAC computation.
+
+        Returns
+        -------
+        MAC count for self.modules. : Dict[int]
+        """
+        self.eval()
+        macs = {}
+        last_in = torch.zeros([1] + list(input_shape))
+        for k, m in self.modules.items():
+            macs[k] = summary(m, input_data=last_in, verbose=0).total_mult_adds
+            last_in = m(last_in)
+
+        return macs
 
     def on_train_start(self):
         """Initializes the optimizer, modules and puts the networks on the right

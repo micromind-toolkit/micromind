@@ -63,14 +63,13 @@ class ImageClassification(mm.MicroMind):
                 num_classes=hparams.num_classes,
             )
 
-        tot_params = 0
-        for m in self.modules.values():
-            temp = summary(m, verbose=0)
-            tot_params += temp.total_params
-
         self.mixup_fn, _ = setup_mixup(hparams)
 
-        print(f"Total parameters of model: {tot_params * 1e-6:.2f} M")
+        print("Number of parameters for each module:")
+        print(self.compute_params())
+
+        print("Number of MAC for each module:")
+        print(self.compute_macs(hparams.input_shape))
 
     def setup_criterion(self):
         """Setup of the loss function based on augmentation strategy."""
