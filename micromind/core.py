@@ -19,6 +19,7 @@ from tqdm import tqdm
 import warnings
 
 from .utils.helpers import get_logger
+from .utils.checkpointer import Checkpointer
 
 logger = get_logger()
 
@@ -447,8 +448,8 @@ class MicroMind(ABC):
         epochs: int = 1,
         datasets: Dict = {},
         metrics: List[Metric] = [],
-        checkpointer=None,  # fix type hints
-        debug: bool = False,
+        checkpointer: Optional[Checkpointer] = None,  # fix type hints
+        debug: Optional[bool] = False,
     ) -> None:
         """
         This method trains the model on the provided training dataset for the
@@ -465,11 +466,13 @@ class MicroMind(ABC):
             "train", "val", and "test".
         metrics : Optional[List[Metric]]
             A list of metrics to track during training. Default is an empty list.
+        checkpointer : Optional[mm.utils.Checkpointer]
+            Checkpointer used to log the experiments and save best checkpoints
+            during training.
         debug : bool
             Whether to run in debug mode. Default is False. If in debug mode,
             only runs for few epochs
             and with few batches.
-
         """
         self.datasets = datasets
         self.metrics = metrics
