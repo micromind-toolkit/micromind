@@ -315,6 +315,7 @@ class MicroMind(ABC):
         """Exports MicroMind forward function to its core ModuleList."""
         bound_method = self.forward.__get__(self.modules, self.modules.__class__)
         setattr(self.modules, "forward", bound_method)
+        self.modules.device = self.device
 
     @torch.no_grad()
     def compute_params(self):
@@ -347,16 +348,18 @@ class MicroMind(ABC):
         MAC count for self.modules. : Dict[int]
         """
         self.eval()
-        self.add_forward_to_modules()
 
-        last_in = torch.zeros([1] + list(input_shape))
         try:
-            macs = summary(self.modules, input_data=last_in, verbose=0).total_mult_adds
+            macs = {}
+            last_in = torch.zeros([1] + list(input_shape))
+            for k, m in self.modules.items():
+                macs[k] = summary(m, input_data=last_in, verbose=0).total_mult_adds
+                last_in = m(last_in)
         except RuntimeError:
             tmp = """
-                The way you defined the forward pass is preventing micromind \
-                from computing the number of multiply adds. This might be due \
-                to on-the-fly augmentations.
+            Could not compute the number of MACs of your MicroMind. Might be due
+            to on-the-fly data augmentation or something similar. You can, however,
+            estimate this more accurately after exporting the model.
             """
             warnings.warn(" ".join(tmp.split()))
             macs = None
