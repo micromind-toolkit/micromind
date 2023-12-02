@@ -229,8 +229,9 @@ class MicroMind(ABC):
             try:
                 self.modules[k].load_state_dict(dat[k])
             except Exception as e:  # maybe saved with DDP
-                tmp = f""" There was a problem loading the checkpoint... \
-                    Maybe trained with DDP... trying to load it anyways. \
+                tmp = f""" There was a problem loading the checkpoint...
+                    Maybe trained with DDP... trying to load it anyways.
+                    Errow was {type(e).__name__}.
                     """
                 warnings.warn(" ".join(tmp.split()))
 

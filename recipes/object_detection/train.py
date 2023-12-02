@@ -13,7 +13,6 @@ Authors:
 
 import torch
 from prepare_data import create_loaders
-from torchinfo import summary
 from ultralytics.utils.ops import scale_boxes, xywh2xyxy
 from yolo_loss import Loss
 

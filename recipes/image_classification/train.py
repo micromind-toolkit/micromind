@@ -16,7 +16,6 @@ Authors:
 import torch
 import torch.nn as nn
 from prepare_data import create_loaders, setup_mixup
-from torchinfo import summary
 from timm.loss import (
     BinaryCrossEntropy,
     LabelSmoothingCrossEntropy,
