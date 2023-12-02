@@ -128,7 +128,6 @@ class Checkpointer:
                 self.save_dir, date.strftime("%Y-%m-%d+%H-%M-%S")
             )
             try:
-                print(os.path.join(oldest_name, "status.yaml"))
                 with open(os.path.join(oldest_name, "status.yaml"), "r") as f:
                     dat = yaml.safe_load(f)
 
