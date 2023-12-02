@@ -213,6 +213,7 @@ class MicroMind(ABC):
 
         """
         self.input_shape = input_shape
+        self.modules.input_shape = input_shape
 
     def load_modules(self, checkpoint_path: Union[Path, str]):
         """Loads models for path.
@@ -276,15 +277,14 @@ class MicroMind(ABC):
         assert (
             self.input_shape is not None
         ), "You should pass the input_shape of the model."
+        self.add_forward_to_modules()
 
         if out_format == "onnx":
-            convert.convert_to_onnx(
-                self, save_dir.joinpath("model.onnx"), replace_forward=True
-            )
+            convert.convert_to_onnx(self.modules, save_dir.joinpath("model.onnx"))
         elif out_format == "openvino":
-            convert.convert_to_openvino(self, save_dir, replace_forward=True)
+            convert.convert_to_openvino(self.modules, save_dir)
         elif out_format == "tflite":
-            convert.convert_to_tflite(self, save_dir, replace_forward=True)
+            convert.convert_to_tflite(self.modules, save_dir)
 
     def configure_optimizers(self):
         """Configures and defines the optimizer for the task. Defaults to adam
