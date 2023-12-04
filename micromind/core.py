@@ -249,7 +249,11 @@ class MicroMind(ABC):
             logger.info(f"Couldn't find a state_dict for modules {modules_keys}.")
 
     def export(
-        self, save_dir: Union[Path, str], out_format: str = "onnx", input_shape=None
+        self,
+        save_dir: Union[Path, str],
+        out_format: Optional[str] = "onnx",
+        input_shape: Optional[str] = None,
+        qbatch: Optional[torch.Tensor] = None,
     ) -> None:
         """
         Export the model to a specified format for deployment.
@@ -265,10 +269,16 @@ class MicroMind(ABC):
         input_shape : Optional[Tuple]
             The input shape of the model. If not provided, the input shape
             specified during model creation is used.
+        qbatch : Optional[torch.Tensor]
+            Optional tensor used for PTQ using TFLite. Channels dimension is
+            permuted automatically.
 
         """
         from micromind import convert
 
+        if qbatch is not None:
+            if out_format != "tflite":
+                raise AssertionError("Can perform quantization only on TFLite models.")
         if not isinstance(save_dir, Path):
             save_dir = Path(save_dir)
         save_dir = save_dir.joinpath(self.hparams.experiment_name)
@@ -284,7 +294,8 @@ class MicroMind(ABC):
         elif out_format == "openvino":
             convert.convert_to_openvino(self.modules, save_dir)
         elif out_format == "tflite":
-            convert.convert_to_tflite(self.modules, save_dir)
+            qbatch = qbatch.permute(0, 3, 2, 1)
+            convert.convert_to_tflite(self.modules, save_dir, batch_quant=qbatch)
 
     def configure_optimizers(self):
         """Configures and defines the optimizer for the task. Defaults to adam
