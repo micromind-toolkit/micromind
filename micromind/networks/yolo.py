@@ -407,14 +407,22 @@ class Yolov8Neck(nn.Module):
         h1 = self.up2(x)
         h1 = torch.cat((h1, p3), dim=1)
         head_1 = self.n2(h1)
-        h2 = self.n3(head_1)
-        h2 = torch.cat((h2, x), dim=1)
-        head_2 = self.n4(h2)
-        h3 = self.n5(head_2)
-        h3 = torch.cat((h3, p5), dim=1)
-        head_3 = self.n6(h3)
-        return_heads = [head_1, head_2, head_3]
-        return_heads = [head for self.heads, head in zip(self.heads, return_heads) if self.heads]
+        return_heads = []
+        if self.heads[0]:
+            return_heads.append(head_1)
+
+        if self.heads[1] or self.heads[2]:
+            h2 = self.n3(head_1)
+            h2 = torch.cat((h2, x), dim=1)
+            head_2 = self.n4(h2)
+            if self.heads[1]:
+                return_heads.append(head_2)
+        
+        if self.heads[2]:
+            h3 = self.n5(head_2)
+            h3 = torch.cat((h3, p5), dim=1)
+            head_3 = self.n6(h3)
+            return_heads.append(head_3)
         return return_heads
 
 

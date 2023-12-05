@@ -50,7 +50,7 @@ class YOLO(mm.MicroMind):
         )
 
         sppf_ch, neck_filters, up, head_filters = self.get_parameters()
-        heads = [True, True, False]
+        heads = [False, True, False]
         head_filters = [head for heads, head in zip(heads, head_filters) if heads]
         breakpoint()
 
