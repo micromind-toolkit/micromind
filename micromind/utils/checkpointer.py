@@ -95,7 +95,7 @@ class Checkpointer:
         # dump hparams to yaml when passed
         if hparams is not None and os.path.exists(self.root_dir):
             with open(os.path.join(self.root_dir, "args.yaml"), "w") as args_f:
-                args_f.write(yaml.safe_dump(vars(hparams)))
+                args_f.write(yaml.dump(vars(hparams)))
         else:
             warnings.warn(
                 "You did not specify the configuration to the checkpointer, \
@@ -128,7 +128,6 @@ class Checkpointer:
                 self.save_dir, date.strftime("%Y-%m-%d+%H-%M-%S")
             )
             try:
-                print(os.path.join(oldest_name, "status.yaml"))
                 with open(os.path.join(oldest_name, "status.yaml"), "r") as f:
                     dat = yaml.safe_load(f)
 
