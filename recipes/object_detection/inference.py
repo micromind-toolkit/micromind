@@ -45,9 +45,10 @@ class Inference(YOLO):
         -------
             Output of the detection network : torch.Tensor
         """
-        backbone = self.modules["phinet"](batch[0])[1]
-        backbone[-1] = self.modules["sppf"](backbone[-1])
-        neck = self.modules["neck"](*backbone)
+        backbone = self.modules["phinet"](batch[0])
+        neck_input = backbone[1]
+        neck_input.append(self.modules["sppf"](backbone[0]))
+        neck = self.modules["neck"](*neck_input)
         head = self.modules["head"](neck)
         return head
 
@@ -104,5 +105,6 @@ if __name__ == "__main__":
             all_predictions=post_predictions,
             class_labels=class_labels,
         )
+
         # Exporting onnx model.
         model.export("model.onnx", "onnx", hparams.input_shape)

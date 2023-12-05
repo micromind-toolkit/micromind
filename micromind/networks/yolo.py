@@ -353,8 +353,9 @@ class Yolov8Neck(nn.Module):
         Depth multiple of the Darknet.
     """
 
-    def __init__(self, filters=[256, 512, 768], up=[2, 2], d=1):
+    def __init__(self, filters=[256, 512, 768], up=[2, 2], heads=[True, True, True], d=1):
         super().__init__()
+        self.heads = heads
         self.up1 = Upsample(up[0], mode="nearest")
         self.up2 = Upsample(up[1], mode="nearest")
         self.n1 = C2f(
@@ -412,7 +413,9 @@ class Yolov8Neck(nn.Module):
         h3 = self.n5(head_2)
         h3 = torch.cat((h3, p5), dim=1)
         head_3 = self.n6(h3)
-        return [head_1, head_2, head_3]
+        return_heads = [head_1, head_2, head_3]
+        return_heads = [head for self.heads, head in zip(self.heads, return_heads) if self.heads]
+        return return_heads
 
 
 class DetectionHead(nn.Module):
@@ -432,8 +435,7 @@ class DetectionHead(nn.Module):
         self.nc = nc
         self.nl = len(filters)
         self.no = nc + self.reg_max * 4
-        self.stride = torch.tensor([8.0], dtype=torch.float16)
-        # self.stride = torch.tensor([8.0, 16.0, 32.0], dtype=torch.float16)
+        self.stride = torch.tensor([8.0, 16.0, 32.0], dtype=torch.float16)
         c2, c3 = max((16, filters[0] // 4, self.reg_max * 4)), max(
             filters[0], min(self.nc, 104)
         )  # channels
@@ -447,6 +449,7 @@ class DetectionHead(nn.Module):
             nn.Sequential(Conv(x, c3, 3), Conv(c3, c3, 3), nn.Conv2d(c3, self.nc, 1))
             for x in filters
         )
+
         self.dfl = DFL(self.reg_max)
 
     def forward(self, x):
@@ -465,19 +468,24 @@ class DetectionHead(nn.Module):
             a = self.cv2[i](x[i])
             b = self.cv3[i](x[i])
             x[i] = torch.cat((a, b), dim=1)
-        self.anchors, self.strides = (
-            xl.transpose(0, 1) for xl in make_anchors(x, self.stride, 0.5)
-        )
 
-        y = [(i.reshape(x[0].shape[0], self.no, -1)) for i in x]
-        x_cat = torch.cat((y[0], y[1], y[2]), dim=2)
-        box, cls = x_cat[:, : self.reg_max * 4], x_cat[:, self.reg_max * 4 :]
-        dbox = (
-            dist2bbox(self.dfl(box), self.anchors.unsqueeze(0), xywh=True, dim=1)
-            * self.strides
-        )
-        z = torch.cat((dbox, nn.Sigmoid()(cls)), dim=1)
-        return z, x
+        # this is needed for DDP, automatically set with .eval() and .train()
+        if not self.training:
+            self.anchors, self.strides = (
+                xl.transpose(0, 1) for xl in make_anchors(x, self.stride, 0.5)
+            )
+
+            y = [(i.reshape(x[0].shape[0], self.no, -1)) for i in x]
+            x_cat = torch.cat((y[0], y[1], y[2]), dim=2)
+            box, cls = x_cat[:, : self.reg_max * 4], x_cat[:, self.reg_max * 4 :]
+            dbox = (
+                dist2bbox(self.dfl(box), self.anchors.unsqueeze(0), xywh=True, dim=1)
+                * self.strides
+            )
+            z = torch.cat((dbox, nn.Sigmoid()(cls)), dim=1)
+            return z, x
+        else:
+            return x
 
 
 class YOLOv8(nn.Module):

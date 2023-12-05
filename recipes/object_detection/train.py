@@ -34,6 +34,7 @@ class YOLO(mm.MicroMind):
     def __init__(self, m_cfg, hparams, *args, **kwargs):
         """Initializes the YOLO model."""
         super().__init__(*args, **kwargs)
+        self.m_cfg = m_cfg
 
         self.modules["phinet"] = PhiNet(
             input_shape=hparams.input_shape,
@@ -49,30 +50,35 @@ class YOLO(mm.MicroMind):
         )
 
         sppf_ch, neck_filters, up, head_filters = self.get_parameters()
+        heads = [True, True, False]
+        head_filters = [head for heads, head in zip(heads, head_filters) if heads]
+        breakpoint()
 
         self.modules["sppf"] = SPPF(*sppf_ch)
-        self.modules["neck"] = Yolov8Neck(filters=neck_filters, up=up)
-        self.modules["head"] = DetectionHead(filters=head_filters)
+        self.modules["neck"] = Yolov8Neck(filters=neck_filters, up=up, heads=heads)
+        self.modules["head"] = DetectionHead(filters=head_filters) # 112, 224, 440
 
-        # TODO: check shapes between:
-        # output shape of phinet[0] and output shape phinet[1][2].
-        # Shouldn't they be the same? Are we miss-using a layer?
         x = torch.randn((1, 3, 672, 672))
         out_phi = self.modules["phinet"](x)
-        out_phi[1][-1] = self.modules["sppf"](out_phi[1][-1])
-        out_neck = self.modules["neck"](*out_phi[1])
+
+        neck_input = []
+        neck_input.append(out_phi[1][0])
+        neck_input.append(out_phi[1][1])
+        neck_input.append(self.modules["sppf"](out_phi[0]))
+
+        out_neck = self.modules["neck"](*neck_input)
+        out_head = self.modules["head"](out_neck)
+        #print(out_head.shape)
         breakpoint()
-        out_head = self.modules["head"](out_neck[0])
-        print(out_head.shape)
-        breakpoint()
+
+        self.criterion = Loss(self.m_cfg, self.modules["head"], self.device)
+
         tot_params = 0
         for m in self.modules.values():
             temp = summary(m, verbose=0)
             tot_params += temp.total_params
 
         print(f"Total parameters of model: {tot_params * 1e-6:.2f} M")
-
-        self.m_cfg = m_cfg
 
     def get_parameters(self):
         """
@@ -83,9 +89,9 @@ class YOLO(mm.MicroMind):
         x = torch.randn(1, *in_shape)
         y = self.modules["phinet"](x)
 
-        c1 = c2 = y[1][2].shape[1]
+        c1 = c2 = y[0].shape[1]
         sppf = SPPF(c1, c2)
-        out_sppf = sppf(y[1][2])
+        out_sppf = sppf(y[0])
 
         neck_filters = [y[1][0].shape[1], y[1][1].shape[1], out_sppf.shape[1]]
         up = [2, 2]
@@ -124,20 +130,20 @@ class YOLO(mm.MicroMind):
     def forward(self, batch):
         """Runs the forward method by calling every module."""
         preprocessed_batch = self.preprocess_batch(batch)
-        backbone = self.modules["phinet"](preprocessed_batch["img"].to(self.device))[1]
-        backbone[-1] = self.modules["sppf"](backbone[-1])
-        neck = self.modules["neck"](*backbone)
+        backbone = self.modules["phinet"](preprocessed_batch["img"].to(self.device))
+        neck_input = backbone[1]
+        neck_input.append(self.modules["sppf"](backbone[0]))
+        neck = self.modules["neck"](*neck_input)
         head = self.modules["head"](neck)
 
         return head
 
     def compute_loss(self, pred, batch):
         """Computes the loss."""
-        self.criterion = Loss(self.m_cfg, self.modules["head"], self.device)
         preprocessed_batch = self.preprocess_batch(batch)
 
         lossi_sum, lossi = self.criterion(
-            pred[1],
+            pred,
             preprocessed_batch,
         )
 
@@ -187,7 +193,7 @@ class YOLO(mm.MicroMind):
                         batch["ori_shape"][i],
                     )
                 )
-        batch_bboxes = torch.stack(batch_bboxes)
+        batch_bboxes = torch.stack(batch_bboxes).to(self.device)
         mmAP = mean_average_precision(post_predictions, batch, batch_bboxes)
 
         return torch.Tensor([mmAP])

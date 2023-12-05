@@ -4,7 +4,9 @@
 name: micromind[conversion] CI
 
 on:
+  pull_request:
   push:
+    branches: [main, dev]
 
 jobs:
   build:

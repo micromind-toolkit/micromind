@@ -1,6 +1,8 @@
 ## Object Detection using YOLO
 
-**Disclaimer**: we will shortly releease HuggingFace checkpoints for COCO and VOC for both PhiNet and XiNet.
+**[1 Dec 2023] Fix DDP handling and computational graph**
+
+**Disclaimer**: we will shortly release HuggingFace checkpoints for COCO and VOC for both PhiNet and XiNet.
 
 In an attempt to showcase the simplicity of the YOLO object detection pipeline, we propose our implementation
 free of the many abstraction layers of current state-of-the-art implementations. In fact, our implementation targets having not more than two abstraction layers, so that changes and improvements are transparent and reproducibile.
@@ -9,7 +11,7 @@ This recipe uses some components from state-of-the-art object detection pipeline
 
 To reproduce our results, you can follow these steps:
 
-1. install PhiNets with `pip install git+https://github.com/fpaissan/micromind`
+1. install `micromind` with `pip install git+https://github.com/fpaissan/micromind`
 2. install the additional dependencies for this recipe with `pip install -r extra_requirements.txt`
 3. start a training!
 
