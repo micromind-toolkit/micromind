@@ -578,7 +578,8 @@ def draw_bounding_boxes_and_save(
     -------
         None
     """
-    import cv2    # here to avoid extra dependecy
+    import cv2  # here to avoid extra dependecy
+
     color_dict = {
         label: tuple(
             (((i + 1) * 50) % 256, ((i + 1) * 100) % 256, ((i + 1) * 150) % 256)
