@@ -36,7 +36,7 @@ class YOLO(mm.MicroMind):
         super().__init__(*args, **kwargs)
         self.m_cfg = m_cfg
 
-        self.modules["phinet"] = PhiNet(
+        self.modules["backbone"] = PhiNet(
             input_shape=hparams.input_shape,
             alpha=hparams.alpha,
             num_layers=hparams.num_layers,
@@ -70,9 +70,9 @@ class YOLO(mm.MicroMind):
         Gets the parameters with which to initialize the network detection part
         (SPPF block, Yolov8Neck, DetectionHead).
         """
-        in_shape = self.modules["phinet"].input_shape
+        in_shape = self.modules["backbone"].input_shape
         x = torch.randn(1, *in_shape)
-        y = self.modules["phinet"](x)
+        y = self.modules["backbone"](x)
 
         c1 = c2 = y[0].shape[1]
         sppf = SPPF(c1, c2)
@@ -117,7 +117,7 @@ class YOLO(mm.MicroMind):
     def forward(self, batch):
         """Runs the forward method by calling every module."""
         preprocessed_batch = self.preprocess_batch(batch)
-        backbone = self.modules["phinet"](preprocessed_batch["img"].to(self.device))
+        backbone = self.modules["backbone"](preprocessed_batch["img"].to(self.device))
         neck_input = backbone[1]
         neck_input.append(self.modules["sppf"](backbone[0]))
         neck = self.modules["neck"](*neck_input)

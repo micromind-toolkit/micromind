@@ -466,6 +466,10 @@ class DetectionHead(nn.Module):
         self.nl = len(filters)
         self.no = nc + self.reg_max * 4
         self.stride = torch.tensor([8.0, 16.0, 32.0], dtype=torch.float16)
+        assertion_error = """Expected at least one head to be active. \
+            Please change the `heads` parameter to a valid configuration. \
+            Every configuration other than [False, False, False] is a valid option."""
+        assert heads != [False, False, False], " ".join(assertion_error.split())
         self.stride = self.stride[torch.tensor(heads)]
         c2, c3 = max((16, filters[0] // 4, self.reg_max * 4)), max(
             filters[0], min(self.nc, 104)
