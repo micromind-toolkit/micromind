@@ -18,6 +18,7 @@ beta = 0.75
 t_zero = 5
 divisor = 8
 downsampling_layers = [5, 7]
+heads = [True, True, True]
 
 # just returning 2 intermediate layers (last is default)
 return_layers = [6, 8]

@@ -49,27 +49,12 @@ class YOLO(mm.MicroMind):
             return_layers=hparams.return_layers,
         )
 
-        sppf_ch, neck_filters, up, head_filters = self.get_parameters()
-        heads = [False, True, False]
-        head_filters = [head for heads, head in zip(heads, head_filters) if heads]
-        breakpoint()
+        heads = hparams.heads
+        sppf_ch, neck_filters, up, head_filters = self.get_parameters(heads=heads)
 
         self.modules["sppf"] = SPPF(*sppf_ch)
         self.modules["neck"] = Yolov8Neck(filters=neck_filters, up=up, heads=heads)
-        self.modules["head"] = DetectionHead(filters=head_filters) # 112, 224, 440
-
-        x = torch.randn((1, 3, 672, 672))
-        out_phi = self.modules["phinet"](x)
-
-        neck_input = []
-        neck_input.append(out_phi[1][0])
-        neck_input.append(out_phi[1][1])
-        neck_input.append(self.modules["sppf"](out_phi[0]))
-
-        out_neck = self.modules["neck"](*neck_input)
-        out_head = self.modules["head"](out_neck)
-        #print(out_head.shape)
-        breakpoint()
+        self.modules["head"] = DetectionHead(filters=head_filters, heads=heads)
 
         self.criterion = Loss(self.m_cfg, self.modules["head"], self.device)
 
@@ -80,7 +65,7 @@ class YOLO(mm.MicroMind):
 
         print(f"Total parameters of model: {tot_params * 1e-6:.2f} M")
 
-    def get_parameters(self):
+    def get_parameters(self, heads=[True, True, True]):
         """
         Gets the parameters with which to initialize the network detection part
         (SPPF block, Yolov8Neck, DetectionHead).
@@ -112,6 +97,8 @@ class YOLO(mm.MicroMind):
             out_neck[1].shape[1],
             out_neck[2].shape[1],
         )
+        # keep only the heads we want
+        head_filters = [head for heads, head in zip(heads, head_filters) if heads]
 
         return (c1, c2), neck_filters, up, head_filters
 

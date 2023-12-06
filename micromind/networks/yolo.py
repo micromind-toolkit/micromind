@@ -353,7 +353,9 @@ class Yolov8Neck(nn.Module):
         Depth multiple of the Darknet.
     """
 
-    def __init__(self, filters=[256, 512, 768], up=[2, 2], heads=[True, True, True], d=1):
+    def __init__(
+        self, filters=[256, 512, 768], up=[2, 2], heads=[True, True, True], d=1
+    ):
         super().__init__()
         self.heads = heads
         self.up1 = Upsample(up[0], mode="nearest")
@@ -370,24 +372,39 @@ class Yolov8Neck(nn.Module):
             n=round(3 * d),
             shortcut=False,
         )
-        self.n3 = Conv(
-            c1=int(filters[0]), c2=int(filters[0]), kernel_size=3, stride=2, padding=1
-        )
-        self.n4 = C2f(
-            c1=int(filters[0] + filters[1]),
-            c2=int(filters[1]),
-            n=round(3 * d),
-            shortcut=False,
-        )
-        self.n5 = Conv(
-            c1=int(filters[1]), c2=int(filters[1]), kernel_size=3, stride=2, padding=1
-        )
-        self.n6 = C2f(
-            c1=int(filters[1] + filters[2]),
-            c2=int(filters[2]),
-            n=round(3 * d),
-            shortcut=False,
-        )
+        """
+        Only if we decide to use teh 2nd and 3rd detection head we define
+        the needed blocks. Otherwise the not needed blcoks would be initialied
+        (and thus would occupy space) but never used.
+        """
+        if self.heads[1] or self.heads[2]:
+            self.n3 = Conv(
+                c1=int(filters[0]),
+                c2=int(filters[0]),
+                kernel_size=3,
+                stride=2,
+                padding=1,
+            )
+            self.n4 = C2f(
+                c1=int(filters[0] + filters[1]),
+                c2=int(filters[1]),
+                n=round(3 * d),
+                shortcut=False,
+            )
+        if self.heads[2]:
+            self.n5 = Conv(
+                c1=int(filters[1]),
+                c2=int(filters[1]),
+                kernel_size=3,
+                stride=2,
+                padding=1,
+            )
+            self.n6 = C2f(
+                c1=int(filters[1] + filters[2]),
+                c2=int(filters[2]),
+                n=round(3 * d),
+                shortcut=False,
+            )
 
     def forward(self, p3, p4, p5):
         """Executes YOLOv8 neck.
@@ -408,6 +425,11 @@ class Yolov8Neck(nn.Module):
         h1 = torch.cat((h1, p3), dim=1)
         head_1 = self.n2(h1)
         return_heads = []
+        """
+        Only if we decide to use teh 2nd and 3rd detection head we execute the
+        needed blocks. Otherwise the not needed blcoks would be initialied
+        (and thus would occupy space) but never used.
+        """
         if self.heads[0]:
             return_heads.append(head_1)
 
@@ -417,7 +439,7 @@ class Yolov8Neck(nn.Module):
             head_2 = self.n4(h2)
             if self.heads[1]:
                 return_heads.append(head_2)
-        
+
         if self.heads[2]:
             h3 = self.n5(head_2)
             h3 = torch.cat((h3, p5), dim=1)
@@ -437,13 +459,14 @@ class DetectionHead(nn.Module):
         Number of channels of the three inputs of the detection head.
     """
 
-    def __init__(self, nc=80, filters=()):
+    def __init__(self, nc=80, filters=(), heads=[True, True, True]):
         super().__init__()
         self.reg_max = 16
         self.nc = nc
         self.nl = len(filters)
         self.no = nc + self.reg_max * 4
         self.stride = torch.tensor([8.0, 16.0, 32.0], dtype=torch.float16)
+        self.stride = self.stride[torch.tensor(heads)]
         c2, c3 = max((16, filters[0] // 4, self.reg_max * 4)), max(
             filters[0], min(self.nc, 104)
         )  # channels
@@ -484,7 +507,7 @@ class DetectionHead(nn.Module):
             )
 
             y = [(i.reshape(x[0].shape[0], self.no, -1)) for i in x]
-            x_cat = torch.cat((y[0], y[1], y[2]), dim=2)
+            x_cat = torch.cat(y, dim=2)
             box, cls = x_cat[:, : self.reg_max * 4], x_cat[:, self.reg_max * 4 :]
             dbox = (
                 dist2bbox(self.dfl(box), self.anchors.unsqueeze(0), xywh=True, dim=1)
