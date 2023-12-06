@@ -881,7 +881,9 @@ def average_precision(predictions, ground_truth, class_id, iou_threshold=0.5):
     return ap.item()
 
 
-def mean_average_precision(post_predictions, batch, batch_bboxes, iou_threshold=0.5):
+def mean_average_precision(
+    post_predictions, batch, batch_bboxes, num_classes=80, iou_threshold=0.5
+):
     """
     Calculate the mean average precision (mAP) for all classes in YOLO predictions.
 
@@ -895,6 +897,8 @@ def mean_average_precision(post_predictions, batch, batch_bboxes, iou_threshold=
         Tensor containing batch bounding boxes.
     iou_threshold : float
         The IoU threshold for considering a prediction as correct.
+    num_classes : int
+        The number of classes of the dataset. Default is 80.
 
     Returns
     -------
@@ -914,7 +918,7 @@ def mean_average_precision(post_predictions, batch, batch_bboxes, iou_threshold=
             (bboxes, torch.ones((num_obj, 1)).to(batch["img"].device), classes), dim=1
         )
 
-        for class_id in range(80):
+        for class_id in range(num_classes):
             ap = average_precision(
                 post_predictions[batch_el].to(batch["img"].device),
                 gt,
