@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Tuple, Union
 from accelerate import DistributedDataParallelKwargs
+from torchinfo import summary
 
 import torch
 from accelerate import Accelerator
@@ -18,6 +19,7 @@ from tqdm import tqdm
 import warnings
 
 from .utils.helpers import get_logger
+from .utils.checkpointer import Checkpointer
 
 logger = get_logger()
 
@@ -211,6 +213,7 @@ class MicroMind(ABC):
 
         """
         self.input_shape = input_shape
+        self.modules.input_shape = input_shape
 
     def load_modules(self, checkpoint_path: Union[Path, str]):
         """Loads models for path.
@@ -228,15 +231,12 @@ class MicroMind(ABC):
             try:
                 self.modules[k].load_state_dict(dat[k])
             except Exception as e:  # maybe saved with DDP
-                print(
-                    " ".join(
-                        f"Problem loading checkpoint... \
-                      maybe trained with DDP... \
-                      {type(e).__name__}".split(
-                            " "
-                        )
-                    )
-                )
+                tmp = f""" There was a problem loading the checkpoint...
+                    Maybe trained with DDP... trying to load it anyways.
+                    Errow was {type(e).__name__}.
+                    """
+                warnings.warn(" ".join(tmp.split()))
+
                 self.modules[k] = torch.nn.DataParallel(self.modules[k])
                 self.modules[k].load_state_dict(dat[k])
                 self.modules[k] = self.modules[k].module
@@ -249,7 +249,11 @@ class MicroMind(ABC):
             logger.info(f"Couldn't find a state_dict for modules {modules_keys}.")
 
     def export(
-        self, save_dir: Union[Path, str], out_format: str = "onnx", input_shape=None
+        self,
+        save_dir: Union[Path, str],
+        out_format: Optional[str] = "onnx",
+        input_shape: Optional[str] = None,
+        qbatch: Optional[torch.Tensor] = None,
     ) -> None:
         """
         Export the model to a specified format for deployment.
@@ -265,10 +269,16 @@ class MicroMind(ABC):
         input_shape : Optional[Tuple]
             The input shape of the model. If not provided, the input shape
             specified during model creation is used.
+        qbatch : Optional[torch.Tensor]
+            Optional tensor used for PTQ using TFLite. Channels dimension is
+            permuted automatically.
 
         """
         from micromind import convert
 
+        if qbatch is not None:
+            if out_format != "tflite":
+                raise AssertionError("Can perform quantization only on TFLite models.")
         if not isinstance(save_dir, Path):
             save_dir = Path(save_dir)
         save_dir = save_dir.joinpath(self.hparams.experiment_name)
@@ -277,15 +287,15 @@ class MicroMind(ABC):
         assert (
             self.input_shape is not None
         ), "You should pass the input_shape of the model."
+        self.add_forward_to_modules()
 
         if out_format == "onnx":
-            convert.convert_to_onnx(
-                self, save_dir.joinpath("model.onnx"), replace_forward=True
-            )
+            convert.convert_to_onnx(self.modules, save_dir.joinpath("model.onnx"))
         elif out_format == "openvino":
-            convert.convert_to_openvino(self, save_dir, replace_forward=True)
+            convert.convert_to_openvino(self.modules, save_dir)
         elif out_format == "tflite":
-            convert.convert_to_tflite(self, save_dir, replace_forward=True)
+            qbatch = qbatch.permute(0, 3, 2, 1)
+            convert.convert_to_tflite(self.modules, save_dir, batch_quant=qbatch)
 
     def configure_optimizers(self):
         """Configures and defines the optimizer for the task. Defaults to adam
@@ -313,6 +323,61 @@ class MicroMind(ABC):
     def __call__(self, *x, **xv):
         """Just forwards everything to the forward method."""
         return self.forward(*x, **xv)
+
+    def add_forward_to_modules(self):
+        """Exports MicroMind forward function to its core ModuleList."""
+        bound_method = self.forward.__get__(self.modules, self.modules.__class__)
+        setattr(self.modules, "forward", bound_method)
+        self.modules.device = self.device
+
+    @torch.no_grad()
+    def compute_params(self):
+        """Computes the number of parameters for the modules inside `self.modules`.
+        Returns a dictionary with the parameter count for each module.
+
+        Returns
+        -------
+        Parameter count for self.modules. : Dict[int]
+        """
+        self.eval()
+        params = {}
+        for k, m in self.modules.items():
+            params[k] = summary(m, verbose=0).total_params
+
+        return params
+
+    @torch.no_grad()
+    def compute_macs(self, input_shape: Union[List, Tuple]):
+        """Computes the number of multiply-add for the modules inside `self.modules`.
+        Returns a dictionary with the MAC count for each module.
+
+        Arguments
+        ---------
+        input_shape : Union[List, Tuple]
+            Needed for MAC computation.
+
+        Returns
+        -------
+        MAC count for self.modules. : Dict[int]
+        """
+        self.eval()
+
+        try:
+            macs = {}
+            last_in = torch.zeros([1] + list(input_shape))
+            for k, m in self.modules.items():
+                macs[k] = summary(m, input_data=last_in, verbose=0).total_mult_adds
+                last_in = m(last_in)
+        except RuntimeError:
+            tmp = """
+            Could not compute the number of MACs of your MicroMind. Might be due
+            to on-the-fly data augmentation or something similar. You can, however,
+            estimate this more accurately after exporting the model.
+            """
+            warnings.warn(" ".join(tmp.split()))
+            macs = None
+
+        return macs
 
     def on_train_start(self):
         """Initializes the optimizer, modules and puts the networks on the right
@@ -394,8 +459,8 @@ class MicroMind(ABC):
         epochs: int = 1,
         datasets: Dict = {},
         metrics: List[Metric] = [],
-        checkpointer=None,  # fix type hints
-        debug: bool = False,
+        checkpointer: Optional[Checkpointer] = None,
+        debug: Optional[bool] = False,
     ) -> None:
         """
         This method trains the model on the provided training dataset for the
@@ -412,11 +477,13 @@ class MicroMind(ABC):
             "train", "val", and "test".
         metrics : Optional[List[Metric]]
             A list of metrics to track during training. Default is an empty list.
+        checkpointer : Optional[mm.utils.Checkpointer]
+            Checkpointer used to log the experiments and save best checkpoints
+            during training.
         debug : bool
             Whether to run in debug mode. Default is False. If in debug mode,
             only runs for few epochs
             and with few batches.
-
         """
         self.datasets = datasets
         self.metrics = metrics
@@ -433,6 +500,7 @@ class MicroMind(ABC):
                 f"Starting from epoch {self.start_epoch + 1}."
                 + f" Training is scheduled for {epochs} epochs."
             )
+
         for e in range(self.start_epoch + 1, epochs + 1):
             self.current_epoch = e
             pbar = tqdm(
@@ -454,6 +522,7 @@ class MicroMind(ABC):
                 with self.accelerator.autocast():
                     model_out = self(batch)
                     loss = self.compute_loss(model_out, batch)
+                    loss_epoch += loss.item()
 
                 self.accelerator.backward(loss)
                 self.opt.step()
