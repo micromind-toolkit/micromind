@@ -446,6 +446,7 @@ class DetectionHead(nn.Module):
             nn.Sequential(Conv(x, c3, 3), Conv(c3, c3, 3), nn.Conv2d(c3, self.nc, 1))
             for x in filters
         )
+
         self.dfl = DFL(self.reg_max)
 
     def forward(self, x):
@@ -464,19 +465,24 @@ class DetectionHead(nn.Module):
             a = self.cv2[i](x[i])
             b = self.cv3[i](x[i])
             x[i] = torch.cat((a, b), dim=1)
-        self.anchors, self.strides = (
-            xl.transpose(0, 1) for xl in make_anchors(x, self.stride, 0.5)
-        )
 
-        y = [(i.reshape(x[0].shape[0], self.no, -1)) for i in x]
-        x_cat = torch.cat((y[0], y[1], y[2]), dim=2)
-        box, cls = x_cat[:, : self.reg_max * 4], x_cat[:, self.reg_max * 4 :]
-        dbox = (
-            dist2bbox(self.dfl(box), self.anchors.unsqueeze(0), xywh=True, dim=1)
-            * self.strides
-        )
-        z = torch.cat((dbox, nn.Sigmoid()(cls)), dim=1)
-        return z, x
+        # this is needed for DDP, automatically set with .eval() and .train()
+        if not self.training:
+            self.anchors, self.strides = (
+                xl.transpose(0, 1) for xl in make_anchors(x, self.stride, 0.5)
+            )
+
+            y = [(i.reshape(x[0].shape[0], self.no, -1)) for i in x]
+            x_cat = torch.cat((y[0], y[1], y[2]), dim=2)
+            box, cls = x_cat[:, : self.reg_max * 4], x_cat[:, self.reg_max * 4 :]
+            dbox = (
+                dist2bbox(self.dfl(box), self.anchors.unsqueeze(0), xywh=True, dim=1)
+                * self.strides
+            )
+            z = torch.cat((dbox, nn.Sigmoid()(cls)), dim=1)
+            return z, x
+        else:
+            return x
 
 
 class YOLOv8(nn.Module):

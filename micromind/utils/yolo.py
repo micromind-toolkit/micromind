@@ -10,7 +10,6 @@ import types
 from collections import defaultdict
 from pathlib import Path
 
-import cv2
 import numpy as np
 import torch
 import torchvision
@@ -579,6 +578,8 @@ def draw_bounding_boxes_and_save(
     -------
         None
     """
+    import cv2  # here to avoid extra dependecy
+
     color_dict = {
         label: tuple(
             (((i + 1) * 50) % 256, ((i + 1) * 100) % 256, ((i + 1) * 150) % 256)
@@ -908,13 +909,18 @@ def mean_average_precision(post_predictions, batch, batch_bboxes, iou_threshold=
         ap_sum = 0
 
         num_obj = torch.sum(batch["batch_idx"] == batch_el).item()
-        bboxes = batch_bboxes[batch["batch_idx"] == batch_el]
-        classes = batch["cls"][batch["batch_idx"] == batch_el]
-        gt = torch.cat((bboxes, torch.ones((num_obj, 1)), classes), dim=1)
+        bboxes = batch_bboxes[batch["batch_idx"] == batch_el].to(batch["img"].device)
+        classes = batch["cls"][batch["batch_idx"] == batch_el].to(batch["img"].device)
+        gt = torch.cat(
+            (bboxes, torch.ones((num_obj, 1)).to(batch["img"].device), classes), dim=1
+        )
 
         for class_id in range(80):
             ap = average_precision(
-                post_predictions[batch_el], gt, class_id, iou_threshold
+                post_predictions[batch_el].to(batch["img"].device),
+                gt,
+                class_id,
+                iou_threshold,
             )
             ap_sum += ap
 

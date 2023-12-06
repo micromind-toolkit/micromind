@@ -33,7 +33,7 @@ class Inference(YOLO):
     def __init__(self, hparams):
         super().__init__(hparams=hparams, m_cfg={})
 
-    def forward(self, batch):
+    def forward(self, img):
         """Executes the detection network.
 
         Arguments
@@ -45,9 +45,10 @@ class Inference(YOLO):
         -------
             Output of the detection network : torch.Tensor
         """
-        backbone = self.modules["phinet"](batch[0])[1]
-        backbone[-1] = self.modules["sppf"](backbone[-1])
-        neck = self.modules["neck"](*backbone)
+        backbone = self.modules["phinet"](img)
+        neck_input = backbone[1]
+        neck_input.append(self.modules["sppf"](backbone[0]))
+        neck = self.modules["neck"](*neck_input)
         head = self.modules["head"](neck)
         return head
 
@@ -91,7 +92,7 @@ if __name__ == "__main__":
 
         with torch.no_grad():
             st = time.time()
-            predictions = model((pre_processed_image, None))
+            predictions = model(pre_processed_image)
             print(f"Inference took {int(round(((time.time() - st) * 1000)))}ms")
             post_predictions = postprocess(
                 preds=predictions[0], img=pre_processed_image, orig_imgs=image
@@ -104,5 +105,6 @@ if __name__ == "__main__":
             all_predictions=post_predictions,
             class_labels=class_labels,
         )
+
         # Exporting onnx model.
         model.export("model.onnx", "onnx", hparams.input_shape)
