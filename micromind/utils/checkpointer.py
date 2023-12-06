@@ -96,6 +96,7 @@ class Checkpointer:
         if hparams is not None and os.path.exists(self.root_dir):
             with open(os.path.join(self.root_dir, "args.yaml"), "w") as args_f:
                 args_f.write(yaml.dump(vars(hparams)))
+
         else:
             warnings.warn(
                 "You did not specify the configuration to the checkpointer, \

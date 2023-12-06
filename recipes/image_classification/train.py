@@ -61,7 +61,7 @@ class ImageClassification(mm.MicroMind):
                 include_top=True,
                 num_classes=hparams.num_classes,
             )
-
+        
         self.mixup_fn, _ = setup_mixup(hparams)
 
         print("Number of parameters for each module:")
