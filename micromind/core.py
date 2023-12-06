@@ -459,7 +459,7 @@ class MicroMind(ABC):
         epochs: int = 1,
         datasets: Dict = {},
         metrics: List[Metric] = [],
-        checkpointer: Optional[Checkpointer] = None,  # fix type hints
+        checkpointer: Optional[Checkpointer] = None,
         debug: Optional[bool] = False,
     ) -> None:
         """
@@ -500,6 +500,7 @@ class MicroMind(ABC):
                 f"Starting from epoch {self.start_epoch + 1}."
                 + f" Training is scheduled for {epochs} epochs."
             )
+
         for e in range(self.start_epoch + 1, epochs + 1):
             self.current_epoch = e
             pbar = tqdm(
@@ -521,6 +522,7 @@ class MicroMind(ABC):
                 with self.accelerator.autocast():
                     model_out = self(batch)
                     loss = self.compute_loss(model_out, batch)
+                    loss_epoch += loss.item()
 
                 self.accelerator.backward(loss)
                 self.opt.step()
