@@ -172,7 +172,7 @@ class YOLO(mm.MicroMind):
                         batch["ori_shape"][i],
                     )
                 )
-                
+
         batch_bboxes = torch.stack(batch_bboxes).to(self.device)
         mmAP = mean_average_precision(post_predictions, batch, batch_bboxes)
 
