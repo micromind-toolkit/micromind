@@ -24,7 +24,6 @@ def convert_to_onnx(
     net: Union[nn.Module, mm.MicroMind],
     save_path: Union[Path, str] = "model.onnx",
     simplify: bool = False,
-    replace_forward: bool = False,
 ):
     """Converts nn.Module to onnx and saves it to save_path.
     Optionally simplifies it. This function is internally used from `mm.MicroMind`.
@@ -37,9 +36,6 @@ def convert_to_onnx(
         Output path for the ONNX model.
     simplify : bool
         `True` if you want to simplify the model. Defaults to False.
-    replace_forward : bool
-        Used if you want to replace the forward method. It is need if you are calling
-        this function on a `mm.MicroMind`. Defaults to False.
 
     Returns
     -------
@@ -48,15 +44,6 @@ def convert_to_onnx(
     save_path = Path(save_path)
     os.makedirs(save_path.parent, exist_ok=True)
     x = torch.zeros([1] + list(net.input_shape))
-
-    if replace_forward:
-        # add forward to ModuleDict
-        bound_method = net.forward.__get__(net.modules, net.modules.__class__)
-        setattr(net.modules, "forward", bound_method)
-
-        net.modules.input_shape = net.input_shape
-        net = net.modules
-        x = [torch.zeros([1] + list(net.input_shape)), None]
 
     torch.onnx.export(
         net.cpu(),
@@ -82,9 +69,7 @@ def convert_to_onnx(
 
 
 @torch.no_grad()
-def convert_to_openvino(
-    net: Union[nn.Module, mm.MicroMind], save_path: Path, replace_forward: bool = False
-) -> str:
+def convert_to_openvino(net: Union[nn.Module, mm.MicroMind], save_path: Path) -> str:
     """Converts model to OpenVINO. Uses ONNX in the process and converts networks
     from channel-first to channel-last (for optimized inference).
 
@@ -94,9 +79,6 @@ def convert_to_openvino(
         PyTorch module to be exported.
     save_path : Union[Path, str]
         Output path for the OpenVINO model.
-    replace_forward : bool
-        Used if you want to replace the forward method. It is need if you are calling
-        this function on a `mm.MicroMind`. Defaults to False.
 
     Returns
     -------
@@ -125,9 +107,7 @@ def convert_to_openvino(
         save_path = Path(save_path)
 
     onnx_path = save_path.joinpath("model.onnx")
-    onnx_model = onnx.load(
-        convert_to_onnx(net, onnx_path, simplify=True, replace_forward=replace_forward)
-    )
+    onnx_model = onnx.load(convert_to_onnx(net, onnx_path, simplify=True))
 
     tf_rep = prepare(onnx_model)
 
@@ -163,7 +143,6 @@ def convert_to_tflite(
     net: Union[nn.Module, mm.MicroMind],
     save_path: Union[Path, str],
     batch_quant: torch.Tensor = None,
-    replace_forward: bool = False,
 ) -> None:
     """Converts nn.Module to tf_lite, optionally quantizes it.
 
@@ -176,9 +155,6 @@ def convert_to_tflite(
     batch_quant : torch.Tensor
         Optional batch for quantization. When passed, it is used to create the
         statistics of the quantized activations.
-    replace_forward : bool
-        Used if you want to replace the forward method. It is need if you are calling
-        this function on a `mm.MicroMind`. Defaults to False.
 
     """
     try:
@@ -206,7 +182,7 @@ def convert_to_tflite(
 
     vino_sub = save_path.joinpath("vino")
     os.makedirs(vino_sub, exist_ok=True)
-    vino_path = convert_to_openvino(net, vino_sub, replace_forward=replace_forward)
+    vino_path = convert_to_openvino(net, vino_sub)
     if os.name == "nt":
         openvino2tensorflow_exe_cmd = [
             sys.executable,

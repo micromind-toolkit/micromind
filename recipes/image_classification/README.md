@@ -1,5 +1,6 @@
 ## Image classification
 
+
 **Disclaimer**: we will shortly release HuggingFace checkpoints for ImageNet, CIFAR-100, and CIFAR-10 for both PhiNet and XiNet.
 
 This image classification recipe uses the PyTorch image models library (`timm`) to augment the data. It supports most data augmentation strategies, and datasets of the original implementation. However, it is implemented using `micromind` and thus, it exploits all the exportability and functionalities of the library.

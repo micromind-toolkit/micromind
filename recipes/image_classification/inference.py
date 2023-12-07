@@ -24,7 +24,7 @@ import torchvision
 class ImageClassification(ImageClassification):
     """Implements an image classification class for inference."""
 
-    def forward(self, batch):
+    def forward(self, img):
         """Computes forward step for image classifier.
 
         Arguments
@@ -36,7 +36,7 @@ class ImageClassification(ImageClassification):
         -------
         Predicted logits.
         """
-        return self.modules["classifier"](batch[0])
+        return self.modules["classifier"](img)
 
     def compute_loss(self, pred, batch):
         """Ignoring because it's inference."""
@@ -98,7 +98,7 @@ if __name__ == "__main__":
 
     img = preprocess(img.float() / 255)
     now = time.time()
-    logits = mind((img[None],))
+    logits = mind(img[None])
     print("Inference took %.5f ms." % ((time.time() - now) * 1e-3))
 
     print(

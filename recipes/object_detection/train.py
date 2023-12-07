@@ -13,7 +13,6 @@ Authors:
 
 import torch
 from prepare_data import create_loaders
-from torchinfo import summary
 from ultralytics.utils.ops import scale_boxes, xywh2xyxy
 from yolo_loss import Loss
 
@@ -58,12 +57,8 @@ class YOLO(mm.MicroMind):
 
         self.criterion = Loss(self.m_cfg, self.modules["head"], self.device)
 
-        tot_params = 0
-        for m in self.modules.values():
-            temp = summary(m, verbose=0)
-            tot_params += temp.total_params
-
-        print(f"Total parameters of model: {tot_params * 1e-6:.2f} M")
+        print("Number of parameters for each module:")
+        print(self.compute_params())
 
     def get_parameters(self, heads=[True, True, True]):
         """
@@ -180,6 +175,7 @@ class YOLO(mm.MicroMind):
                         batch["ori_shape"][i],
                     )
                 )
+
         batch_bboxes = torch.stack(batch_bboxes).to(self.device)
         mmAP = mean_average_precision(
             post_predictions, batch, batch_bboxes, data_cfg["nc"]
