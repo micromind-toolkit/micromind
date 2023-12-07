@@ -195,13 +195,17 @@ def replace_datafolder(hparams, data_cfg):
         data_cfg["path"][:-1] if data_cfg["path"][-1] == "/" else data_cfg["path"]
     )
     for key in ["train", "val"]:
-        if hasattr(hparams, "data_dir"):
-            if hparams.data_dir != data_cfg["path"]:
-                data_cfg[key] = str(data_cfg[key]).replace(data_cfg["path"], "")
-                data_cfg[key] = (
-                    data_cfg[key][1:] if data_cfg[key][0] == "/" else data_cfg[key]
-                )
-                data_cfg[key] = os.path.join(hparams.data_dir, data_cfg[key])
+        if not isinstance(data_cfg[key], list):
+            data_cfg[key] = [data_cfg[key]]
+        new_list = []
+        for tmp in data_cfg[key]:
+            if hasattr(hparams, "data_dir"):
+                if hparams.data_dir != data_cfg["path"]:
+                    tmp = str(tmp).replace(data_cfg["path"], "")
+                    tmp = tmp[1:] if tmp[0] == "/" else tmp
+                    tmp = os.path.join(hparams.data_dir, tmp)
+                    new_list.append(tmp)
+        data_cfg[key] = new_list
 
     data_cfg["path"] = hparams.data_dir
 

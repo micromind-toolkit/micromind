@@ -52,7 +52,7 @@ def load_config(file_path):
             if not isinstance(config["train"], list):
                 train = Path(path / config["train"])
             else:
-                train = [Path(path / p) for p in config["train"]]
+                train = [Path(path).joinpath(p) for p in config["train"]]
         else:
             train = None
 
@@ -60,7 +60,7 @@ def load_config(file_path):
             if not isinstance(config["val"], list):
                 val = Path(path / config["val"])
             else:
-                val = [Path(path / p) for p in config["val"]]
+                val = [Path(path).joinpath(p) for p in config["val"]]
         else:
             val = None
         # val = Path(path / config["val"]) if "val" in config else None
