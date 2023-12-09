@@ -70,7 +70,7 @@ def create_loaders(args: Namespace):
     dataset_train = create_dataset(
         args.dataset,
         root=args.data_dir,
-        # split=args.train_split,
+        split=args.train_split,
         is_training=True,
         class_map=args.class_map,
         download=args.dataset_download,
