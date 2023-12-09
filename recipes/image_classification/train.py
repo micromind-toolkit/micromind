@@ -21,7 +21,7 @@ from timm.loss import (
     LabelSmoothingCrossEntropy,
     SoftTargetCrossEntropy,
 )
-
+from timm.scheduler import create_scheduler
 import micromind as mm
 from micromind.networks import PhiNet, XiNet
 from micromind.utils import parse_configuration
@@ -142,9 +142,10 @@ class ImageClassification(mm.MicroMind):
 
     def configure_optimizers(self):
         """Configures the optimizes and, eventually the learning rate scheduler."""
-        opt = torch.optim.Adam(self.modules.parameters(), lr=3e-4, weight_decay=0.0005)
-        return opt
+        opt = torch.optim.RMSprop(self.modules.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay, eps=.001)
+        sched, self.tot_epochs = create_scheduler(self.hparams, opt, updates_per_epoch=len(self.datasets["train"]))
 
+        return opt, sched
 
 def top_k_accuracy(k=1):
     """
