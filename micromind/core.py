@@ -439,13 +439,7 @@ class MicroMind(ABC):
 
         if hasattr(self, "lr_sched"):
             self.lr_sched = accelerated[1 + len(self.modules)]
-            try:
-                self.accelerator.register_for_checkpointing(self.lr_sched)
-            except ValueError:
-                import warnings
-                tmp = """Could not save scheduler for checkpointing. \
-                    Ignore this if you are using timm."""
-                warnings.warn(" ".join(tmp.split()))
+            self.accelerator.register_for_checkpointing(self.lr_sched)
 
         if hasattr(self, "datasets"):
             for i, key in enumerate(list(self.datasets.keys())[::-1]):
@@ -494,7 +488,6 @@ class MicroMind(ABC):
         self.datasets = datasets
         self.metrics = metrics
         self.checkpointer = checkpointer
-        self.epochs = epochs
         assert "train" in self.datasets, "Training dataloader was not specified."
         assert epochs > 0, "You must specify at least one epoch."
 
@@ -508,7 +501,7 @@ class MicroMind(ABC):
                 + f" Training is scheduled for {epochs} epochs."
             )
 
-        for e in range(self.start_epoch + 1, self.epochs + 1):
+        for e in range(self.start_epoch + 1, epochs + 1):
             self.current_epoch = e
             pbar = tqdm(
                 self.datasets["train"],
@@ -536,8 +529,8 @@ class MicroMind(ABC):
 
                 loss_epoch += loss.item()
                 if hasattr(self, "lr_sched"):
-                    # epoch passed only to timm scheduler
-                    self.lr_sched.step(self.current_epoch)
+                    # ok for cos_lr
+                    self.lr_sched.step()
 
                 for m in self.metrics:
                     if (
