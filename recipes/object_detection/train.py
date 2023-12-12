@@ -64,6 +64,21 @@ class YOLO(mm.MicroMind):
         """
         Gets the parameters with which to initialize the network detection part
         (SPPF block, Yolov8Neck, DetectionHead).
+
+        Arguments
+        ---------
+        heads : list, optional
+            List indicating whether each detection head is active.
+            Default: [True, True, True].
+
+        Returns
+        -------
+        tuple
+            Tuple containing the parameters for initializing the network detection part:
+            - Tuple (c1, c2): Tuple of input channel sizes for the SPPF block.
+            - List neck_filters: List of filter sizes for Yolov8Neck.
+            - List up: List of upsampling factors for Yolov8Neck.
+            - List head_filters: List of filter sizes for DetectionHead.
         """
         in_shape = self.modules["backbone"].input_shape
         x = torch.randn(1, *in_shape)
