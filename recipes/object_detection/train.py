@@ -48,12 +48,15 @@ class YOLO(mm.MicroMind):
             return_layers=hparams.return_layers,
         )
 
-        heads = hparams.heads
-        sppf_ch, neck_filters, up, head_filters = self.get_parameters(heads=heads)
+        sppf_ch, neck_filters, up, head_filters = self.get_parameters(
+            heads=hparams.heads
+        )
 
         self.modules["sppf"] = SPPF(*sppf_ch)
-        self.modules["neck"] = Yolov8Neck(filters=neck_filters, up=up, heads=heads)
-        self.modules["head"] = DetectionHead(filters=head_filters, heads=heads)
+        self.modules["neck"] = Yolov8Neck(
+            filters=neck_filters, up=up, heads=hparams.heads
+        )
+        self.modules["head"] = DetectionHead(filters=head_filters, heads=hparams.heads)
 
         self.criterion = Loss(self.m_cfg, self.modules["head"], self.device)
 
@@ -67,18 +70,18 @@ class YOLO(mm.MicroMind):
 
         Arguments
         ---------
-        heads : list, optional
+        heads : Optional[List]
             List indicating whether each detection head is active.
             Default: [True, True, True].
 
         Returns
         -------
-        tuple
-            Tuple containing the parameters for initializing the network detection part:
+        Tuple containing the parameters for initializing the network detection part.
+        Contains
             - Tuple (c1, c2): Tuple of input channel sizes for the SPPF block.
             - List neck_filters: List of filter sizes for Yolov8Neck.
             - List up: List of upsampling factors for Yolov8Neck.
-            - List head_filters: List of filter sizes for DetectionHead.
+            - List head_filters: List of filter sizes for DetectionHead. : Tuple
         """
         in_shape = self.modules["backbone"].input_shape
         x = torch.randn(1, *in_shape)
