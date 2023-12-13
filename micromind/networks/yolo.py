@@ -423,8 +423,7 @@ class Yolov8Neck(nn.Module):
 
         Returns
         -------
-        Three intermediate representations with different resolutions.
-            : List[torch.Tensor]
+        Three intermediate representations with different resolutions. : List
         """
         x = self.up1(p5)
         x = torch.cat((x, p4), dim=1)
