@@ -140,9 +140,9 @@ download: |
   # Unzip
   import zipfile
   for source, dest in (
-      ("./images/VOCtest_06-Nov-2007.zip", dir / "images"),
-      ("./images/VOCtrainval_06-Nov-2007.zip", dir / "images"),
-      ("./images/VOCtrainval_11-May-2012.zip", dir / "images"),
+      (dir / "images/VOCtest_06-Nov-2007.zip", dir / "images"),
+      (dir / "images/VOCtrainval_06-Nov-2007.zip", dir / "images"),
+      (dir / "images/VOCtrainval_11-May-2012.zip", dir / "images"),
   ):
       os.makedirs(dest, exist_ok=True)
       with zipfile.ZipFile(source, "r") as zip_ref:
