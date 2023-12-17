@@ -154,6 +154,3 @@ download: |
           'http://images.cocodataset.org/zips/val2017.zip',  # 1G, 5k images
           'http://images.cocodataset.org/zips/test2017.zip']  # 7G, 41k images (optional)
   download(urls, dir=dir / 'images', threads=3)
-  extracted_folder_path = dir / 'coco'
-  shutil.copytree(extracted_folder_path, data_cfg['path'], dirs_exist_ok = True)
-  shutil.rmtree(extracted_folder_path)
