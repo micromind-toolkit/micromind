@@ -1,6 +1,6 @@
 ## Object Detection using YOLO
 
-**[17 Dec 2023]** Add VOC dataset, and instructions for dataset download.
+**[17 Dec 2023]** Add VOC dataset, and instructions for dataset download. \\
 **[1 Dec 2023]** Fix DDP handling and computational graph
 
 **Disclaimer**: we will shortly release HuggingFace checkpoints for COCO and VOC for both PhiNet and XiNet.
