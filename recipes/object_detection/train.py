@@ -35,7 +35,7 @@ class YOLO(mm.MicroMind):
         super().__init__(*args, **kwargs)
         self.m_cfg = m_cfg
 
-        self.modules["phinet"] = PhiNet(
+        self.modules["backbone"] = PhiNet(
             input_shape=hparams.input_shape,
             alpha=hparams.alpha,
             num_layers=hparams.num_layers,
@@ -48,25 +48,44 @@ class YOLO(mm.MicroMind):
             return_layers=hparams.return_layers,
         )
 
-        sppf_ch, neck_filters, up, head_filters = self.get_parameters()
+        sppf_ch, neck_filters, up, head_filters = self.get_parameters(
+            heads=hparams.heads
+        )
 
         self.modules["sppf"] = SPPF(*sppf_ch)
-        self.modules["neck"] = Yolov8Neck(filters=neck_filters, up=up)
-        self.modules["head"] = DetectionHead(filters=head_filters)
+        self.modules["neck"] = Yolov8Neck(
+            filters=neck_filters, up=up, heads=hparams.heads
+        )
+        self.modules["head"] = DetectionHead(filters=head_filters, heads=hparams.heads)
 
         self.criterion = Loss(self.m_cfg, self.modules["head"], self.device)
 
         print("Number of parameters for each module:")
         print(self.compute_params())
 
-    def get_parameters(self):
+    def get_parameters(self, heads=[True, True, True]):
         """
         Gets the parameters with which to initialize the network detection part
         (SPPF block, Yolov8Neck, DetectionHead).
+
+        Arguments
+        ---------
+        heads : Optional[List]
+            List indicating whether each detection head is active.
+            Default: [True, True, True].
+
+        Returns
+        -------
+        Tuple containing the parameters for initializing the network detection part.
+        Contains
+            - Tuple (c1, c2): Tuple of input channel sizes for the SPPF block.
+            - List neck_filters: List of filter sizes for Yolov8Neck.
+            - List up: List of upsampling factors for Yolov8Neck.
+            - List head_filters: List of filter sizes for DetectionHead. : Tuple
         """
-        in_shape = self.modules["phinet"].input_shape
+        in_shape = self.modules["backbone"].input_shape
         x = torch.randn(1, *in_shape)
-        y = self.modules["phinet"](x)
+        y = self.modules["backbone"](x)
 
         c1 = c2 = y[0].shape[1]
         sppf = SPPF(c1, c2)
@@ -91,6 +110,8 @@ class YOLO(mm.MicroMind):
             out_neck[1].shape[1],
             out_neck[2].shape[1],
         )
+        # keep only the heads we want
+        head_filters = [head for heads, head in zip(heads, head_filters) if heads]
 
         return (c1, c2), neck_filters, up, head_filters
 
@@ -109,7 +130,7 @@ class YOLO(mm.MicroMind):
     def forward(self, batch):
         """Runs the forward method by calling every module."""
         preprocessed_batch = self.preprocess_batch(batch)
-        backbone = self.modules["phinet"](preprocessed_batch["img"].to(self.device))
+        backbone = self.modules["backbone"](preprocessed_batch["img"].to(self.device))
         neck_input = backbone[1]
         neck_input.append(self.modules["sppf"](backbone[0]))
         neck = self.modules["neck"](*neck_input)
@@ -174,7 +195,9 @@ class YOLO(mm.MicroMind):
                 )
 
         batch_bboxes = torch.stack(batch_bboxes).to(self.device)
-        mmAP = mean_average_precision(post_predictions, batch, batch_bboxes)
+        mmAP = mean_average_precision(
+            post_predictions, batch, batch_bboxes, data_cfg["nc"]
+        )
 
         return torch.Tensor([mmAP])
 
@@ -186,13 +209,17 @@ def replace_datafolder(hparams, data_cfg):
         data_cfg["path"][:-1] if data_cfg["path"][-1] == "/" else data_cfg["path"]
     )
     for key in ["train", "val"]:
-        if hasattr(hparams, "data_dir"):
-            if hparams.data_dir != data_cfg["path"]:
-                data_cfg[key] = str(data_cfg[key]).replace(data_cfg["path"], "")
-                data_cfg[key] = (
-                    data_cfg[key][1:] if data_cfg[key][0] == "/" else data_cfg[key]
-                )
-                data_cfg[key] = os.path.join(hparams.data_dir, data_cfg[key])
+        if not isinstance(data_cfg[key], list):
+            data_cfg[key] = [data_cfg[key]]
+        new_list = []
+        for tmp in data_cfg[key]:
+            if hasattr(hparams, "data_dir"):
+                if hparams.data_dir != data_cfg["path"]:
+                    tmp = str(tmp).replace(data_cfg["path"], "")
+                    tmp = tmp[1:] if tmp[0] == "/" else tmp
+                    tmp = os.path.join(hparams.data_dir, tmp)
+                    new_list.append(tmp)
+        data_cfg[key] = new_list
 
     data_cfg["path"] = hparams.data_dir
 

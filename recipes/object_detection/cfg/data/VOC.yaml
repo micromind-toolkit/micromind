@@ -1,0 +1,178 @@
+########
+# Data configuration file for VOC trainings.
+# Based on the ultralytics data conf.
+#
+# Adapted by:
+# - Matteo Beltrami, 2023
+# - Francesco Paissan, 2023
+########
+task: detect  # (str) YOLO task, i.e. detect, segment, classify, pose
+mode: train  # (str) YOLO mode, i.e. train, val, predict, export, track, benchmark
+
+# Train settings -------------------------------------------------------------------------------------------------------
+imgsz: 640  # (int | list) input images size as int for train and val modes, or list[w,h] for predict and export modes
+rect: False  # (bool) rectangular training if mode='train' or rectangular validation if mode='val'
+cache: False  # (bool) True/ram, disk or False. Use cache for data loading
+single_cls: False  # (bool) train multi-class data as single-class
+fraction: 1.0  # (float) dataset fraction to train on (default is 1.0, all images in train set)
+
+# Segmentation
+overlap_mask: True  # (bool) masks should overlap during training (segment train only)
+mask_ratio: 4  # (int) mask downsample ratio (segment train only)
+
+# Prediction settings --------------------------------------------------------------------------------------------------
+classes:  # (int | list[int], optional) filter results by class, i.e. classes=0, or classes=[0,2,3]
+
+# Hyperparameters ------------------------------------------------------------------------------------------------------
+box: 7.5  # (float) box loss gain
+cls: 0.5  # (float) cls loss gain (scale with pixels)
+dfl: 1.5  # (float) dfl loss gain
+
+hsv_h: 0.015  # (float) image HSV-Hue augmentation (fraction)
+hsv_s: 0.7  # (float) image HSV-Saturation augmentation (fraction)
+hsv_v: 0.4  # (float) image HSV-Value augmentation (fraction)
+degrees: 0.0  # (float) image rotation (+/- deg)
+translate: 0.1  # (float) image translation (+/- fraction)
+scale: 0.5  # (float) image scale (+/- gain)
+shear: 0.0  # (float) image shear (+/- deg)
+perspective: 0.0  # (float) image perspective (+/- fraction), range 0-0.001
+flipud: 0.0  # (float) image flip up-down (probability)
+fliplr: 0.5  # (float) image flip left-right (probability)
+mosaic: 1.0  # (float) image mosaic (probability)
+mixup: 0.0  # (float) image mixup (probability)
+copy_paste: 0.0  # (float) segment copy-paste (probability)
+
+# Train/val/test sets as 1) dir: path/to/imgs, 2) file: path/to/imgs.txt, or 3) list: [path/to/imgs1, path/to/imgs2, ..]
+path: ../datasets/VOC
+train: # train images (relative to 'path')  16551 images
+  - images/train2012
+  - images/train2007
+  - images/val2012
+  - images/val2007
+val: images/test2007
+test: images/test2007
+
+# Classes
+names:
+  0: aeroplane
+  1: bicycle
+  2: bird
+  3: boat
+  4: bottle
+  5: bus
+  6: car
+  7: cat
+  8: chair
+  9: cow
+  10: diningtable
+  11: dog
+  12: horse
+  13: motorbike
+  14: person
+  15: pottedplant
+  16: sheep
+  17: sofa
+  18: train
+  19: tvmonitor
+
+
+# Download script/URL (optional)
+download: |
+  import xml.etree.ElementTree as ET
+
+  from tqdm import tqdm
+  from ultralytics.utils.downloads import download
+  from pathlib import Path
+  import os
+  import yaml
+
+
+  def convert_label(path, lb_path, year, image_id):
+      def convert_box(size, box):
+          dw, dh = 1.0 / size[0], 1.0 / size[1]
+          x, y, w, h = (
+              (box[0] + box[1]) / 2.0 - 1,
+              (box[2] + box[3]) / 2.0 - 1,
+              box[1] - box[0],
+              box[3] - box[2],
+          )
+          return x * dw, y * dh, w * dw, h * dh
+
+      in_file = open(path / f"VOC{year}/Annotations/{image_id}.xml")
+      out_file = open(lb_path, "w")
+      import xml.etree.ElementTree as ET
+      tree = ET.parse(in_file)
+      root = tree.getroot()
+      size = root.find("size")
+      w = int(size.find("width").text)
+      h = int(size.find("height").text)
+      with open("./cfg/data/VOC.yaml", "r") as file:
+          import yaml
+          data_cfg = yaml.safe_load(file)
+      names = list(data_cfg["names"].values())  # names list
+      for obj in root.iter("object"):
+          cls = obj.find("name").text
+          if cls in names and int(obj.find("difficult").text) != 1:
+              xmlbox = obj.find("bndbox")
+              bb = convert_box(
+                  (w, h),
+                  [float(xmlbox.find(x).text) for x in ("xmin", "xmax", "ymin", "ymax")],
+              )
+              cls_id = names.index(cls)  # class id
+              out_file.write(" ".join(str(a) for a in (cls_id, *bb)) + "\n")
+
+
+  def unzip_file(zip_file_path, extract_to_path):
+      with zipfile.ZipFile(zip_file_path, "r") as zip_ref:
+          zip_ref.extractall(extract_to_path)
+
+
+  # Download
+  dir = Path(data_cfg['path'])
+  url = "https://github.com/ultralytics/yolov5/releases/download/v1.0/"
+  urls = [
+      f"{url}VOCtrainval_06-Nov-2007.zip",  # 446MB, 5012 images
+      f"{url}VOCtest_06-Nov-2007.zip",  # 438MB, 4953 images
+      f"{url}VOCtrainval_11-May-2012.zip",
+  ]  # 1.95GB, 17126 images
+  download(urls, dir=dir / "images", curl=True, unzip=False, threads=3)
+
+  # Unzip
+  import zipfile
+  for source, dest in (
+      (dir / "images/VOCtest_06-Nov-2007.zip", dir / "images"),
+      (dir / "images/VOCtrainval_06-Nov-2007.zip", dir / "images"),
+      (dir / "images/VOCtrainval_11-May-2012.zip", dir / "images"),
+  ):
+      os.makedirs(dest, exist_ok=True)
+      with zipfile.ZipFile(source, "r") as zip_ref:
+          zip_ref.extractall(dest)
+      print(f"Unziped file: {source}")
+
+  with open("./cfg/data/VOC.yaml", "r") as file:
+      data_cfg = yaml.safe_load(file)
+
+  # Convert
+  path = dir / "images/VOCdevkit"
+  for year, image_set in (
+      ("2012", "train"),
+      ("2012", "val"),
+      ("2007", "train"),
+      ("2007", "val"),
+      ("2007", "test"),
+  ):
+      imgs_path = dir / "images" / f"{image_set}{year}"
+      lbs_path = dir / "labels" / f"{image_set}{year}"
+      imgs_path.mkdir(exist_ok=True, parents=True)
+      lbs_path.mkdir(exist_ok=True, parents=True)
+
+      with open(path / f"VOC{year}/ImageSets/Main/{image_set}.txt") as f:
+          image_ids = f.read().strip().split()
+      for id in tqdm(image_ids, desc=f"{image_set}{year}"):
+          f = path / f"VOC{year}/JPEGImages/{id}.jpg"  # old img path
+          lb_path = (lbs_path / f.name).with_suffix(".txt")  # new label path
+          if os.path.exists(f):
+              f.rename(imgs_path / f.name)  # move image
+              convert_label(path, lb_path, year, id)  # convert labels to YOLO format
+          else:
+              print(f"skipping file {f}")

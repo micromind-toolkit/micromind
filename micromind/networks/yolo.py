@@ -345,16 +345,22 @@ class Yolov8Neck(nn.Module):
 
     Arguments
     ---------
-    w : float
-        Width multiple of the Darknet.
-    r : float
-        Ratio multiple of the Darknet.
-    d : float
-        Depth multiple of the Darknet.
+    filters : list, optional
+        List of filter sizes for different layers. Default: [256, 512, 768].
+    up : list, optional
+        List of upsampling factors. Default: [2, 2].
+    heads : list, optional
+        List indicating whether each detection head is active.
+        Default: [True, True, True].
+    d : float, optional
+        Depth multiple of the Darknet. Default: 1.
     """
 
-    def __init__(self, filters=[256, 512, 768], up=[2, 2], d=1):
+    def __init__(
+        self, filters=[256, 512, 768], up=[2, 2], heads=[True, True, True], d=1
+    ):
         super().__init__()
+        self.heads = heads
         self.up1 = Upsample(up[0], mode="nearest")
         self.up2 = Upsample(up[1], mode="nearest")
         self.n1 = C2f(
@@ -369,36 +375,55 @@ class Yolov8Neck(nn.Module):
             n=round(3 * d),
             shortcut=False,
         )
-        self.n3 = Conv(
-            c1=int(filters[0]), c2=int(filters[0]), kernel_size=3, stride=2, padding=1
-        )
-        self.n4 = C2f(
-            c1=int(filters[0] + filters[1]),
-            c2=int(filters[1]),
-            n=round(3 * d),
-            shortcut=False,
-        )
-        self.n5 = Conv(
-            c1=int(filters[1]), c2=int(filters[1]), kernel_size=3, stride=2, padding=1
-        )
-        self.n6 = C2f(
-            c1=int(filters[1] + filters[2]),
-            c2=int(filters[2]),
-            n=round(3 * d),
-            shortcut=False,
-        )
+        """
+        Only if we decide to use the 2nd and 3rd detection head we define
+        the needed blocks. Otherwise the not needed blocks would be initialized
+        (and thus would occupy space) but will never be used.
+        """
+        if self.heads[1] or self.heads[2]:
+            self.n3 = Conv(
+                c1=int(filters[0]),
+                c2=int(filters[0]),
+                kernel_size=3,
+                stride=2,
+                padding=1,
+            )
+            self.n4 = C2f(
+                c1=int(filters[0] + filters[1]),
+                c2=int(filters[1]),
+                n=round(3 * d),
+                shortcut=False,
+            )
+        if self.heads[2]:
+            self.n5 = Conv(
+                c1=int(filters[1]),
+                c2=int(filters[1]),
+                kernel_size=3,
+                stride=2,
+                padding=1,
+            )
+            self.n6 = C2f(
+                c1=int(filters[1] + filters[2]),
+                c2=int(filters[2]),
+                n=round(3 * d),
+                shortcut=False,
+            )
 
     def forward(self, p3, p4, p5):
         """Executes YOLOv8 neck.
 
         Arguments
         ---------
-        x : tuple
-            Input to the neck.
+        p3 : torch.Tensor
+            First feature map coming from the backbone.
+        p4 : torch.Tensor
+            Second feature map coming from the backbone.
+        p5 : torch.Tensor
+            Third feature map coming from the backbone.
 
         Returns
         -------
-            Three intermediate representations with different resolutions : list
+        Three intermediate representations with different resolutions. : List
         """
         x = self.up1(p5)
         x = torch.cat((x, p4), dim=1)
@@ -406,13 +431,28 @@ class Yolov8Neck(nn.Module):
         h1 = self.up2(x)
         h1 = torch.cat((h1, p3), dim=1)
         head_1 = self.n2(h1)
-        h2 = self.n3(head_1)
-        h2 = torch.cat((h2, x), dim=1)
-        head_2 = self.n4(h2)
-        h3 = self.n5(head_2)
-        h3 = torch.cat((h3, p5), dim=1)
-        head_3 = self.n6(h3)
-        return [head_1, head_2, head_3]
+        return_heads = []
+
+        # here we check if the 1st head should be returned
+        if self.heads[0]:
+            return_heads.append(head_1)
+
+        # here we check if the 2nd head should be executed
+        if self.heads[1] or self.heads[2]:
+            h2 = self.n3(head_1)
+            h2 = torch.cat((h2, x), dim=1)
+            head_2 = self.n4(h2)
+            # here we check if the 2nd head should be returned
+            if self.heads[1]:
+                return_heads.append(head_2)
+
+        # here we check if the 3rd head should beexecuted and returned
+        if self.heads[2]:
+            h3 = self.n5(head_2)
+            h3 = torch.cat((h3, p5), dim=1)
+            head_3 = self.n6(h3)
+            return_heads.append(head_3)
+        return return_heads
 
 
 class DetectionHead(nn.Module):
@@ -424,15 +464,23 @@ class DetectionHead(nn.Module):
         Number of classes to predict.
     filters : tuple
         Number of channels of the three inputs of the detection head.
+    heads : list, optional
+        List indicating whether each detection head is active.
+        Default: [True, True, True].
     """
 
-    def __init__(self, nc=80, filters=()):
+    def __init__(self, nc=80, filters=(), heads=[True, True, True]):
         super().__init__()
         self.reg_max = 16
         self.nc = nc
         self.nl = len(filters)
         self.no = nc + self.reg_max * 4
         self.stride = torch.tensor([8.0, 16.0, 32.0], dtype=torch.float16)
+        assertion_error = """Expected at least one head to be active. \
+            Please change the `heads` parameter to a valid configuration. \
+            Every configuration other than [False, False, False] is a valid option."""
+        assert heads != [False, False, False], " ".join(assertion_error.split())
+        self.stride = self.stride[torch.tensor(heads)]
         c2, c3 = max((16, filters[0] // 4, self.reg_max * 4)), max(
             filters[0], min(self.nc, 104)
         )  # channels
@@ -454,8 +502,11 @@ class DetectionHead(nn.Module):
 
         Arguments
         ---------
-        x : list
+        x : list[torch.Tensor]
             Input to the detection head.
+            In the YOLOv8 standard implementation it contains the three outputs of
+            the neck. In a more general case it contains as many tensors as the number
+            of active heads in the initialization.
 
         Returns
         -------
@@ -473,7 +524,7 @@ class DetectionHead(nn.Module):
             )
 
             y = [(i.reshape(x[0].shape[0], self.no, -1)) for i in x]
-            x_cat = torch.cat((y[0], y[1], y[2]), dim=2)
+            x_cat = torch.cat(y, dim=2)
             box, cls = x_cat[:, : self.reg_max * 4], x_cat[:, self.reg_max * 4 :]
             dbox = (
                 dist2bbox(self.dfl(box), self.anchors.unsqueeze(0), xywh=True, dim=1)

@@ -1,6 +1,7 @@
 ## Object Detection using YOLO
 
-**[1 Dec 2023]** Fix DDP handling and computational graph
+**[17 Dec 2023]** Add VOC dataset, selective head option, and instructions for dataset download.<br />
+**[1 Dec 2023]** Fix DDP handling and computational graph.
 
 **Disclaimer**: we will shortly release HuggingFace checkpoints for COCO and VOC for both PhiNet and XiNet.
 
@@ -13,7 +14,8 @@ To reproduce our results, you can follow these steps:
 
 1. install `micromind` with `pip install git+https://github.com/fpaissan/micromind`
 2. install the additional dependencies for this recipe with `pip install -r extra_requirements.txt`
-3. start a training!
+
+**Note**: before training, do not start the process using DDP, if you need to download the dataset.
 
 ### Training
 
