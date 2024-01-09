@@ -137,8 +137,14 @@ download: |
     from pathlib import Path
     import zipfile
     import os
+    import shutil
     data_cfg['path'] = Path(data_cfg['path'])
     os.makedirs(data_cfg["path"], exist_ok=True)
     os.system(f"wget https://ultralytics.com/assets/coco8.zip -O {os.path.join(data_cfg['path'], 'coco8.zip')}")
     with zipfile.ZipFile(os.path.join(data_cfg['path'], 'coco8.zip'), 'r') as zip_ref:
         zip_ref.extractall(data_cfg['path'].parent)
+    extracted_folder_path = data_cfg['path'].parent / 'coco8'
+    new_folder_name = data_cfg['path'].name
+    if (data_cfg['path'].parent / new_folder_name).exists():
+        shutil.rmtree(data_cfg['path'].parent / new_folder_name)
+    extracted_folder_path.rename(data_cfg['path'].parent / new_folder_name)
