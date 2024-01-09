@@ -18,7 +18,7 @@ from yolo_loss import Loss
 
 import micromind as mm
 from micromind.networks import PhiNet
-from micromind.networks.yolo import SPPF, DetectionHead, Yolov8Neck
+from micromind.networks.yolo import SPPF, DetectionHead, Yolov8Neck, Yolov8NeckOpt
 from micromind.utils import parse_configuration
 from micromind.utils.yolo import (
     load_config,
@@ -53,7 +53,7 @@ class YOLO(mm.MicroMind):
         )
 
         self.modules["sppf"] = SPPF(*sppf_ch)
-        self.modules["neck"] = Yolov8Neck(
+        self.modules["neck"] = Yolov8NeckOpt(
             filters=neck_filters, up=up, heads=hparams.heads
         )
         self.modules["head"] = DetectionHead(filters=head_filters, heads=hparams.heads)
