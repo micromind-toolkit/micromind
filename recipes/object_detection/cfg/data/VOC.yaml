@@ -10,7 +10,7 @@ task: detect  # (str) YOLO task, i.e. detect, segment, classify, pose
 mode: train  # (str) YOLO mode, i.e. train, val, predict, export, track, benchmark
 
 # Train settings -------------------------------------------------------------------------------------------------------
-imgsz: 640  # (int | list) input images size as int for train and val modes, or list[w,h] for predict and export modes
+imgsz: 320  # (int | list) input images size as int for train and val modes, or list[w,h] for predict and export modes
 rect: False  # (bool) rectangular training if mode='train' or rectangular validation if mode='val'
 cache: False  # (bool) True/ram, disk or False. Use cache for data loading
 single_cls: False  # (bool) train multi-class data as single-class

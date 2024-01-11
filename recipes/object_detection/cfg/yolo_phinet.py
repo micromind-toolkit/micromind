@@ -11,7 +11,7 @@ data_cfg = "cfg/data/coco.yaml"
 data_dir = "data/coco"
 
 # Model configuration
-input_shape = (3, 672, 672)
+input_shape = (3, 320, 320)
 alpha = 2.3
 num_layers = 7
 beta = 0.75
