@@ -554,7 +554,9 @@ class YOLOv8(nn.Module):
     def __init__(self, w, r, d, num_classes=80):
         super().__init__()
         self.net = Darknet(w, r, d)
-        self.fpn = Yolov8Neck(w, r, d)
+        self.fpn = Yolov8Neck(
+            filters=[int(256 * w), int(512 * w), int(512 * w * r)], d=d
+        )
         self.head = DetectionHead(
             num_classes, filters=(int(256 * w), int(512 * w), int(512 * w * r))
         )
