@@ -98,7 +98,9 @@ class YOLO(mm.MicroMind):
         temp = """The layers you selected are not valid. \
             Please choose only layers between which the spatial resolution \
             doubles every time. Eventually, you can achieve this by \
-            changing the downsampling layers."""
+            changing the downsampling layers. If you are trying to change \
+            the input resolution, make sure you also change it in the \
+            dataset configuration file and that it is a multiple of 4."""
 
         assert up == [2, 2], " ".join(temp.split())
 
