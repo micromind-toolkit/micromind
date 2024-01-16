@@ -62,7 +62,7 @@ if __name__ == "__main__":
     )
 
     hparams = parse_configuration(sys.argv[1])
-    if isinstance(hparams.input_shape, str):
+    if len(hparams.input_shape) != 3:
         hparams.input_shape = [
             int(x) for x in "".join(hparams.input_shape).split(",")
         ]  # temp solution
