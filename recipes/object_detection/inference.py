@@ -45,7 +45,7 @@ class Inference(YOLO):
         -------
             Output of the detection network : torch.Tensor
         """
-        backbone = self.modules["phinet"](img)
+        backbone = self.modules["backbone"](img)
         neck_input = backbone[1]
         neck_input.append(self.modules["sppf"](backbone[0]))
         neck = self.modules["neck"](*neck_input)
