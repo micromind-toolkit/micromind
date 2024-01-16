@@ -231,11 +231,17 @@ def replace_datafolder(hparams, data_cfg):
 if __name__ == "__main__":
     assert len(sys.argv) > 1, "Please pass the configuration file to the script."
     hparams = parse_configuration(sys.argv[1])
+    if isinstance(hparams.input_shape, str):
+        hparams.input_shape = [
+            int(x) for x in "".join(hparams.input_shape).split(",")
+        ]  # temp solution
+        print(f"Setting input shape to {hparams.input_shape}.")
 
     m_cfg, data_cfg = load_config(hparams.data_cfg)
 
     # check if specified path for images is different, correct it in case
     data_cfg = replace_datafolder(hparams, data_cfg)
+    m_cfg.imgsz = hparams.input_shape[-1]  # temp solution
 
     train_loader, val_loader = create_loaders(m_cfg, data_cfg, hparams.batch_size)
 
@@ -252,7 +258,7 @@ if __name__ == "__main__":
     mAP = mm.Metric("mAP", yolo_mind.mAP, eval_only=True, eval_period=1)
 
     yolo_mind.train(
-        epochs=200,
+        epochs=hparams.epochs,
         datasets={"train": train_loader, "val": val_loader},
         metrics=[mAP],
         checkpointer=checkpointer,
