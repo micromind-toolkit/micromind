@@ -9,9 +9,10 @@ Authors:
 batch_size = 8
 data_cfg = "cfg/data/coco.yaml"
 data_dir = "data/coco"
+epochs = 200
 
 # Model configuration
-input_shape = (3, 672, 672)
+input_shape = [3, 640, 640]
 alpha = 2.3
 num_layers = 7
 beta = 0.75

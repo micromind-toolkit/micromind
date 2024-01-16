@@ -45,7 +45,7 @@ class Inference(YOLO):
         -------
             Output of the detection network : torch.Tensor
         """
-        backbone = self.modules["phinet"](img)
+        backbone = self.modules["backbone"](img)
         neck_input = backbone[1]
         neck_input.append(self.modules["sppf"](backbone[0]))
         neck = self.modules["neck"](*neck_input)
@@ -62,6 +62,11 @@ if __name__ == "__main__":
     )
 
     hparams = parse_configuration(sys.argv[1])
+    if isinstance(hparams.input_shape, str):
+        hparams.input_shape = [
+            int(x) for x in "".join(hparams.input_shape).split(",")
+        ]  # temp solution
+        print(f"Setting input shape to {hparams.input_shape}.")
 
     output_folder_path = Path(hparams.output_dir)
     output_folder_path.mkdir(parents=True, exist_ok=True)
