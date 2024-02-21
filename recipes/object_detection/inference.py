@@ -112,4 +112,4 @@ if __name__ == "__main__":
         )
 
         # Exporting onnx model.
-        model.export("model.onnx", "onnx", hparams.input_shape)
+        # model.export("model.onnx", "onnx", hparams.input_shape)

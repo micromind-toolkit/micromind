@@ -224,7 +224,7 @@ class MicroMind(ABC):
             Path to the checkpoint where the modules are stored.
 
         """
-        dat = torch.load(checkpoint_path)
+        dat = torch.load(checkpoint_path, map_location="cpu")
 
         modules_keys = list(self.modules.keys())
         for k in self.modules:
