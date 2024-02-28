@@ -250,6 +250,7 @@ class XiNet(nn.Module):
         include_top=False,
         base_filters: int = 16,
         return_layers: Optional[List] = None,
+        flattened_embeddings=False,
     ):
         super().__init__()
 
@@ -258,6 +259,8 @@ class XiNet(nn.Module):
         self.include_top = include_top
         self.return_layers = return_layers
         count_downsample = 0
+        self.flattened_embeddings = flattened_embeddings
+        self.features_dim = 0
 
         self.conv1 = nn.Sequential(
             nn.Conv2d(
@@ -340,6 +343,9 @@ class XiNet(nn.Module):
             for i in self.return_layers:
                 print(f"Layer {i} - {self._layers[i].__class__}")
 
+        if self.flattened_embeddings:
+            self.flatten = nn.Sequential(nn.AdaptiveAvgPool2d((1, 1)), nn.Flatten())
+
         self.input_shape = input_shape
         if self.include_top:
             self.classifier = nn.Sequential(
@@ -347,6 +353,8 @@ class XiNet(nn.Module):
                 nn.Flatten(),
                 nn.Linear(int(num_filters[-1] * alpha), num_classes),
             )
+
+        self.num_features = int(num_filters[-1] * alpha)
 
     def forward(self, x):
         """Computes the forward step of the XiNet.
@@ -373,6 +381,9 @@ class XiNet(nn.Module):
             if self.return_layers is not None:
                 if layer_id in self.return_layers:
                     ret.append(x)
+
+        if self.flattened_embeddings:
+            x = self.flatten(x)
 
         if self.include_top:
             x = self.classifier(x)
