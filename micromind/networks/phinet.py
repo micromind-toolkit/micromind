@@ -449,7 +449,11 @@ class PhiNetConvBlock(nn.Module):
             kernel_size=k_size,
             stride=stride,
             bias=False,
-            padding=k_size // 2 if stride == 1 else (padding[1], padding[3]),
+            padding=k_size // 2
+            if isinstance(k_size, int) and stride == 1
+            else [x // 2 for x in k_size]
+            if stride == 1
+            else (padding[1], padding[3]),
         )
 
         bn_dw1 = nn.BatchNorm2d(
@@ -629,6 +633,7 @@ class PhiNet(nn.Module):
         squeeze_excite: bool = True,  # S1
         divisor: int = 1,
         return_layers=None,
+        flattened_embeddings=False,
     ) -> None:
         super(PhiNet, self).__init__()
         self.alpha = alpha
@@ -637,6 +642,8 @@ class PhiNet(nn.Module):
         self.num_layers = num_layers
         self.num_classes = num_classes
         self.return_layers = return_layers
+        self.flattened_embeddings = flattened_embeddings
+        self.features_dim = 0
 
         if compatibility:  # disables operations hard for some platforms
             h_swish = False
@@ -801,6 +808,14 @@ class PhiNet(nn.Module):
                 spatial_res / 2 if block_id in downsampling_layers else spatial_res
             )
             block_id += 1
+
+        if self.flattened_embeddings:
+
+            flatten = nn.Sequential(nn.AdaptiveAvgPool2d((1, 1)), nn.Flatten())
+
+            self._layers.append(flatten)
+
+        self.num_features = _make_divisible(int(block_filters * alpha), divisor=divisor)
 
         if include_top:
             # Includes classification head if required
