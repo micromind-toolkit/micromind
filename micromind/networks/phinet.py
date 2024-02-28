@@ -810,9 +810,7 @@ class PhiNet(nn.Module):
             block_id += 1
 
         if self.flattened_embeddings:
-
             flatten = nn.Sequential(nn.AdaptiveAvgPool2d((1, 1)), nn.Flatten())
-
             self._layers.append(flatten)
 
         self.num_features = _make_divisible(int(block_filters * alpha), divisor=divisor)
