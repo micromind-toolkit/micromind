@@ -215,12 +215,12 @@ def replace_datafolder(hparams, data_cfg):
             data_cfg[key] = [data_cfg[key]]
         new_list = []
         for tmp in data_cfg[key]:
+            original_tmp = tmp
             if hasattr(hparams, "data_dir"):
                 if hparams.data_dir != data_cfg["path"]:
-                    tmp = str(tmp).replace(data_cfg["path"], "")
-                    tmp = tmp[1:] if tmp[0] == "/" else tmp
+                    tmp = str(tmp).replace(data_cfg["path"], "").lstrip("/")
                     tmp = os.path.join(hparams.data_dir, tmp)
-                    new_list.append(tmp)
+            new_list.append(tmp)  # Append regardless of replacement
         data_cfg[key] = new_list
 
     data_cfg["path"] = hparams.data_dir
@@ -238,11 +238,11 @@ if __name__ == "__main__":
         print(f"Setting input shape to {hparams.input_shape}.")
 
     m_cfg, data_cfg = load_config(hparams.data_cfg)
-
+    
     # check if specified path for images is different, correct it in case
     data_cfg = replace_datafolder(hparams, data_cfg)
     m_cfg.imgsz = hparams.input_shape[-1]  # temp solution
-
+    
     train_loader, val_loader = create_loaders(m_cfg, data_cfg, hparams.batch_size)
 
     exp_folder = mm.utils.checkpointer.create_experiment_folder(

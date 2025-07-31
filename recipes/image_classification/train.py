@@ -24,8 +24,11 @@ from timm.loss import (
 
 import micromind as mm
 from micromind.networks import PhiNet, XiNet
-from micromind.utils import parse_configuration
+from micromind.utils import parse_configuration, ActivationHook
 import sys
+
+from torch.utils.data import Subset
+from torch.utils.data import DataLoader
 
 
 class ImageClassification(mm.MicroMind):
@@ -201,5 +204,25 @@ if __name__ == "__main__":
         checkpointer=checkpointer,
         debug=hparams.debug,
     )
+
+    # Create a subset of the validation set containing only the first image
+    val_dataset = val_loader.dataset  # Assuming val_loader.dataset exists
+    subset_indices = [0]  # Only the first index
+    val_subset = Subset(val_dataset, subset_indices)
+
+    # Create a new DataLoader for the subset
+    one_loader = DataLoader(
+        val_subset,
+        batch_size=1,  # Load one image per batch
+        shuffle=False,
+        num_workers=hparams.num_workers if hasattr(hparams, "num_workers") else 0,
+    )
+
+    h = ActivationHook()
+    key = mind.attach_hook_fn(h, ("classifier._layers.3","classifier._layers.5._layers.6"))
+
+    mind.test(datasets={"test": one_loader}, metrics=[top1, top5])
+
+    mind.detach_hook_fn((key,))
 
     mind.test(datasets={"test": val_loader}, metrics=[top1, top5])
